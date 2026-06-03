@@ -1,0 +1,245 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --gold: #C9A233;
+  --void: #080810;
+
+  /* Empire surface + text tokens (R G B triplets) consumed by tailwind via
+     rgb(var(--e-x) / <alpha>). Default = DARK theme. html.light overrides below.
+     Gold + RAG are fixed and never themed. */
+  --e-void: 8 8 16;
+  --e-deep: 13 13 26;
+  --e-bg: 11 11 20;
+  --e-bg-soft: 23 23 42;
+  --e-surface: 18 18 31;
+  --e-elevated: 26 26 46;
+  --e-border: 42 42 68;
+  --e-text: 245 240 232;
+  --e-text-muted: 122 116 104;
+  --e-text-dim: 74 69 64;
+
+  /* Themeable glass + chrome (overridden in html.light). */
+  --glass-bg: 18 18 31;
+  --glass-bg-a: 0.55;
+  --glass-border: 201 162 51;
+  --glass-border-a: 0.18;
+  --page-bg: #080810;
+  --scroll-track: #0D0D1A;
+  --scroll-thumb: #2A2A44;
+}
+
+/* LIGHT theme — warm parchment, dark ink. Gold stays the single accent. */
+html.light {
+  --e-void: 245 241 232;
+  --e-deep: 236 230 216;
+  --e-bg: 241 236 224;
+  --e-bg-soft: 228 220 203;
+  --e-surface: 251 247 239;
+  --e-elevated: 255 255 255;
+  --e-border: 216 205 182;
+  --e-text: 42 36 24;
+  --e-text-muted: 107 97 73;
+  --e-text-dim: 154 142 114;
+
+  --glass-bg: 252 249 242;
+  --glass-bg-a: 0.62;
+  --glass-border: 201 162 51;
+  --glass-border-a: 0.34;
+  --page-bg: #EFE8DA;
+  --scroll-track: #E4DCCB;
+  --scroll-thumb: #C9A233;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--page-bg);
+}
+
+body {
+  background: var(--page-bg);
+  color: rgb(var(--e-text));
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.font-empire {
+  font-family: 'Cinzel', 'Georgia', serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--scroll-track); }
+::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #C9A233; }
+
+/* Gold divider */
+.gold-line {
+  background: linear-gradient(90deg, transparent, #C9A233 30%, #C9A233 70%, transparent);
+  height: 1px;
+  width: 100%;
+}
+
+/* RAG badge */
+.rag-green {
+  @apply bg-empire-green-bg text-empire-green-bright border border-empire-green/40;
+}
+.rag-amber {
+  @apply bg-empire-amber-bg text-empire-amber-bright border border-empire-amber/40;
+}
+.rag-red {
+  @apply bg-empire-red-bg text-empire-red-bright border border-empire-red/40;
+}
+.rag-pending {
+  @apply bg-empire-surface text-empire-text-muted border border-empire-border;
+}
+
+/* Reusable form inputs */
+.empire-input {
+  @apply bg-empire-elevated border border-empire-border rounded px-3 py-2 text-sm text-empire-text placeholder:text-empire-text-dim focus:outline-none focus:border-empire-gold/40;
+}
+.empire-label {
+  @apply text-xs text-empire-text-muted uppercase tracking-widest;
+}
+.empire-btn-primary {
+  @apply px-4 py-2 bg-empire-gold text-empire-void text-xs uppercase tracking-widest rounded font-semibold hover:bg-empire-gold/80 transition-colors;
+}
+
+/* ============================================================
+   EMPIRE OS — Liquid Glass + Liquid Metal + 3D Medallions
+   Faded-glass surfaces (user spec) re-tinted for the dark gold
+   empire palette. Used by GlassPanel, DockNav, ProfileSwitcher.
+   ============================================================ */
+
+/* Liquid glass — dark, gold-edged frost. Based on the user's
+   reference (rgba white 0.2 / radius 16 / blur / 1px border) but
+   inverted to a near-black tint so cream text stays readable. */
+.glass {
+  background: rgb(var(--glass-bg) / var(--glass-bg-a));
+  border-radius: 16px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
+}
+/* Brighter gold-frost variant for floating chrome (dock / brand). */
+.glass-gold {
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.62), rgba(13, 13, 26, 0.62));
+  border-radius: 18px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(201, 162, 51, 0.12);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid rgba(201, 162, 51, 0.28);
+}
+/* Edgeless (no visible hard edge) floating box for the bottom dock. */
+.glass-edgeless {
+  background: rgba(13, 13, 26, 0.5);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.6);
+  border-radius: 9999px;
+}
+
+/* Light-theme glass: brighten the frosted gradients so dark ink reads. */
+html.light .glass-gold {
+  background: linear-gradient(135deg, rgba(255, 253, 247, 0.72), rgba(244, 238, 224, 0.72));
+  box-shadow: 0 8px 40px rgba(120, 100, 40, 0.18), inset 0 1px 0 rgba(201, 162, 51, 0.22);
+  border: 1px solid rgba(201, 162, 51, 0.34);
+}
+html.light .glass-edgeless {
+  background: rgba(250, 246, 238, 0.62);
+  border: 1px solid rgba(201, 162, 51, 0.18);
+  box-shadow: 0 10px 50px rgba(120, 100, 40, 0.22);
+}
+
+/* Liquid metal — molten-gold brushed surface with a slow specular
+   sweep. Pure CSS/SVG, no WebGL/no library. The sheen animates the
+   gradient position; the SVG turbulence layer (in LiquidMetalButton)
+   adds the liquid warp. */
+.liquid-metal {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0) 40%),
+    linear-gradient(100deg, #6e5410 0%, #c9a233 22%, #f4e39b 38%, #c9a233 52%, #8a6f1e 72%, #c9a233 100%);
+  background-size: 100% 100%, 220% 100%;
+  background-position: 0 0, var(--lm-pos, 0%) 0;
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.5),
+    inset 0 -2px 6px rgba(0,0,0,0.45),
+    0 6px 20px rgba(201,162,51,0.25);
+  transition: background-position 0.1s linear, box-shadow 0.25s ease, transform 0.2s ease;
+  animation: lm-sheen 6s linear infinite;
+}
+.liquid-metal:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.65),
+    inset 0 -2px 8px rgba(0,0,0,0.5),
+    0 8px 30px rgba(201,162,51,0.45);
+  transform: translateY(-1px);
+}
+.liquid-metal:active { transform: translateY(0) scale(0.99); }
+@keyframes lm-sheen {
+  0%   { background-position: 0 0, 0% 0; }
+  100% { background-position: 0 0, 200% 0; }
+}
+/* Dark/steel metal variant for secondary actions. */
+.liquid-metal-steel {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 40%),
+    linear-gradient(100deg, #1a1a2e 0%, #3a3a55 30%, #6a6a85 48%, #3a3a55 66%, #1a1a2e 100%);
+  background-size: 100% 100%, 220% 100%;
+  background-position: 0 0, var(--lm-pos, 0%) 0;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.25),
+    inset 0 -2px 6px rgba(0,0,0,0.6),
+    0 6px 20px rgba(0,0,0,0.4);
+}
+
+/* 3D unit medallion — static layered "coin" the unit glyph sits on.
+   Radial gold light, beveled rim, cast shadow. No motion. */
+.medallion {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 32% 26%, #f4e39b 0%, #c9a233 30%, #8a6f1e 62%, #5a460f 100%);
+  box-shadow:
+    inset 0 2px 3px rgba(255,255,255,0.55),
+    inset 0 -3px 6px rgba(0,0,0,0.5),
+    inset 0 0 0 1px rgba(255,255,255,0.15),
+    0 4px 10px rgba(0,0,0,0.55),
+    0 1px 0 rgba(255,255,255,0.1);
+  color: #2a2208;
+}
+.medallion::after {
+  content: '';
+  position: absolute; inset: 14%;
+  border-radius: 9999px;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.35), inset 0 -1px 1px rgba(255,255,255,0.25);
+  pointer-events: none;
+}
+/* Steel medallion for neutral/non-active units. */
+.medallion-steel {
+  background:
+    radial-gradient(circle at 32% 26%, #d6d9e2 0%, #9aa0b0 34%, #5a5f72 66%, #2c3040 100%);
+  color: #15171f;
+}
+
+/* Chart hover tooltip blob. */
+.chart-tip {
+  pointer-events: none;
+  position: absolute;
+  z-index: 30;
+  transform: translate(-50%, -120%);
+  white-space: nowrap;
+}

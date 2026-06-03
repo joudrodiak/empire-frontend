@@ -1,0 +1,83 @@
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+
+// Active company (tenant) — Empire OS profiles are COMPANIES. The active company
+// slug is stored in localStorage by the profile switcher; we forward it to the
+// API as `x-company-slug` so every request is scoped to the selected company.
+// Server-side / no storage → no header (back-compat: API returns all rows).
+const PROFILE_KEY = 'empire-os-active-profile'
+
+function activeCompanySlug(): string | null {
+  if (typeof window === 'undefined') return null
+  try { return localStorage.getItem(PROFILE_KEY) } catch { return null }
+}
+
+function companyHeaders(base: Record<string, string> = {}): Record<string, string> {
+  const slug = activeCompanySlug()
+  return slug ? { ...base, 'x-company-slug': slug } : base
+}
+
+// Panels fetch their data on mount with the current company header. When the
+// active company changes we must re-pull every panel with the new scope; the
+// switcher dispatches `empire-profile-change`. A single reload here (in the lib,
+// not in any panel) guarantees all in-flight and cached data is refetched for
+// the newly selected company. Guarded so it only ever runs in the browser.
+if (typeof window !== 'undefined') {
+  window.addEventListener('empire-profile-change', () => {
+    // Defer so localStorage is written by the switcher before we re-read it.
+    setTimeout(() => window.location.reload(), 0)
+  })
+}
+
+export async function fetcher(path: string) {
+  const res = await fetch(`${API}${path}`, { headers: companyHeaders() })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json()
+}
+
+export async function post(path: string, body: unknown) {
+  const res = await fetch(`${API}${path}`, {
+    method: 'POST',
+    headers: companyHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json()
+}
+
+export async function patch(path: string, body: unknown) {
+  const res = await fetch(`${API}${path}`, {
+    method: 'PATCH',
+    headers: companyHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json()
+}
+
+export async function del(path: string) {
+  const res = await fetch(`${API}${path}`, { method: 'DELETE', headers: companyHeaders() })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json()
+}
+
+export function ragColor(status: string) {
+  switch (status) {
+    case 'GREEN': return 'rag-green'
+    case 'AMBER': return 'rag-amber'
+    case 'RED': return 'rag-red'
+    default: return 'rag-pending'
+  }
+}
+
+export function ragLabel(status: string) {
+  switch (status) {
+    case 'GREEN': return 'Thriving'
+    case 'AMBER': return 'Stable'
+    case 'RED': return 'Critical'
+    default: return 'Pending'
+  }
+}
+
+export function formatCurrency(amount: number, currency = 'EUR') {
+  return new Intl.NumberFormat('en-EU', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount)
+}

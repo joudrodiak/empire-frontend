@@ -94,6 +94,13 @@ export default function DepartmentPage() {
       window.history.replaceState(null, '', u.toString())
     } catch { /* ignore */ }
   }, [])
+  // People Ops (and any roster) → "create a contract for this person" jumps to the
+  // Contracts tab with the form pre-opened for that employee.
+  const [contractPrefill, setContractPrefill] = useState<string | null>(null)
+  const createContractFor = useCallback((empId: string) => {
+    setContractPrefill(empId)
+    selectTab('contracts')
+  }, [selectTab])
 
   const load = useCallback(async () => {
     try {
@@ -207,7 +214,7 @@ export default function DepartmentPage() {
 
       <main key={activeTab} className="max-w-screen-xl mx-auto px-6 py-8 animate-slide-up">
         {activeTab === 'overview' && (
-          <OverviewTab dept={dept} latestScore={latestScore} followUps={followUps} entries={entries} allDepts={allDepts} onUpdate={load} />
+          <OverviewTab dept={dept} latestScore={latestScore} followUps={followUps} entries={entries} allDepts={allDepts} onUpdate={load} onCreateContract={createContractFor} />
         )}
         {activeTab === 'structure' && (
           <StructurePanel departmentSlug={dept.slug} accent={dept.color || '#c9a233'} />
@@ -271,15 +278,21 @@ export default function DepartmentPage() {
           />
         )}
         {activeTab === 'contracts' && (
-          <ContractsPanel departmentSlug={dept.slug} accent={dept.color || '#c9a233'} />
+          <ContractsPanel
+            departmentSlug={dept.slug}
+            accent={dept.color || '#c9a233'}
+            prefillEmployeeId={contractPrefill}
+            onConsumePrefill={() => setContractPrefill(null)}
+          />
         )}
       </main>
     </div>
   )
 }
 
-function OverviewTab({ dept, latestScore, followUps, entries, allDepts, onUpdate }: {
+function OverviewTab({ dept, latestScore, followUps, entries, allDepts, onUpdate, onCreateContract }: {
   dept: Dept; latestScore?: CompositeScore; followUps: FollowUp[]; entries: DeptEntry[]; allDepts: AllDept[]; onUpdate: () => void
+  onCreateContract?: (empId: string) => void
 }) {
   const openFollowUps = followUps.filter(f => f.status !== 'done')
   const criticalFollowUps = openFollowUps.filter(f => f.priority === 'critical' || f.priority === 'high')
@@ -303,7 +316,7 @@ function OverviewTab({ dept, latestScore, followUps, entries, allDepts, onUpdate
       <div className="grid grid-cols-3 gap-8">
         {/* Roster — full CRUD + cross-unit reassignment */}
         <div className="col-span-1">
-          <Roster dept={dept} allDepts={allDepts} onUpdate={onUpdate} />
+          <Roster dept={dept} allDepts={allDepts} onUpdate={onUpdate} onCreateContract={onCreateContract} />
           {dept.managedByAI && (
             <div className="p-3 mt-2 bg-empire-surface border border-purple-800/40 rounded-lg text-center">
               <div className="text-purple-400 text-xs inline-flex items-center gap-1.5">
@@ -394,7 +407,7 @@ function OverviewTab({ dept, latestScore, followUps, entries, allDepts, onUpdate
  * (DELETE /api/employees/:id). Paginated. */
 const ROSTER_PAGE_SIZE = 6
 
-function Roster({ dept, allDepts, onUpdate }: { dept: Dept; allDepts: AllDept[]; onUpdate: () => void }) {
+function Roster({ dept, allDepts, onUpdate, onCreateContract }: { dept: Dept; allDepts: AllDept[]; onUpdate: () => void; onCreateContract?: (empId: string) => void }) {
   const [page, setPage] = useState(0)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Employee | null>(null)
@@ -454,7 +467,16 @@ function Roster({ dept, allDepts, onUpdate }: { dept: Dept; allDepts: AllDept[];
                   {emp.salaryAmount ? <span className="text-empire-gold-muted ml-1">· {formatCurrency(emp.salaryAmount)}</span> : null}
                 </span>
               </div>
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 flex items-center gap-1">
+                {onCreateContract && (
+                  <button
+                    onClick={() => onCreateContract(emp.id)}
+                    title={`Create a contract for ${emp.name}`}
+                    className="p-1.5 rounded text-empire-text-dim hover:text-empire-gold hover:bg-empire-gold/10 transition-colors"
+                  >
+                    <EmpireIcon name="document" size={14} />
+                  </button>
+                )}
                 <RowActions
                   onView={() => setViewing(emp)}
                   onEdit={() => setEditing(emp)}

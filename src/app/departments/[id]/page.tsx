@@ -8,6 +8,7 @@ import { rankFor } from '@/lib/game-logic'
 import { EmpireIcon, asIconName, type IconName } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
 import { RowActions } from '@/components/molecules/RowActions'
+import { PhotoDrop } from '@/components/molecules/PhotoDrop'
 import { Modal } from '@/components/molecules/Modal'
 import { Pagination } from '@/components/molecules/Pagination'
 import { rankIcon } from '@/lib/rank-icons'
@@ -614,16 +615,11 @@ function RosterEmployeeModal({ dept, allDepts, employee, onClose, onSaved }: {
             </div>
           )}
         </div>
-        <div>
-          <label className="empire-label">Profile picture URL</label>
-          <div className="flex items-center gap-3 mt-1">
-            {f.avatarUrl
-              // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={f.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover border border-empire-border flex-shrink-0" />
-              : <div className="w-10 h-10 rounded-full border border-dashed border-empire-border flex items-center justify-center flex-shrink-0"><EmpireIcon name="user" size={16} className="text-empire-text-dim" /></div>}
-            <input className="empire-input flex-1" placeholder="https://…/photo.jpg" value={f.avatarUrl} onChange={e => setF({ ...f, avatarUrl: e.target.value })} />
-          </div>
-        </div>
+        <PhotoDrop
+          label="Profile picture"
+          value={f.avatarUrl}
+          onChange={v => setF({ ...f, avatarUrl: v })}
+        />
         <div className="flex justify-end gap-2 pt-1">
           <button onClick={onClose} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
           <button onClick={save} disabled={busy || !f.name || !f.role} className="empire-btn-primary disabled:opacity-50">

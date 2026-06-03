@@ -704,12 +704,19 @@ function FollowUpsTab({ followUps, dept, allDepts, onUpdate }: {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ title: '', description: '', priority: 'normal', dueDate: '', crossRefSlugs: [] as string[] })
   const [filter, setFilter] = useState<'all' | 'open' | 'done'>('open')
+  const [editing, setEditing] = useState<FollowUp | null>(null)
+  const [viewing, setViewing] = useState<FollowUp | null>(null)
 
   const filtered = followUps.filter(f => {
     if (filter === 'open') return f.status !== 'done'
     if (filter === 'done') return f.status === 'done'
     return true
   })
+
+  async function remove(id: string) {
+    await del(`/api/followups/${id}`)
+    onUpdate()
+  }
 
   async function submit() {
     if (!form.title) return
@@ -852,18 +859,106 @@ function FollowUpsTab({ followUps, dept, allDepts, onUpdate }: {
                   </span>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 {f.status !== 'done' && f.status !== 'in_progress' && (
                   <button onClick={() => updateStatus(f.id, 'in_progress')} className="text-xs px-2 py-1 border border-empire-amber/40 text-empire-amber-bright rounded hover:bg-empire-amber/10 transition-colors">
                     Start
                   </button>
                 )}
+                <RowActions
+                  onView={() => setViewing(f)}
+                  onEdit={() => setEditing(f)}
+                  onDelete={() => remove(f.id)}
+                  deleteLabel={`follow-up "${f.title}"`}
+                />
               </div>
             </div>
           </div>
         ))}
       </div>
+
+      {viewing && (
+        <Modal open onClose={() => setViewing(null)} title={viewing.title} icon={<EmpireIcon name="flag" size={18} />}>
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center gap-2 flex-wrap">
+              <PriorityBadge priority={viewing.priority} />
+              <StatusBadge status={viewing.status} />
+            </div>
+            {viewing.description && <p className="text-empire-text-muted">{viewing.description}</p>}
+            <dl className="grid grid-cols-2 gap-2 text-xs">
+              {viewing.dueDate && (
+                <div><dt className="text-empire-text-dim uppercase tracking-wide">Due</dt><dd className="text-empire-text">{format(new Date(viewing.dueDate), 'MMM d, yyyy')}</dd></div>
+              )}
+              {viewing.assignee && (
+                <div><dt className="text-empire-text-dim uppercase tracking-wide">Assignee</dt><dd className="text-empire-text">{viewing.assignee.name}</dd></div>
+              )}
+              <div><dt className="text-empire-text-dim uppercase tracking-wide">Created</dt><dd className="text-empire-text">{formatDistanceToNow(new Date(viewing.createdAt), { addSuffix: true })}</dd></div>
+            </dl>
+          </div>
+        </Modal>
+      )}
+
+      {editing && (
+        <EditFollowUpModal followUp={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); onUpdate() }} />
+      )}
     </div>
+  )
+}
+
+function EditFollowUpModal({ followUp, onClose, onSaved }: {
+  followUp: FollowUp; onClose: () => void; onSaved: () => void
+}) {
+  const [form, setForm] = useState({
+    title: followUp.title,
+    description: followUp.description || '',
+    priority: followUp.priority,
+    dueDate: followUp.dueDate ? followUp.dueDate.slice(0, 10) : '',
+  })
+  const [busy, setBusy] = useState(false)
+
+  async function save() {
+    if (!form.title) return
+    setBusy(true)
+    try {
+      await patch(`/api/followups/${followUp.id}`, {
+        title: form.title,
+        description: form.description || null,
+        priority: form.priority,
+        dueDate: form.dueDate || null,
+      })
+      onSaved()
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Edit follow-up" icon={<EmpireIcon name="pen" size={18} />}>
+      <div className="space-y-3">
+        <div>
+          <label className="empire-label">Title</label>
+          <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="empire-input w-full mt-1" />
+        </div>
+        <div>
+          <label className="empire-label">Description</label>
+          <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} className="empire-input w-full mt-1 resize-none" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="empire-label">Priority</label>
+            <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })} className="empire-input w-full mt-1">
+              {['low', 'normal', 'high', 'critical'].map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="empire-label">Due Date</label>
+            <input type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} className="empire-input w-full mt-1" />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <button onClick={onClose} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
+          <button onClick={save} disabled={busy} className="empire-btn-primary disabled:opacity-50">{busy ? 'Saving…' : 'Save'}</button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 

@@ -28,9 +28,21 @@ if (typeof window !== 'undefined') {
   })
 }
 
+// Surface the server's JSON `error` message (not just the status code) so UI
+// can show a real reason — e.g. "That reporting line would create a cycle."
+async function ensureOk(res: Response) {
+  if (res.ok) return
+  let msg = `API error: ${res.status}`
+  try {
+    const body = await res.json()
+    if (body && typeof body.error === 'string') msg = body.error
+  } catch { /* non-JSON error body — keep the status message */ }
+  throw new Error(msg)
+}
+
 export async function fetcher(path: string) {
   const res = await fetch(`${API}${path}`, { headers: companyHeaders() })
-  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  await ensureOk(res)
   return res.json()
 }
 
@@ -40,7 +52,7 @@ export async function post(path: string, body: unknown) {
     headers: companyHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body),
   })
-  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  await ensureOk(res)
   return res.json()
 }
 
@@ -50,13 +62,13 @@ export async function patch(path: string, body: unknown) {
     headers: companyHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body),
   })
-  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  await ensureOk(res)
   return res.json()
 }
 
 export async function del(path: string) {
   const res = await fetch(`${API}${path}`, { method: 'DELETE', headers: companyHeaders() })
-  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  await ensureOk(res)
   return res.json()
 }
 

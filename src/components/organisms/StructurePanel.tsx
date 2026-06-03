@@ -38,9 +38,20 @@ export function StructurePanel({ departmentSlug, accent }: { departmentSlug: str
 
   const people = data.people
   const byId = new Map(people.map(p => [p.id, p]))
-  // Roots = no manager, or a manager outside this unit's set.
-  const roots = people.filter(p => !p.reportsToId || !byId.has(p.reportsToId))
   const childrenOf = (id: string) => people.filter(p => p.reportsToId === id)
+  // Roots = no manager, or a manager outside this unit's set. Cycle guard: anyone
+  // not reachable from a real root (a reporting loop, e.g. A→B→A) is surfaced as a
+  // root too, so a person can NEVER vanish after a reportsTo change.
+  const baseRoots = people.filter(p => !p.reportsToId || !byId.has(p.reportsToId))
+  const reachable = new Set<string>()
+  const mark = (id: string) => {
+    if (reachable.has(id)) return
+    reachable.add(id)
+    childrenOf(id).forEach(c => mark(c.id))
+  }
+  baseRoots.forEach(r => mark(r.id))
+  const orphans = people.filter(p => !reachable.has(p.id))
+  const roots = [...baseRoots, ...orphans]
 
   return (
     <div className="space-y-6">
@@ -61,7 +72,7 @@ export function StructurePanel({ departmentSlug, accent }: { departmentSlug: str
           <div className="inline-flex flex-col items-center gap-0 min-w-full">
             <div className="flex items-start justify-center gap-8">
               {roots.map(r => (
-                <TreeNode key={r.id} person={r} childrenOf={childrenOf} onEdit={setEditing} accent={gold} depth={0} />
+                <TreeNode key={r.id} person={r} childrenOf={childrenOf} onEdit={setEditing} accent={gold} depth={0} ancestors={new Set()} />
               ))}
             </div>
           </div>
@@ -80,14 +91,18 @@ export function StructurePanel({ departmentSlug, accent }: { departmentSlug: str
   )
 }
 
-function TreeNode({ person, childrenOf, onEdit, accent, depth }: {
+function TreeNode({ person, childrenOf, onEdit, accent, depth, ancestors }: {
   person: Person
   childrenOf: (id: string) => Person[]
   onEdit: (p: Person) => void
   accent: string
   depth: number
+  ancestors: Set<string>
 }) {
-  const kids = childrenOf(person.id)
+  // Drop any child already in our ancestor chain — prevents infinite recursion
+  // if a reporting cycle ever slips past the server guard.
+  const kids = childrenOf(person.id).filter(k => !ancestors.has(k.id))
+  const nextAncestors = new Set(ancestors).add(person.id)
   return (
     <div className="flex flex-col items-center">
       <PersonCard person={person} accent={accent} onClick={() => onEdit(person)} />
@@ -104,7 +119,7 @@ function TreeNode({ person, childrenOf, onEdit, accent, depth }: {
             {kids.map(k => (
               <div key={k.id} className="flex flex-col items-center pt-0">
                 <div className="w-px h-5 bg-empire-border" />
-                <TreeNode person={k} childrenOf={childrenOf} onEdit={onEdit} accent={accent} depth={depth + 1} />
+                <TreeNode person={k} childrenOf={childrenOf} onEdit={onEdit} accent={accent} depth={depth + 1} ancestors={nextAncestors} />
               </div>
             ))}
           </div>
@@ -157,15 +172,22 @@ function ReportsToModal({ person, people, onClose, onSaved }: {
 }) {
   const [reportsToId, setReportsToId] = useState(person.reportsToId ?? '')
   const [busy, setBusy] = useState(false)
-  // Can't report to self; (cycle-prevention beyond direct self is handled server-side / by convention)
+  const [error, setError] = useState('')
+  // Can't report to self; deeper cycle prevention is enforced server-side.
   const options = people.filter(p => p.id !== person.id)
 
   async function save() {
     setBusy(true)
+    setError('')
     try {
       await patch(`/api/employees/${person.id}`, { reportsToId: reportsToId || null })
       onSaved()
-    } catch (e) { console.error(e); setBusy(false) }
+    } catch (e: any) {
+      setError(e?.message?.includes('cycle')
+        ? 'That reporting line loops back on itself — pick a different manager.'
+        : 'Could not save the reporting line. Try again.')
+      setBusy(false)
+    }
   }
 
   return (
@@ -179,6 +201,7 @@ function ReportsToModal({ person, people, onClose, onSaved }: {
           </select>
           <p className="text-[11px] text-empire-text-dim mt-1">Sets where {person.name} sits in the chain. Leave empty to place them at the top.</p>
         </div>
+        {error && <p className="text-[11px] text-empire-red-bright">{error}</p>}
         <div className="flex justify-end gap-2 pt-1">
           <button onClick={onClose} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
           <button onClick={save} disabled={busy} className="empire-btn-primary disabled:opacity-50">{busy ? 'Saving…' : 'Save'}</button>

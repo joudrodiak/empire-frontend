@@ -54,6 +54,17 @@ const STATUS_STYLE: Record<string, string> = {
 
 const PAGE_SIZE = 10
 
+// Renewal awareness: classify a contract by how close its end date is. Drives the
+// amber/red expiry pill so the registry doubles as a renewal radar.
+function expiryState(endDate: string | null, status: string): { label: string; cls: string } | null {
+  if (!endDate || status === 'terminated' || status === 'expired') return null
+  const days = Math.ceil((+new Date(endDate) - Date.now()) / (24 * 60 * 60 * 1000))
+  if (days < 0) return { label: 'expired', cls: 'text-empire-red-bright border-empire-red/40' }
+  if (days <= 30) return { label: `${days}d left`, cls: 'text-empire-red-bright border-empire-red/40' }
+  if (days <= 90) return { label: `${days}d left`, cls: 'text-empire-amber-bright border-empire-amber/40' }
+  return null
+}
+
 export function ContractsPanel({ departmentSlug, accent = '#c9a233', prefillEmployeeId, onConsumePrefill, global = false }: {
   // Omit `departmentSlug` (or pass global) to search EVERY unit's contracts —
   // the People Operations "Contracts" tab mounts it this way so any employee
@@ -192,6 +203,9 @@ export function ContractsPanel({ departmentSlug, accent = '#c9a233', prefillEmpl
                       {c.status}
                     </span>
                     {c.fileUrl && <span className="text-xs text-empire-gold-muted inline-flex items-center gap-1"><EmpireIcon name="document" size={11} /> document</span>}
+                    {(() => { const e = expiryState(c.endDate, c.status); return e
+                      ? <span className={`px-2 py-0.5 text-xs rounded border ${e.cls} inline-flex items-center gap-1`}><EmpireIcon name="clock" size={11} /> {e.label}</span>
+                      : null })()}
                   </div>
                   <div className="text-empire-text-dim text-xs flex items-center gap-3 flex-wrap">
                     <span className="capitalize">{c.type}</span>

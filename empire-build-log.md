@@ -6,6 +6,31 @@ key pages return 200.
 
 ---
 
+## 2026-06-04 — Phase 8: Design polish (glass/metal · charts · 3D · create-tenant)
+- `app/globals.css` — new `.metal-frame`: frosted-glass body wrapped in a thin
+  molten-gold hairline. The gold gradient sits on a padded `::before` masked to a
+  ring (`-webkit-mask-composite: xor` / `mask-composite: exclude`) and runs the
+  same `lm-sheen` sweep as `.liquid-metal` (opacity 0.7→1 on hover); `html.light`
+  variant added. Gives chrome a metal edge without a full metal fill.
+- `components/molecules/ProfileSwitcher.tsx` — now DB-driven (`GET /api/companies`,
+  client metadata merged by slug). Trigger uses `.metal-frame`; menu is
+  `glass-gold`. Adds `CreateCompanyModal` (gated by `company:manage`) →
+  `POST /api/companies` provisions a fresh tenant, then switches to it. Active
+  slug persisted to localStorage (`empire-os-active-profile`) + cross-mount sync
+  event; stays compatible with `lib/api.ts` `x-company-slug` (no edit there).
+- `components/molecules/ThemeToggle.tsx` — fixed off-center/bulge by matching the
+  dock pill height (`h-8 w-8 shrink-0 place-items-center leading-none`).
+- `components/organisms/charts/*` redesigned (no library, public props unchanged
+  or strictly additive): **BarChart** — dimensional gold bars (glossy top cap +
+  inner shadow + cast glow) over faint gridlines with a staggered mount "rise";
+  **AreaChart** — smoothed Catmull-Rom→bezier line, luminous Gaussian-blur glow,
+  draw-in dash animation, layered gradient fill, hover crosshair + glass tip,
+  optional `compare` series + legend; **DonutChart** — inner-shadow track,
+  per-segment gradient + rounded caps, timed sweep-in, hover lift/dim, center
+  total readout (optional `thickness`/`centerLabel`/`valueFormat`/`gap`).
+- Verification: `docker exec -i empire_web npx tsc --noEmit` EXIT 0 · emoji scan
+  clean · `/` `/agent` `/departments/finance` `/departments/engineering` all 200.
+
 ## 2026-06-04 — Phase 7: Operator Console (frontend)
 - `app/agent/page.tsx` — `/agent` console for the AI operator (Lukas Beckers /
   "Rodiak"). Header shows live Slack/Telegram channel badges (`GET /api/agent/status`).

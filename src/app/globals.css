@@ -204,6 +204,43 @@ html.light .glass-edgeless {
     0 6px 20px rgba(0,0,0,0.4);
 }
 
+/* Liquid-metal HAIRLINE frame — frosted-glass body wrapped in a thin molten-
+   gold border that runs the same sheen sweep as .liquid-metal. Used for the
+   company switcher trigger and other chrome that wants a metal edge without a
+   full metal fill. The gradient sits on a padded pseudo-element masked to a
+   ring so only the border shows. */
+.metal-frame {
+  position: relative;
+  isolation: isolate;
+  background: rgba(13, 13, 26, 0.55);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.metal-frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background:
+    linear-gradient(100deg, #6e5410 0%, #c9a233 22%, #f4e39b 38%, #c9a233 52%, #8a6f1e 72%, #c9a233 100%);
+  background-size: 220% 100%;
+  background-position: var(--lm-pos, 0%) 0;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.7;
+  animation: lm-sheen 7s linear infinite;
+  pointer-events: none;
+}
+.metal-frame:hover::before { opacity: 1; }
+html.light .metal-frame {
+  background: rgba(250, 246, 238, 0.7);
+  box-shadow: 0 6px 24px rgba(120, 100, 40, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
 /* 3D unit medallion — static layered "coin" the unit glyph sits on.
    Radial gold light, beveled rim, cast shadow. No motion. */
 .medallion {

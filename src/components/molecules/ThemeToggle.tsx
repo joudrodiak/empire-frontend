@@ -42,7 +42,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
       onClick={toggle}
       aria-label={isLight ? 'Switch to dark mode' : 'Switch to light mode'}
       title={isLight ? 'Dark mode' : 'Light mode'}
-      className={`grid h-9 w-9 place-items-center rounded-full border border-empire-border/70 bg-empire-elevated/60 text-empire-text-muted transition-colors hover:border-empire-gold/50 hover:text-empire-gold ${className}`}
+      className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border border-empire-border/70 bg-empire-elevated/60 leading-none text-empire-text-muted transition-colors hover:border-empire-gold/50 hover:text-empire-gold ${className}`}
     >
       <EmpireIcon name={isLight ? 'moon' : 'sun'} size={16} />
     </button>

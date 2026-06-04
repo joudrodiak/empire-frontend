@@ -276,10 +276,26 @@ function Segmented({ label, value, options, onChange, accent }: {
   )
 }
 
+// One immutable version snapshot from the contract's version-control history.
+type ContractVersion = {
+  id: string; version: number; title: string; status: string; counterparty: string | null
+  refId: string | null; value: number | null; currency: string; changeSummary: string | null
+  createdAt: string
+}
+
 function ContractViewer({ contract, onClose, onDeleted }: {
   contract: Contract; onClose: () => void; onDeleted: () => void
 }) {
   const [deleting, setDeleting] = useState(false)
+  const [versions, setVersions] = useState<ContractVersion[]>([])
+  const [versionsLoading, setVersionsLoading] = useState(true)
+  useEffect(() => {
+    setVersionsLoading(true)
+    fetcher(`/api/contracts/${contract.id}/versions`)
+      .then((v: ContractVersion[]) => setVersions(Array.isArray(v) ? v : []))
+      .catch(() => setVersions([]))
+      .finally(() => setVersionsLoading(false))
+  }, [contract.id])
   async function remove() {
     if (!confirm(`Delete contract “${contract.title}”? This cannot be undone.`)) return
     setDeleting(true)
@@ -354,6 +370,38 @@ function ContractViewer({ contract, onClose, onDeleted }: {
               </div>
             )}
           </div>
+
+          {/* Version control — immutable snapshot history (every save = new version) */}
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-empire-text-dim mb-2 flex items-center gap-1.5">
+              <EmpireIcon name="clock" size={12} className="text-empire-gold-muted" /> Version history
+            </div>
+            {versionsLoading ? (
+              <div className="text-empire-text-dim text-xs italic">Loading versions…</div>
+            ) : versions.length === 0 ? (
+              <div className="text-empire-text-dim text-xs italic border border-dashed border-empire-border rounded-lg p-3 text-center">
+                No prior versions yet — this is the original.
+              </div>
+            ) : (
+              <ol className="relative border-l border-empire-border ml-1.5 space-y-3">
+                {versions.map((v) => (
+                  <li key={v.id} className="ml-4">
+                    <span className="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full bg-empire-gold/70 border border-empire-gold" />
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-mono text-empire-gold">v{v.version}</span>
+                      <span className="text-[10px] uppercase tracking-wider text-empire-text-dim">{format(new Date(v.createdAt), 'MMM d, yyyy · HH:mm')}</span>
+                    </div>
+                    <div className="text-sm text-empire-text-muted mt-0.5">{v.changeSummary || 'Snapshot'}</div>
+                    <div className="text-[11px] text-empire-text-dim mt-0.5 flex flex-wrap gap-x-3">
+                      <span>Status: <span className="capitalize">{v.status}</span></span>
+                      {v.counterparty && <span>Party: {v.counterparty}</span>}
+                      {v.value != null && <span>{v.currency} {v.value.toLocaleString()}</span>}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
         </div>
 
         <div className="border-t border-empire-border px-6 py-3 flex justify-end">
@@ -400,6 +448,11 @@ function ContractForm({ departmentSlug, contract, prefillEmployeeId, onCreated, 
   })
   const [saving, setSaving] = useState(false)
   const [people, setPeople] = useState<Person[]>([])
+  // People-Ops (global) contract creation auto-routes to the Legal workflow: on save
+  // the API generates the agreement document from a Legal template and links it back.
+  const peopleOps = !departmentSlug
+  const [routeToLegal, setRouteToLegal] = useState(peopleOps && !isEdit)
+  const [routeTemplateKey, setRouteTemplateKey] = useState('')
   const [docSource, setDocSource] = useState<'upload' | 'legal'>(contract?.templateKey ? 'legal' : 'upload')
   const [legalDocs, setLegalDocs] = useState<LegalDoc[]>([])
   const [templates, setTemplates] = useState<LegalTemplate[]>([])
@@ -420,10 +473,10 @@ function ContractForm({ departmentSlug, contract, prefillEmployeeId, onCreated, 
 
   // Existing Legal documents + templates — for "choose from the contracts in Legal".
   useEffect(() => {
-    if (docSource !== 'legal') return
-    fetcher('/api/legal/documents?pageSize=100').then((r: any) => setLegalDocs(r.data ?? r ?? [])).catch(() => setLegalDocs([]))
+    if (docSource !== 'legal' && !routeToLegal) return
+    if (docSource === 'legal') fetcher('/api/legal/documents?pageSize=100').then((r: any) => setLegalDocs(r.data ?? r ?? [])).catch(() => setLegalDocs([]))
     fetcher('/api/legal/templates?pageSize=100&active=true').then((r: any) => setTemplates(r.data ?? r ?? [])).catch(() => setTemplates([]))
-  }, [docSource])
+  }, [docSource, routeToLegal])
 
   async function attachExisting(id: string) {
     if (!id) return
@@ -486,6 +539,10 @@ function ContractForm({ departmentSlug, contract, prefillEmployeeId, onCreated, 
       createdById: f.createdById || undefined,
       templateKey: f.templateKey || undefined,
       departmentSlug: inferredSlug,
+      // Auto-route to Legal on creation (People-Ops origin) — the API generates the
+      // agreement from this template and links the resulting GeneratedDocument.
+      routeToLegal: !isEdit && routeToLegal ? true : undefined,
+      legalTemplateKey: !isEdit && routeToLegal ? (routeTemplateKey || undefined) : undefined,
     }
     try {
       if (isEdit && contract) await patch(`/api/contracts/${contract.id}`, body)
@@ -596,6 +653,28 @@ function ContractForm({ departmentSlug, contract, prefillEmployeeId, onCreated, 
           </div>
         )}
       </div>
+
+      {/* Auto-route to Legal — when a contract is created from People Ops, the agreement
+          document is generated in the Legal workflow and linked back automatically. */}
+      {!isEdit && (
+        <div className="bg-empire-elevated border border-empire-gold/15 rounded-lg p-3 space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={routeToLegal} onChange={e => setRouteToLegal(e.target.checked)} className="accent-empire-gold" />
+            <span className="text-xs text-empire-text flex items-center gap-1.5">
+              <EmpireIcon name="handshake" size={13} className="text-empire-gold-muted" /> Route to Legal workflow on creation
+            </span>
+          </label>
+          {routeToLegal && (
+            <div className="pl-6 space-y-1">
+              <select className="empire-input w-full text-xs" value={routeTemplateKey} onChange={e => setRouteTemplateKey(e.target.value)}>
+                <option value="">— auto-select agreement template —</option>
+                {templates.map(t => <option key={t.id} value={t.key}>{t.name} · {t.category}</option>)}
+              </select>
+              <p className="text-[11px] text-empire-text-dim">Legal generates the agreement document and links it to this contract.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-2">
         <button onClick={submit} disabled={saving || !f.title} className="empire-btn-primary disabled:opacity-50">

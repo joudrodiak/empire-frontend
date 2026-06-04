@@ -14,7 +14,10 @@ import { Modal } from '@/components/molecules/Modal'
 type Person = {
   id: string; name: string; role: string; avatarUrl: string | null
   reportsToId: string | null; fte: number; contractType: string; isActive: boolean
+  roleId?: string | null; roleRef?: { id: string; key: string; name: string; level: number } | null
 }
+// A structured role from the IAM catalogue — for the role-linkage picker.
+type RoleOption = { id: string; key: string; name: string; level: number }
 type StructureResponse = { unit: { id: string; name: string; slug: string }; people: Person[] }
 
 export function StructurePanel({ departmentSlug, accent }: { departmentSlug: string; accent?: string }) {
@@ -171,16 +174,25 @@ function ReportsToModal({ person, people, onClose, onSaved }: {
   person: Person; people: Person[]; onClose: () => void; onSaved: () => void
 }) {
   const [reportsToId, setReportsToId] = useState(person.reportsToId ?? '')
+  const [roleId, setRoleId] = useState(person.roleId ?? '')
+  const [roles, setRoles] = useState<RoleOption[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   // Can't report to self; deeper cycle prevention is enforced server-side.
   const options = people.filter(p => p.id !== person.id)
 
+  // Every employee must carry a structured role link — load the IAM role catalogue.
+  useEffect(() => {
+    fetcher('/api/iam/roles')
+      .then((r: any) => setRoles((r.data ?? r ?? []) as RoleOption[]))
+      .catch(() => setRoles([]))
+  }, [])
+
   async function save() {
     setBusy(true)
     setError('')
     try {
-      await patch(`/api/employees/${person.id}`, { reportsToId: reportsToId || null })
+      await patch(`/api/employees/${person.id}`, { reportsToId: reportsToId || null, roleId: roleId || null })
       onSaved()
     } catch (e: any) {
       setError(e?.message?.includes('cycle')
@@ -191,8 +203,16 @@ function ReportsToModal({ person, people, onClose, onSaved }: {
   }
 
   return (
-    <Modal open onClose={onClose} title={`Reporting line — ${person.name}`} icon={<EmpireIcon name="link" size={18} />}>
+    <Modal open onClose={onClose} title={`Role & reporting — ${person.name}`} icon={<EmpireIcon name="link" size={18} />}>
       <div className="space-y-3">
+        <div>
+          <label className="empire-label">Role</label>
+          <select className="empire-input w-full mt-1" value={roleId} onChange={e => setRoleId(e.target.value)}>
+            <option value="">— No structured role —</option>
+            {roles.map(r => <option key={r.id} value={r.id}>{r.name} · L{r.level}</option>)}
+          </select>
+          <p className="text-[11px] text-empire-text-dim mt-1">Links {person.name} to a role in the catalogue (level, permissions). Required for full people records.</p>
+        </div>
         <div>
           <label className="empire-label">Reports to</label>
           <select className="empire-input w-full mt-1" value={reportsToId} onChange={e => setReportsToId(e.target.value)}>

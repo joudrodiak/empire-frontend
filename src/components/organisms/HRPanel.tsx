@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { fetcher, post, patch, del } from '@/lib/api'
-import { KpiCard, Panel, AreaChart, BarChart, DataTable, TabBar, Grid, EmptyState, type Column } from '@/lib/ui'
+import { KpiCard, Panel, AreaChart, BarChart, DonutChart, DataTable, TabBar, Grid, EmptyState, type Column } from '@/lib/ui'
 import { Pagination } from '@/components/molecules/Pagination'
 import { RowActions } from '@/components/molecules/RowActions'
 import { Modal } from '@/components/molecules/Modal'
@@ -20,12 +20,21 @@ type Page<T> = { data: T[]; page: number; pageSize: number; total: number; total
 const ACCENT = '#f59e0b'
 const TABS = [
   { id: 'overview', label: 'Overview' },
+  { id: 'peopleops', label: 'People Ops' },
+  { id: 'points', label: 'Points' },
   { id: 'hiring', label: 'Hiring' },
   { id: 'reviews', label: 'Reviews' },
   { id: 'attrition', label: 'Attrition' },
   { id: 'reqs', label: 'Requisitions' },
   { id: 'contracts', label: 'Contracts' },
 ]
+// Employee lifecycle (People Operations) — type & status palettes.
+const LIFE_TYPE_COLOR: Record<string, string> = { onboarding: '#10b981', offboarding: '#c94f4f', promotion: '#8b5cf6', transfer: '#06b6d4', performance: '#f59e0b' }
+const LIFE_STATUS_COLOR: Record<string, string> = { planned: '#6b7280', in_progress: '#4f8ff7', completed: '#10b981', cancelled: '#c94f4f' }
+const LIFE_TYPES = ['onboarding', 'offboarding', 'promotion', 'transfer', 'performance'] as const
+const LIFE_STATUSES = ['planned', 'in_progress', 'completed', 'cancelled'] as const
+// Donut palette for the XP-by-source breakdown (gold-led, distinct hues).
+const SOURCE_COLORS = ['#C9A233', '#8b5cf6', '#06b6d4', '#10b981', '#4f8ff7', '#6b7280']
 const STATUS_COLOR: Record<string, string> = { open: '#4f8ff7', interviewing: '#8b5cf6', offer: '#06b6d4', filled: '#10b981', on_hold: '#6b7280' }
 const STAGE_COLOR: Record<string, string> = { applied: '#6b7280', screen: '#4f8ff7', onsite: '#06b6d4', offer: '#8b5cf6', hired: '#10b981', rejected: '#c94f4f' }
 const TYPE_COLOR: Record<string, string> = { voluntary: '#f59e0b', involuntary: '#c94f4f', retirement: '#6b7280' }
@@ -62,6 +71,8 @@ export function HRPanel() {
       </div>
       <TabBar tabs={TABS} active={tab} onChange={setTab} accent={ACCENT} />
       {tab === 'overview' && <Overview />}
+      {tab === 'peopleops' && <PeopleOps />}
+      {tab === 'points' && <Points />}
       {tab === 'hiring' && <Hiring />}
       {tab === 'reviews' && <Reviews />}
       {tab === 'attrition' && <Attrition />}
@@ -327,5 +338,274 @@ function ReqModal({ open, onClose, initial, onSaved }: { open: boolean; onClose:
         </div>
       </div>
     </Modal>
+  )
+}
+
+/* ====================================================================== */
+/* People Operations — employee lifecycle board (onboarding | offboarding |
+   promotion | transfer | performance). Full CRUD + pagination + RowActions.
+   Completing a promotion/transfer/offboarding/onboarding applies real effects
+   server-side (and awards XP for onboarding), so the board is actionable, never
+   a dead-end. Backed by /api/people. */
+/* ====================================================================== */
+
+type EmpLite = { id: string; name: string; role: string; department?: { id: string; name: string; slug: string } | null }
+type RoleLite = { id: string; key: string; name: string; level: number }
+type DeptLite = { id: string; name: string; slug: string }
+type Lifecycle = {
+  id: string; employeeId: string; type: string; status: string
+  fromRole: string | null; toRole: string | null; toRoleId: string | null; toDeptId: string | null
+  rating: number | null; cycle: string | null; title: string | null; notes: string | null
+  effectiveAt: string | null; completedAt: string | null; xpAwarded: boolean; createdAt: string
+  employee?: { id: string; name: string; role: string } | null
+}
+const LIFE_EMPTY = {
+  employeeId: '', type: 'onboarding', status: 'planned', title: '', notes: '',
+  toRole: '', toRoleId: '', toDeptId: '', rating: '', cycle: '', effectiveAt: '',
+}
+const dateLabel = (s: string | null) => (s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—')
+
+function PeopleOps() {
+  const [page, setPage] = useState(0)
+  const [q, setQ] = useState('')
+  const [type, setType] = useState('')
+  const [status, setStatus] = useState('')
+  const path = `/api/people?pageSize=15&page=${page + 1}${q ? `&q=${encodeURIComponent(q)}` : ''}${type ? `&type=${type}` : ''}${status ? `&status=${status}` : ''}`
+  const [data, setData] = useState<Page<Lifecycle> | null>(null)
+  const [loading, setLoading] = useState(true)
+  const reload = useCallback(() => {
+    setLoading(true)
+    fetcher(path).then(setData).catch(console.error).finally(() => setLoading(false))
+  }, [path])
+  useEffect(() => { reload() }, [reload])
+
+  const [editing, setEditing] = useState<Lifecycle | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [viewing, setViewing] = useState<Lifecycle | null>(null)
+  async function remove(id: string) { await del(`/api/people/${id}`).catch(console.error); reload() }
+
+  const rows = data?.data || []
+  const cols: Column<Lifecycle>[] = [
+    { key: 'employee', label: 'Person', render: e => <div><div className="font-medium text-empire-text">{e.employee?.name || '—'}</div><div className="text-empire-text-dim text-[11px]">{e.employee?.role || ''}</div></div> },
+    { key: 'type', label: 'Type', render: e => <Pill text={e.type} color={LIFE_TYPE_COLOR[e.type] || '#6b7280'} /> },
+    { key: 'title', label: 'Detail', render: e => <span className="text-empire-text-muted text-xs">{e.title || (e.toRole ? `→ ${e.toRole}` : e.cycle || '—')}</span> },
+    { key: 'status', label: 'Status', render: e => <Pill text={e.status.replace('_', ' ')} color={LIFE_STATUS_COLOR[e.status] || '#6b7280'} /> },
+    { key: 'effectiveAt', label: 'Effective', align: 'right', render: e => <span className="text-empire-text-muted text-xs">{dateLabel(e.effectiveAt)}</span> },
+    { key: 'id', label: '', align: 'right', render: e => <RowActions onView={() => setViewing(e)} onEdit={() => setEditing(e)} onDelete={() => remove(e.id)} deleteLabel={`this ${e.type} event`} /> },
+  ]
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <input className={`${inputCls} w-56`} placeholder="Search people / notes…" value={q} onChange={e => { setQ(e.target.value); setPage(0) }} />
+        <select className={inputCls} value={type} onChange={e => { setType(e.target.value); setPage(0) }}>
+          <option value="">All types</option>{LIFE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <select className={inputCls} value={status} onChange={e => { setStatus(e.target.value); setPage(0) }}>
+          <option value="">All statuses</option>{LIFE_STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+        </select>
+        <button onClick={() => setCreating(true)} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium text-white" style={{ background: ACCENT }}><EmpireIcon name="plus" size={13} />New Event</button>
+      </div>
+      {loading ? <Loading /> : (
+        <Panel title={`Lifecycle events (${data?.total ?? rows.length})`}>
+          <DataTable columns={cols} rows={rows} empty="No lifecycle events yet. Create an onboarding, promotion or transfer to get started." />
+          {data && <Pagination page={page} pageCount={data.totalPages} total={data.total} onPage={setPage} accent={ACCENT} />}
+        </Panel>
+      )}
+
+      <Modal open={!!viewing} onClose={() => setViewing(null)} title={viewing ? `${viewing.type} — ${viewing.employee?.name || ''}` : 'Event'} icon={<EmpireIcon name="people" size={18} />}>
+        {viewing && (
+          <div className="space-y-3 text-sm">
+            <div className="flex flex-wrap gap-2">
+              <Pill text={viewing.type} color={LIFE_TYPE_COLOR[viewing.type] || '#6b7280'} />
+              <Pill text={viewing.status.replace('_', ' ')} color={LIFE_STATUS_COLOR[viewing.status] || '#6b7280'} />
+              {viewing.xpAwarded && <Pill text="XP awarded" color="#C9A233" />}
+            </div>
+            <Field label="Person" value={viewing.employee?.name || '—'} />
+            {viewing.title && <Field label="Title" value={viewing.title} />}
+            {(viewing.fromRole || viewing.toRole) && <Field label="Role change" value={`${viewing.fromRole || '—'} → ${viewing.toRole || '—'}`} />}
+            {viewing.cycle && <Field label="Cycle" value={viewing.cycle} />}
+            {viewing.rating != null && <Field label="Rating" value={`${viewing.rating}/5`} />}
+            <Field label="Effective" value={dateLabel(viewing.effectiveAt)} />
+            <Field label="Completed" value={dateLabel(viewing.completedAt)} />
+            {viewing.notes && <div className="text-empire-text-muted text-xs whitespace-pre-wrap border-t border-empire-border/50 pt-2">{viewing.notes}</div>}
+            <div className="flex justify-end pt-2">
+              <button onClick={() => { setEditing(viewing); setViewing(null) }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium text-white" style={{ background: ACCENT }}><EmpireIcon name="pen" size={13} />Edit</button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <LifecycleModal open={creating} onClose={() => setCreating(false)} initial={null} onSaved={() => { setCreating(false); setPage(0); reload() }} />
+      <LifecycleModal open={!!editing} onClose={() => setEditing(null)} initial={editing} onSaved={() => { setEditing(null); reload() }} />
+    </div>
+  )
+}
+
+function LifecycleModal({ open, onClose, initial, onSaved }: { open: boolean; onClose: () => void; initial: Lifecycle | null; onSaved: () => void }) {
+  const [form, setForm] = useState(LIFE_EMPTY)
+  const [busy, setBusy] = useState(false)
+  const [emps, setEmps] = useState<EmpLite[]>([])
+  const [roles, setRoles] = useState<RoleLite[]>([])
+  const [depts, setDepts] = useState<DeptLite[]>([])
+  useEffect(() => {
+    if (!open) return
+    fetcher('/api/employees').then(setEmps).catch(console.error)
+    fetcher('/api/iam/roles').then(r => setRoles(Array.isArray(r) ? r : (r?.roles ?? []))).catch(console.error)
+    fetcher('/api/departments').then(d => setDepts(Array.isArray(d) ? d : (d?.data ?? []))).catch(console.error)
+    setForm(initial ? {
+      employeeId: initial.employeeId, type: initial.type, status: initial.status,
+      title: initial.title || '', notes: initial.notes || '', toRole: initial.toRole || '',
+      toRoleId: initial.toRoleId || '', toDeptId: initial.toDeptId || '',
+      rating: initial.rating != null ? String(initial.rating) : '', cycle: initial.cycle || '',
+      effectiveAt: initial.effectiveAt ? initial.effectiveAt.slice(0, 10) : '',
+    } : LIFE_EMPTY)
+  }, [open, initial])
+
+  async function save() {
+    if (!form.employeeId || !form.type) return
+    setBusy(true)
+    try {
+      const payload: any = {
+        employeeId: form.employeeId, type: form.type, status: form.status,
+        title: form.title || undefined, notes: form.notes || undefined,
+        effectiveAt: form.effectiveAt || undefined,
+      }
+      if (form.type === 'promotion') { payload.toRole = form.toRole || undefined; payload.toRoleId = form.toRoleId || undefined }
+      if (form.type === 'transfer') payload.toDeptId = form.toDeptId || undefined
+      if (form.type === 'performance') { payload.rating = form.rating || undefined; payload.cycle = form.cycle || undefined }
+      if (initial) await patch(`/api/people/${initial.id}`, payload)
+      else await post('/api/people', payload)
+      onSaved()
+    } catch (e) { console.error(e) } finally { setBusy(false) }
+  }
+  return (
+    <Modal open={open} onClose={onClose} title={initial ? `Edit — ${initial.type}` : 'New lifecycle event'} icon={<EmpireIcon name={initial ? 'pen' : 'plus'} size={18} />}>
+      <div className="space-y-3">
+        <select className={`${inputCls} w-full`} value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}>
+          <option value="">Select person…</option>
+          {emps.map(p => <option key={p.id} value={p.id}>{p.name} — {p.role}</option>)}
+        </select>
+        <div className="flex flex-wrap gap-2">
+          <select className={inputCls} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>{LIFE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select>
+          <select className={inputCls} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>{LIFE_STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</select>
+          <input type="date" className={inputCls} value={form.effectiveAt} onChange={e => setForm({ ...form, effectiveAt: e.target.value })} />
+        </div>
+        <input className={`${inputCls} w-full`} placeholder="Title (e.g. Q3 onboarding, Promotion to Senior)" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
+        {form.type === 'promotion' && (
+          <div className="flex flex-wrap gap-2">
+            <select className={`${inputCls} flex-1`} value={form.toRoleId} onChange={e => { const r = roles.find(x => x.id === e.target.value); setForm({ ...form, toRoleId: e.target.value, toRole: r ? r.name : form.toRole }) }}>
+              <option value="">New role (structured)…</option>
+              {roles.map(r => <option key={r.id} value={r.id}>{r.name} · L{r.level}</option>)}
+            </select>
+            <input className={`${inputCls} flex-1`} placeholder="New title (free-text)" value={form.toRole} onChange={e => setForm({ ...form, toRole: e.target.value })} />
+          </div>
+        )}
+        {form.type === 'transfer' && (
+          <select className={`${inputCls} w-full`} value={form.toDeptId} onChange={e => setForm({ ...form, toDeptId: e.target.value })}>
+            <option value="">Destination unit…</option>
+            {depts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+        )}
+        {form.type === 'performance' && (
+          <div className="flex flex-wrap gap-2">
+            <select className={inputCls} value={form.rating} onChange={e => setForm({ ...form, rating: e.target.value })}><option value="">Rating…</option>{[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}/5</option>)}</select>
+            <input className={`${inputCls} flex-1`} placeholder="Cycle (e.g. H1-2026)" value={form.cycle} onChange={e => setForm({ ...form, cycle: e.target.value })} />
+          </div>
+        )}
+        <textarea className={`${inputCls} w-full min-h-[72px]`} placeholder="Notes" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+        {form.status === 'completed' && form.type === 'onboarding' && <p className="text-[11px] text-empire-gold/80">Completing an onboarding awards XP to this person.</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text disabled:opacity-50">Cancel</button>
+          <button disabled={busy || !form.employeeId} onClick={save} className="px-4 py-2 rounded text-sm font-medium text-white disabled:opacity-40" style={{ background: ACCENT }}>{busy ? 'Saving…' : initial ? 'Save changes' : 'Create'}</button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+/* ====================================================================== */
+/* Points — enterprise gamification dashboard. Leaderboard, level distribution,
+   XP-by-source breakdown and rank rollup, all derived from /api/people/summary.
+   No placeholder charts: every series is the live awarded-XP ledger. */
+/* ====================================================================== */
+
+type Achievement = { key: string; label: string; icon: string }
+type LeaderRow = {
+  rank: number; id: string; name: string; role: string; avatarUrl: string | null
+  department: { id: string; name: string; slug: string; color: string } | null
+  xp: number; level: number; rankName: string; rankIcon: string; achievements: Achievement[]
+}
+type PointsSummary = {
+  totals: { people: number; totalXp: number; totalAwardedXp: number; avgLevel: number; lifecycleEvents: number }
+  leaderboard: LeaderRow[]
+  levelDistribution: { level: number; count: number }[]
+  xpBySource: { label: string; value: number }[]
+  rankRollup: { name: string; icon: string; count: number }[]
+}
+
+function Points() {
+  const [s, setS] = useState<PointsSummary | null>(null)
+  const [loading, setLoading] = useState(true)
+  useEffect(() => { fetcher('/api/people/summary').then(setS).catch(console.error).finally(() => setLoading(false)) }, [])
+  if (loading) return <Loading />
+  if (!s) return <EmptyState icon="medal" title="No points data" />
+
+  const top = s.leaderboard.slice(0, 12)
+  const segments = s.xpBySource.filter(x => x.value > 0).map((x, i) => ({ label: x.label, value: x.value, color: SOURCE_COLORS[i % SOURCE_COLORS.length] }))
+  const cols: Column<LeaderRow>[] = [
+    { key: 'rank', label: '#', render: r => <span className="font-data text-empire-text-dim">{r.rank}</span> },
+    { key: 'name', label: 'Person', render: r => <div><div className="font-medium text-empire-text">{r.name}</div><div className="text-empire-text-dim text-[11px]">{r.department?.name || r.role}</div></div> },
+    { key: 'level', label: 'Level', align: 'right', render: r => <span className="font-data text-empire-text">L{r.level}</span> },
+    { key: 'rankName', label: 'Rank', render: r => <Pill text={r.rankName} color="#C9A233" /> },
+    { key: 'achievements', label: 'Badges', align: 'right', render: r => <span className="text-empire-text-muted text-xs">{r.achievements.length}</span> },
+    { key: 'xp', label: 'XP', align: 'right', render: r => <span className="font-data text-empire-gold">{r.xp.toLocaleString()}</span> },
+  ]
+  return (
+    <div className="space-y-6">
+      <Grid cols={4}>
+        <KpiCard icon="people" label="People scored" value={String(s.totals.people)} accent={ACCENT} />
+        <KpiCard icon="medal" label="Total XP" value={s.totals.totalXp.toLocaleString()} sub={`${s.totals.totalAwardedXp.toLocaleString()} awarded`} accent="#C9A233" />
+        <KpiCard icon="arrow-up" label="Avg level" value={String(s.totals.avgLevel)} accent="#8b5cf6" />
+        <KpiCard icon="flag" label="Lifecycle events" value={String(s.totals.lifecycleEvents)} accent="#06b6d4" />
+      </Grid>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Panel icon="chart-bar" title="Level distribution">
+          {s.levelDistribution.length
+            ? <BarChart data={s.levelDistribution.map(d => d.count)} labels={s.levelDistribution.map(d => `L${d.level}`)} color={ACCENT} height={150} />
+            : <EmptyState icon="chart-bar" title="No levels yet" />}
+        </Panel>
+        <Panel icon="chart-bar" title="XP by source">
+          {segments.length ? (
+            <div className="flex items-center gap-6 flex-wrap">
+              <DonutChart segments={segments} size={180} thickness={20} centerLabel="XP" valueFormat={t => t >= 1000 ? `${(t / 1000).toFixed(1)}k` : String(Math.round(t))} />
+              <div className="space-y-1.5 text-sm flex-1 min-w-[160px]">
+                {segments.map(seg => (
+                  <div key={seg.label} className="flex items-center justify-between gap-3">
+                    <span className="inline-flex items-center gap-2 text-empire-text-muted"><span className="w-2.5 h-2.5 rounded-full" style={{ background: seg.color }} />{seg.label}</span>
+                    <span className="font-data text-empire-text">{seg.value.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : <EmptyState icon="chart-bar" title="No XP awarded yet" />}
+        </Panel>
+      </div>
+
+      <Panel icon="medal" title="Leaderboard">
+        <DataTable columns={cols} rows={top} empty="No one scored yet." />
+      </Panel>
+
+      <Panel icon="shield" title="Rank rollup">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {s.rankRollup.map(r => (
+            <div key={r.name} className="rounded-lg border border-empire-border bg-empire-elevated/40 px-3 py-3 text-center">
+              <div className="text-[11px] uppercase tracking-widest text-empire-text-dim">{r.name}</div>
+              <div className="font-empire text-empire-gold text-2xl mt-1">{r.count}</div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+    </div>
   )
 }

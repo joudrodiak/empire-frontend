@@ -9,6 +9,7 @@ import { Modal } from '@/components/molecules/Modal'
 import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
+import { ContractsPanel } from '@/components/organisms/ContractsPanel'
 
 type Page<T> = { data: T[]; page: number; pageSize: number; total: number; totalPages: number }
 
@@ -23,6 +24,7 @@ const TABS = [
   { id: 'reviews', label: 'Reviews' },
   { id: 'attrition', label: 'Attrition' },
   { id: 'reqs', label: 'Requisitions' },
+  { id: 'contracts', label: 'Contracts' },
 ]
 const STATUS_COLOR: Record<string, string> = { open: '#4f8ff7', interviewing: '#8b5cf6', offer: '#06b6d4', filled: '#10b981', on_hold: '#6b7280' }
 const STAGE_COLOR: Record<string, string> = { applied: '#6b7280', screen: '#4f8ff7', onsite: '#06b6d4', offer: '#8b5cf6', hired: '#10b981', rejected: '#c94f4f' }
@@ -64,6 +66,9 @@ export function HRPanel() {
       {tab === 'reviews' && <Reviews />}
       {tab === 'attrition' && <Attrition />}
       {tab === 'reqs' && <Reqs />}
+      {/* Global contract registry — every unit's contracts, searchable by employee,
+          with a create shortcut. Centralizes People-Ops contract administration. */}
+      {tab === 'contracts' && <ContractsPanel global accent={ACCENT} />}
     </div>
   )
 }

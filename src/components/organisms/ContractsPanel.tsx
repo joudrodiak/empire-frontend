@@ -32,8 +32,10 @@ export type Contract = {
   createdBy?: { id: string; name: string; role: string } | null
 }
 
-// A person in this unit — for the employee / created-by pickers.
-type Person = { id: string; name: string; role: string }
+// A person — for the employee / created-by pickers. In global (People Ops) mode
+// the picker spans every unit, so we carry the person's unit slug to stamp the
+// contract's department on save.
+type Person = { id: string; name: string; role: string; departmentSlug?: string }
 // A document already produced in Legal — pickable as a contract's source.
 type LegalDoc = { id: string; title: string; counterparty: string | null; templateKey: string; status: string; renderedMarkdown?: string }
 type LegalTemplate = { id: string; key: string; name: string; category: string }
@@ -52,13 +54,18 @@ const STATUS_STYLE: Record<string, string> = {
 
 const PAGE_SIZE = 10
 
-export function ContractsPanel({ departmentSlug, accent = '#c9a233', prefillEmployeeId, onConsumePrefill }: {
-  departmentSlug: string; accent?: string
+export function ContractsPanel({ departmentSlug, accent = '#c9a233', prefillEmployeeId, onConsumePrefill, global = false }: {
+  // Omit `departmentSlug` (or pass global) to search EVERY unit's contracts —
+  // the People Operations "Contracts" tab mounts it this way so any employee
+  // contract is findable in one place by title, party, ref, employee name or role.
+  departmentSlug?: string; accent?: string
   // When People Ops (or any roster) jumps here to "create a contract" for a person,
   // it passes that employee id; the form auto-opens prefilled for them.
   prefillEmployeeId?: string | null
   onConsumePrefill?: () => void
+  global?: boolean
 }) {
+  const isGlobal = global || !departmentSlug
   const [rows, setRows] = useState<Contract[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -80,10 +87,10 @@ export function ContractsPanel({ departmentSlug, accent = '#c9a233', prefillEmpl
     setLoading(true)
     try {
       const params = new URLSearchParams({
-        departmentSlug,
         page: String(page + 1),
         pageSize: String(PAGE_SIZE),
       })
+      if (departmentSlug) params.set('departmentSlug', departmentSlug)
       if (type !== 'all') params.set('type', type)
       if (status !== 'all') params.set('status', status)
       if (q.trim()) params.set('q', q.trim())
@@ -105,9 +112,13 @@ export function ContractsPanel({ departmentSlug, accent = '#c9a233', prefillEmpl
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="font-empire text-empire-gold text-sm tracking-widest uppercase">Contracts</h2>
+          <h2 className="font-empire text-empire-gold text-sm tracking-widest uppercase">
+            {isGlobal ? 'All Contracts' : 'Contracts'}
+          </h2>
           <p className="text-empire-text-muted text-xs mt-0.5">
-            Employment, company &amp; partner agreements — viewable in one place
+            {isGlobal
+              ? 'Every employment, company & partner agreement across all units — search by title, party, ref, or employee'
+              : 'Employment, company & partner agreements — viewable in one place'}
           </p>
         </div>
         <button
@@ -125,7 +136,7 @@ export function ContractsPanel({ departmentSlug, accent = '#c9a233', prefillEmpl
         <input
           value={q}
           onChange={e => setQ(e.target.value)}
-          placeholder="Search title / party / ref…"
+          placeholder={isGlobal ? 'Search title / party / ref / employee…' : 'Search title / party / ref…'}
           className="empire-input text-xs py-1.5 ml-auto min-w-[200px]"
         />
       </div>
@@ -184,6 +195,11 @@ export function ContractsPanel({ departmentSlug, accent = '#c9a233', prefillEmpl
                   </div>
                   <div className="text-empire-text-dim text-xs flex items-center gap-3 flex-wrap">
                     <span className="capitalize">{c.type}</span>
+                    {isGlobal && c.department && (
+                      <span className="inline-flex items-center gap-1 text-empire-gold-muted">
+                        <EmpireIcon name={deptIcon(c.department.slug)} size={11} /> {c.department.name}
+                      </span>
+                    )}
                     {c.counterparty && <span>· {c.counterparty}</span>}
                     {c.employee && <span>· {c.employee.name}</span>}
                     {c.refId && <span className="font-mono bg-empire-elevated px-1.5 py-0.5 rounded">{c.refId}</span>}
@@ -349,7 +365,7 @@ function markdownToDataUrl(md: string): string {
 }
 
 function ContractForm({ departmentSlug, contract, prefillEmployeeId, onCreated, onCancel }: {
-  departmentSlug: string; contract?: Contract; prefillEmployeeId?: string; onCreated: () => void; onCancel: () => void
+  departmentSlug?: string; contract?: Contract; prefillEmployeeId?: string; onCreated: () => void; onCancel: () => void
 }) {
   const isEdit = !!contract
   const toDateInput = (s: string | null) => (s ? s.slice(0, 10) : '')
@@ -378,11 +394,13 @@ function ContractForm({ departmentSlug, contract, prefillEmployeeId, onCreated, 
   const [genCounterparty, setGenCounterparty] = useState('')
   const [generating, setGenerating] = useState(false)
 
-  // Roster of this unit — drives the "Employee" + "Owner (earns XP)" pickers, so an
-  // employment contract is tied to a person and shows up in that unit's Contracts.
+  // Roster that drives the "Employee" + "Owner (earns XP)" pickers. Scoped to this
+  // unit normally; in People-Ops (global) mode it spans every unit so a contract can
+  // be created for anyone, and the person's unit is stamped onto the contract.
   useEffect(() => {
-    fetcher(`/api/employees?department=${departmentSlug}`)
-      .then((rows: Person[]) => setPeople(rows.map(r => ({ id: r.id, name: r.name, role: r.role }))))
+    fetcher(`/api/employees${departmentSlug ? `?department=${departmentSlug}` : ''}`)
+      .then((rows: (Person & { department?: { slug: string } })[]) =>
+        setPeople(rows.map(r => ({ id: r.id, name: r.name, role: r.role, departmentSlug: r.department?.slug }))))
       .catch(() => setPeople([]))
   }, [departmentSlug])
 
@@ -435,6 +453,10 @@ function ContractForm({ departmentSlug, contract, prefillEmployeeId, onCreated, 
   async function submit() {
     if (!f.title) return
     setSaving(true)
+    // In global (People Ops) mode the unit is inferred from the chosen employee/owner,
+    // so a centrally-created contract still lands in the right unit's Contracts list.
+    const inferredSlug = departmentSlug
+      ?? people.find(p => p.id === (f.employeeId || f.createdById))?.departmentSlug
     const body = {
       type: f.type,
       title: f.title,
@@ -449,7 +471,7 @@ function ContractForm({ departmentSlug, contract, prefillEmployeeId, onCreated, 
       employeeId: f.employeeId || undefined,
       createdById: f.createdById || undefined,
       templateKey: f.templateKey || undefined,
-      departmentSlug,
+      departmentSlug: inferredSlug,
     }
     try {
       if (isEdit && contract) await patch(`/api/contracts/${contract.id}`, body)
@@ -480,17 +502,17 @@ function ContractForm({ departmentSlug, contract, prefillEmployeeId, onCreated, 
 
         {/* Employment contract → tie to a person in this unit (findable here) + the owner who earns XP on signing */}
         <div>
-          <label className="empire-label">Employee {f.type === 'employee' && <span className="text-empire-gold-muted">(this unit)</span>}</label>
+          <label className="empire-label">Employee {f.type === 'employee' && <span className="text-empire-gold-muted">({departmentSlug ? 'this unit' : 'any unit'})</span>}</label>
           <select value={f.employeeId} onChange={e => setF({ ...f, employeeId: e.target.value })} className="empire-input w-full mt-1">
             <option value="">— none —</option>
-            {people.map(p => <option key={p.id} value={p.id}>{p.name} · {p.role}</option>)}
+            {people.map(p => <option key={p.id} value={p.id}>{p.name} · {p.role}{!departmentSlug && p.departmentSlug ? ` · ${p.departmentSlug}` : ''}</option>)}
           </select>
         </div>
         <div>
           <label className="empire-label">Owner — earns XP when signed</label>
           <select value={f.createdById} onChange={e => setF({ ...f, createdById: e.target.value })} className="empire-input w-full mt-1">
             <option value="">— none —</option>
-            {people.map(p => <option key={p.id} value={p.id}>{p.name} · {p.role}</option>)}
+            {people.map(p => <option key={p.id} value={p.id}>{p.name} · {p.role}{!departmentSlug && p.departmentSlug ? ` · ${p.departmentSlug}` : ''}</option>)}
           </select>
         </div>
 

@@ -137,6 +137,21 @@ body {
   backdrop-filter: blur(18px) saturate(150%);
   border: 1px solid rgba(201, 162, 51, 0.28);
 }
+/* Opaque sibling of .glass-gold for popovers that mount INSIDE another
+   backdrop-filtered element (e.g. the company switcher inside the sticky,
+   backdrop-blurred header). Chrome cannot reliably composite a backdrop-filter
+   nested in another one — it flickers or renders transparent. This drops the
+   backdrop-filter and uses a near-opaque gold-tinted fill instead, so the panel
+   always reads crisp. Keep the same border/radius/shadow as .glass-gold. */
+.glass-solid {
+  background: linear-gradient(135deg, rgba(24, 24, 42, 0.985), rgba(12, 12, 22, 0.985));
+  border-radius: 18px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(201, 162, 51, 0.12);
+  border: 1px solid rgba(201, 162, 51, 0.28);
+}
+html.light .glass-solid {
+  background: linear-gradient(135deg, rgba(252, 250, 245, 0.985), rgba(244, 240, 232, 0.985));
+}
 /* Edgeless (no visible hard edge) floating box for the bottom dock. */
 .glass-edgeless {
   background: rgba(13, 13, 26, 0.5);

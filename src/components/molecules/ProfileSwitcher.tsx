@@ -1,7 +1,6 @@
 'use client'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { EmpireIcon, type IconName } from '@/components/atoms/EmpireIcon'
-import { GlassPanel } from '@/components/atoms/GlassPanel'
 import { LiquidMetalButton } from '@/components/atoms/LiquidMetalButton'
 import { Modal } from '@/components/molecules/Modal'
 import { COMPANIES } from '@/lib/profiles'
@@ -101,7 +100,7 @@ export function ProfileSwitcher({ compact = false }: { compact?: boolean }) {
       </button>
 
       {open && (
-        <GlassPanel variant="gold" className="absolute left-0 z-50 mt-2 w-80 overflow-hidden p-1.5 animate-pop-in">
+        <div className="glass-solid absolute left-0 z-[70] mt-2 w-80 overflow-hidden p-1.5 animate-fade-in">
           <p className="px-2.5 py-1.5 text-[10px] uppercase tracking-widest text-empire-text-muted">Switch company</p>
           <div className="max-h-[44vh] space-y-0.5 overflow-y-auto">
             {companies.map(c => {
@@ -142,7 +141,7 @@ export function ProfileSwitcher({ compact = false }: { compact?: boolean }) {
               </button>
             </>
           )}
-        </GlassPanel>
+        </div>
       )}
 
       {createOpen && (

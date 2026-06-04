@@ -6,6 +6,7 @@ import { KpiCard, Panel, AreaChart, BarChart, DonutChart, ProgressBar, DataTable
 import { Pagination } from '@/components/molecules/Pagination'
 import { RowActions } from '@/components/molecules/RowActions'
 import { Modal } from '@/components/molecules/Modal'
+import { FileDrop } from '@/components/molecules/FileDrop'
 import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
@@ -48,7 +49,10 @@ const TABS = [
   { id: 'balance', label: 'Balance Sheet' },
   { id: 'cash', label: 'Cash Flow' },
   { id: 'capex', label: 'CapEx / OpEx' },
+  { id: 'spend', label: 'Spend' },
   { id: 'arap', label: 'AR / AP' },
+  { id: 'tax', label: 'Tax' },
+  { id: 'bank', label: 'Bank' },
   { id: 'ledger', label: 'Ledger' },
 ]
 
@@ -73,7 +77,10 @@ export function FinancePanel({ departmentSlug }: { departmentSlug: string }) {
       {tab === 'balance' && <BalanceSheet />}
       {tab === 'cash' && <CashFlow />}
       {tab === 'capex' && <CapexOpex />}
+      {tab === 'spend' && <SpendCenter departmentSlug={departmentSlug} />}
       {tab === 'arap' && <ARAP />}
+      {tab === 'tax' && <TaxCenter />}
+      {tab === 'bank' && <BankCenter />}
       {tab === 'ledger' && <Ledger departmentSlug={departmentSlug} />}
     </div>
   )
@@ -308,8 +315,425 @@ function ARAP() {
   )
 }
 
+/* ---------------- Spend (manual entry + receipt + PDF) ---------------- */
+type Spend = {
+  id: string; title: string; amount: number; currency: string; category: string; unitSlug: string
+  requestedBy: string; justification: string | null; status: string; decidedBy: string | null; decidedAt: string | null
+  vendor: string | null; spentAt: string | null; paymentMethod: string | null; reference: string | null
+  taxAmount: number | null; taxRate: number | null; notes: string | null
+  receiptName: string | null; receiptType: string | null; receiptData: string | null; createdAt: string
+}
+type SpendList = { data: Spend[]; page: number; pageSize: number; total: number; totalPages: number }
+const SPEND_CATEGORIES = ['tooling', 'travel', 'marketing', 'payroll', 'contractor', 'infra', 'legal', 'misc']
+const PAYMENT_METHODS = ['card', 'bank_transfer', 'direct_debit', 'cash', 'invoice']
+const SPEND_STATUS_COLOR: Record<string, string> = { pending: '#c9a233', approved: '#3a9d5c', rejected: '#c94f4f' }
+const curSym = (c: string) => (c === 'AED' ? 'AED ' : c === 'USD' ? '$' : '€')
+const money = (n: number, c = 'EUR') => `${n < 0 ? '-' : ''}${curSym(c)}${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+// Print-to-PDF a clean spend voucher. No dependency — opens a styled window and
+// triggers the browser's native "Save as PDF". The receipt image (if any) is embedded.
+function exportSpendPdf(s: Spend) {
+  const row = (k: string, v: string) => v ? `<tr><td class="k">${k}</td><td class="v">${v}</td></tr>` : ''
+  const net = s.taxAmount != null ? s.amount - s.taxAmount : null
+  const img = s.receiptData && (s.receiptType || '').startsWith('image/')
+    ? `<div class="rc"><div class="lbl">Attached receipt</div><img src="${s.receiptData}" /></div>` : ''
+  const pdfNote = s.receiptData && (s.receiptType || '') === 'application/pdf'
+    ? `<div class="rc"><div class="lbl">Attached receipt</div><div class="note">PDF receipt on file: ${s.receiptName || 'receipt.pdf'}</div></div>` : ''
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Spend ${s.reference || s.id}</title>
+  <style>
+    *{box-sizing:border-box} body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;margin:48px;background:#fff}
+    .hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #C9A233;padding-bottom:14px;margin-bottom:24px}
+    .brand{font-size:22px;letter-spacing:3px;text-transform:uppercase;color:#1a1a1a}
+    .sub{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#888}
+    .amt{font-size:30px;color:#C9A233}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    td{padding:8px 4px;border-bottom:1px solid #eee;font-size:13px;vertical-align:top}
+    td.k{color:#888;text-transform:uppercase;font-size:10px;letter-spacing:1px;width:180px;font-family:Arial,sans-serif}
+    td.v{color:#1a1a1a}
+    .status{display:inline-block;padding:3px 10px;border:1px solid #C9A233;border-radius:3px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8a6d1f}
+    .rc{margin-top:24px} .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:6px;font-family:Arial,sans-serif}
+    .rc img{max-width:100%;max-height:420px;border:1px solid #ddd;border-radius:6px}
+    .note{font-size:12px;color:#555;font-family:Arial,sans-serif}
+    .ft{margin-top:40px;font-size:10px;color:#aaa;border-top:1px solid #eee;padding-top:10px;font-family:Arial,sans-serif}
+  </style></head><body>
+    <div class="hd"><div><div class="brand">Empire OS</div><div class="sub">Spend Voucher</div></div>
+      <div style="text-align:right"><div class="amt">${money(s.amount, s.currency)}</div><div class="status">${s.status}</div></div></div>
+    <table>
+      ${row('Description', s.title)}
+      ${row('Vendor', s.vendor || '')}
+      ${row('Reference', s.reference || '')}
+      ${row('Category', s.category)}
+      ${row('Unit', s.unitSlug)}
+      ${row('Spent on', s.spentAt ? new Date(s.spentAt).toLocaleDateString() : '')}
+      ${row('Payment method', s.paymentMethod ? s.paymentMethod.replace('_', ' ') : '')}
+      ${row('Gross amount', money(s.amount, s.currency))}
+      ${row('Tax', s.taxAmount != null ? `${money(s.taxAmount, s.currency)}${s.taxRate != null ? ` (${s.taxRate}%)` : ''}` : '')}
+      ${row('Net of tax', net != null ? money(net, s.currency) : '')}
+      ${row('Requested by', s.requestedBy)}
+      ${row('Decision', s.decidedBy ? `${s.status} by ${s.decidedBy}${s.decidedAt ? ` on ${new Date(s.decidedAt).toLocaleDateString()}` : ''}` : '')}
+      ${row('Justification', s.justification || '')}
+      ${row('Notes', s.notes || '')}
+    </table>
+    ${img}${pdfNote}
+    <div class="ft">Generated ${new Date().toLocaleString()} · Empire OS · ID ${s.id}</div>
+    <script>window.onload=function(){window.print()}</script>
+  </body></html>`
+  const w = window.open('', '_blank')
+  if (w) { w.document.write(html); w.document.close() }
+}
+
+function SpendCenter({ departmentSlug }: { departmentSlug: string }) {
+  const [list, setList] = useState<SpendList | null>(null)
+  const [page, setPage] = useState(0)
+  const [statusF, setStatusF] = useState('')
+  const [view, setView] = useState<Spend | null>(null)
+  const [edit, setEdit] = useState<Spend | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  const reload = useCallback(() => {
+    const q = new URLSearchParams({ page: String(page + 1), pageSize: '10' })
+    if (statusF) q.set('status', statusF)
+    fetcher(`/api/spend?${q.toString()}`).then(setList).catch(console.error)
+  }, [page, statusF])
+  useEffect(() => { reload() }, [reload])
+
+  async function decide(id: string, status: 'approved' | 'rejected') {
+    setBusyId(id)
+    await patch(`/api/spend/${id}/decision`, { status, decidedBy: 'Joud' }).catch(console.error)
+    setBusyId(null); reload()
+  }
+  async function remove(id: string) { await del(`/api/spend/${id}`).catch(console.error); reload() }
+
+  const rows = list?.data || []
+  const totalSpent = rows.filter(r => r.status !== 'rejected').reduce((s, r) => s + r.amount, 0)
+  const pending = rows.filter(r => r.status === 'pending')
+  const pendingTotal = pending.reduce((s, r) => s + r.amount, 0)
+  const taxRecoverable = rows.filter(r => r.status === 'approved' && r.taxAmount).reduce((s, r) => s + (r.taxAmount || 0), 0)
+
+  return (
+    <div className="space-y-6">
+      <Grid cols={4}>
+        <KpiCard label="Logged Spend" value={eurK(totalSpent)} sub="this page · excl. rejected" accent={ACCENT} icon="coins" />
+        <KpiCard label="Pending Approval" value={`${pending.length}`} sub={eurK(pendingTotal)} accent="#c9a233" icon="clock" />
+        <KpiCard label="Recoverable VAT" value={eurK(taxRecoverable)} sub="approved, on this page" accent="#3a9d5c" icon="shield" />
+        <KpiCard label="Records" value={`${list?.total ?? 0}`} accent={ACCENT} icon="document" />
+      </Grid>
+
+      <Panel title="Manual Spend & Receipts" icon="card"
+        actions={
+          <div className="flex items-center gap-2">
+            <select value={statusF} onChange={e => { setStatusF(e.target.value); setPage(0) }} className="bg-empire-bg border border-empire-border rounded px-2 py-1 text-[11px] text-empire-text-muted">
+              <option value="">All statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
+            </select>
+            <button onClick={() => setCreating(true)} className="rounded px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-black" style={{ background: ACCENT }}>Log spend</button>
+          </div>
+        }>
+        {!list ? <Loading /> : rows.length === 0 ? (
+          <EmptyState icon="card" title="No spend logged" hint="Record a manual spend with vendor, tax and a receipt — stored in our DB, never written to a bank." />
+        ) : (
+          <>
+            <div className="space-y-2">
+              {rows.map(s => (
+                <div key={s.id} className="flex items-center justify-between gap-3 rounded border border-empire-border/50 bg-empire-bg/40 px-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-empire-text font-medium truncate">{s.title}</span>
+                      <Pill text={s.status} color={SPEND_STATUS_COLOR[s.status] || '#7a7a82'} />
+                      {s.receiptData && <EmpireIcon name="document" size={12} className="text-empire-gold-muted" />}
+                    </div>
+                    <div className="text-[11px] text-empire-text-dim mt-0.5 truncate">
+                      {s.vendor ? `${s.vendor} · ` : ''}{s.category}{s.spentAt ? ` · ${new Date(s.spentAt).toLocaleDateString()}` : ''}{s.reference ? ` · ${s.reference}` : ''}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="font-data text-sm text-empire-gold tabular-nums">{money(s.amount, s.currency)}</span>
+                    {s.status === 'pending' && (
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => decide(s.id, 'approved')} disabled={busyId === s.id} title="Approve" className="rounded px-2 py-1 text-[10px] uppercase tracking-widest text-rag-green border border-rag-green/40 hover:bg-rag-green/10 disabled:opacity-50">Approve</button>
+                        <button onClick={() => decide(s.id, 'rejected')} disabled={busyId === s.id} title="Reject" className="rounded px-2 py-1 text-[10px] uppercase tracking-widest text-rag-red border border-rag-red/40 hover:bg-rag-red/10 disabled:opacity-50">Reject</button>
+                      </div>
+                    )}
+                    <button onClick={() => exportSpendPdf(s)} title="Export PDF voucher" className="rounded px-2 py-1 text-[10px] uppercase tracking-widest text-empire-gold border border-empire-gold/40 hover:bg-empire-gold/10">PDF</button>
+                    <RowActions onView={() => setView(s)} onEdit={() => setEdit(s)} onDelete={() => remove(s.id)} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            {list.totalPages > 1 && <div className="mt-4"><Pagination page={page} pageCount={list.totalPages} total={list.total} onPage={setPage} accent={ACCENT} /></div>}
+          </>
+        )}
+      </Panel>
+
+      {/* View */}
+      <Modal open={!!view} onClose={() => setView(null)} title={view?.title || 'Spend'} icon={<EmpireIcon name="card" size={18} />} width="max-w-xl">
+        {view && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-empire text-empire-gold text-2xl">{money(view.amount, view.currency)}</span>
+              <Pill text={view.status} color={SPEND_STATUS_COLOR[view.status] || '#7a7a82'} />
+            </div>
+            <div className="space-y-0.5">
+              <Field label="Vendor">{view.vendor || '—'}</Field>
+              <Field label="Reference">{view.reference || '—'}</Field>
+              <Field label="Category"><span className="capitalize">{view.category}</span></Field>
+              <Field label="Unit"><span className="capitalize">{view.unitSlug}</span></Field>
+              <Field label="Spent on">{view.spentAt ? new Date(view.spentAt).toLocaleDateString() : '—'}</Field>
+              <Field label="Payment">{view.paymentMethod ? view.paymentMethod.replace('_', ' ') : '—'}</Field>
+              <Field label="Tax">{view.taxAmount != null ? `${money(view.taxAmount, view.currency)}${view.taxRate != null ? ` · ${view.taxRate}%` : ''}` : '—'}</Field>
+              <Field label="Requested by">{view.requestedBy}</Field>
+              {view.decidedBy && <Field label="Decision"><span className="capitalize">{view.status}</span> by {view.decidedBy}</Field>}
+              {view.justification && <Field label="Justification">{view.justification}</Field>}
+              {view.notes && <Field label="Notes">{view.notes}</Field>}
+            </div>
+            {view.receiptData && (
+              <div>
+                <div className="text-[11px] uppercase tracking-wide text-empire-text-dim mb-1.5">Receipt</div>
+                {(view.receiptType || '').startsWith('image/') ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={view.receiptData} alt="receipt" className="max-h-64 rounded-lg border border-empire-border object-contain bg-empire-void" />
+                ) : (
+                  <iframe src={view.receiptData} title="receipt" className="w-full h-64 rounded-lg border border-empire-border bg-empire-void" />
+                )}
+                <a href={view.receiptData} download={view.receiptName || 'receipt'} className="inline-flex items-center gap-1 text-[11px] text-empire-gold hover:underline mt-1.5">
+                  <EmpireIcon name="document" size={11} /> Download {view.receiptName || 'receipt'}
+                </a>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => exportSpendPdf(view)} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-gold border border-empire-gold/40 hover:bg-empire-gold/10">Export PDF</button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Create / edit */}
+      <SpendEdit spend={edit} creating={creating} departmentSlug={departmentSlug}
+        onClose={() => { setEdit(null); setCreating(false) }}
+        onSaved={() => { setEdit(null); setCreating(false); reload() }} />
+    </div>
+  )
+}
+
+function SpendEdit({ spend, creating, departmentSlug, onClose, onSaved }: { spend: Spend | null; creating: boolean; departmentSlug: string; onClose: () => void; onSaved: () => void }) {
+  const open = !!spend || creating
+  const blank = { title: '', amount: '', currency: 'EUR', category: 'tooling', unitSlug: departmentSlug, requestedBy: '', vendor: '', spentAt: new Date().toISOString().slice(0, 10), paymentMethod: 'card', reference: '', taxAmount: '', taxRate: '', justification: '', notes: '' }
+  const [f, setF] = useState<typeof blank>(blank)
+  const [receipt, setReceipt] = useState({ data: '', name: '', type: '' })
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    if (spend) {
+      setF({ title: spend.title, amount: String(spend.amount), currency: spend.currency, category: spend.category, unitSlug: spend.unitSlug, requestedBy: spend.requestedBy, vendor: spend.vendor || '', spentAt: spend.spentAt ? spend.spentAt.slice(0, 10) : '', paymentMethod: spend.paymentMethod || 'card', reference: spend.reference || '', taxAmount: spend.taxAmount != null ? String(spend.taxAmount) : '', taxRate: spend.taxRate != null ? String(spend.taxRate) : '', justification: spend.justification || '', notes: spend.notes || '' })
+      setReceipt({ data: spend.receiptData || '', name: spend.receiptName || '', type: spend.receiptType || '' })
+    } else if (creating) { setF({ ...blank, unitSlug: departmentSlug }); setReceipt({ data: '', name: '', type: '' }) }
+  }, [spend, creating, departmentSlug])
+
+  const set = (k: keyof typeof blank, v: string) => setF(p => ({ ...p, [k]: v }))
+  function onReceipt(dataUrl: string) {
+    const m = /^data:([^;]+);/.exec(dataUrl)
+    setReceipt({ data: dataUrl, type: m ? m[1] : '', name: dataUrl ? (receipt.name || 'receipt') : '' })
+  }
+
+  async function save() {
+    if (!f.title || !f.amount || !f.requestedBy) return
+    setBusy(true)
+    const body = {
+      ...f, amount: Number(f.amount),
+      taxAmount: f.taxAmount === '' ? null : Number(f.taxAmount),
+      taxRate: f.taxRate === '' ? null : Number(f.taxRate),
+      spentAt: f.spentAt || null,
+      receiptData: receipt.data || null, receiptName: receipt.name || null, receiptType: receipt.type || null,
+    }
+    if (spend) await patch(`/api/spend/${spend.id}`, body).catch(console.error)
+    else await post('/api/spend', body).catch(console.error)
+    setBusy(false); onSaved()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={spend ? 'Edit spend' : 'Log a spend'} icon={<EmpireIcon name={spend ? 'pen' : 'card'} size={18} />} width="max-w-2xl">
+      <div className="space-y-3">
+        <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Description</span>
+          <input className={modalInput} value={f.title} onChange={e => set('title', e.target.value)} placeholder="What was this for?" /></label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Vendor</span>
+            <input className={modalInput} value={f.vendor} onChange={e => set('vendor', e.target.value)} placeholder="Who was paid" /></label>
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Reference</span>
+            <input className={modalInput} value={f.reference} onChange={e => set('reference', e.target.value)} placeholder="Invoice / txn ref" /></label>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Amount</span>
+            <input type="number" step="0.01" className={modalInput} value={f.amount} onChange={e => set('amount', e.target.value)} /></label>
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Currency</span>
+            <select className={modalInput} value={f.currency} onChange={e => set('currency', e.target.value)}>
+              <option value="EUR">EUR</option><option value="AED">AED</option><option value="USD">USD</option>
+            </select></label>
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Spent on</span>
+            <input type="date" className={modalInput} value={f.spentAt} onChange={e => set('spentAt', e.target.value)} /></label>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Category</span>
+            <select className={modalInput} value={f.category} onChange={e => set('category', e.target.value)}>
+              {SPEND_CATEGORIES.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
+            </select></label>
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Payment</span>
+            <select className={modalInput} value={f.paymentMethod} onChange={e => set('paymentMethod', e.target.value)}>
+              {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
+            </select></label>
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Unit</span>
+            <input className={modalInput} value={f.unitSlug} onChange={e => set('unitSlug', e.target.value)} /></label>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Tax amount</span>
+            <input type="number" step="0.01" className={modalInput} value={f.taxAmount} onChange={e => set('taxAmount', e.target.value)} placeholder="VAT portion" /></label>
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Tax rate %</span>
+            <input type="number" step="0.1" className={modalInput} value={f.taxRate} onChange={e => set('taxRate', e.target.value)} placeholder="21" /></label>
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Requested by</span>
+            <input className={modalInput} value={f.requestedBy} onChange={e => set('requestedBy', e.target.value)} placeholder="Name" /></label>
+        </div>
+        <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Justification</span>
+          <input className={modalInput} value={f.justification} onChange={e => set('justification', e.target.value)} placeholder="Why this spend" /></label>
+        <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Notes</span>
+          <input className={modalInput} value={f.notes} onChange={e => set('notes', e.target.value)} /></label>
+        <FileDrop value={receipt.data} onChange={onReceipt} label="Receipt (PDF or image — stored in our DB)" allowUrl={false} />
+        <div className="flex justify-end gap-2 pt-1">
+          <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
+          <button onClick={save} disabled={busy || !f.title || !f.amount || !f.requestedBy} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-black disabled:opacity-50" style={{ background: ACCENT }}>{busy ? 'Saving…' : spend ? 'Save' : 'Log spend'}</button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+/* ---------------- Tax Engine ---------------- */
+type TaxGuidance = { title: string; impact: 'high' | 'medium' | 'low'; detail: string; estSavingEur: number }
+type TaxBracket = { from: number; to: number | null; rate: number; taxable: number; tax: number }
+type Jurisdiction = {
+  code: 'NL' | 'UAE'; name: string; currency: string; fxRateFromEur: number
+  vat: { rate: number; outputVat: number; inputVat: number; netVatPayable: number; reclaimable: number }
+  cit: { brackets: TaxBracket[]; total: number; smallBusinessRelief: boolean; effectiveRate: number }
+  profitLocal: number; revenueLocal: number; totalTaxLocal: number; totalTaxEur: number
+  effectiveTaxRate: number; guidance: TaxGuidance[]
+}
+type TaxData = {
+  period: { from: string; to: string; label: string }
+  basis: { revenue: number; cogs: number; opex: number; deductibleExpenses: number; taxableProfit: number; netMarginPct: number }
+  fx: { aedPerEur: number }
+  jurisdictions: Jurisdiction[]
+  recommended: { code: string; name: string; totalTaxEur: number; savingVsHighestEur: number }
+}
+
+const IMPACT_COLOR: Record<string, string> = { high: '#3a9d5c', medium: '#c9a233', low: '#7a7a82' }
+const localFmt = (n: number, ccy: string) =>
+  `${n < 0 ? '-' : ''}${ccy === 'AED' ? 'AED ' : '€'}${Math.abs(Math.round(n)).toLocaleString()}`
+
+function TaxCenter() {
+  const { data: t, loading } = useFin<TaxData>('tax')
+  if (loading) return <Loading />
+  if (!t) return <EmptyState icon="scales" title="No tax basis yet" hint="Post revenue and expense entries to compute tax." />
+  const b = t.basis
+  const profitable = b.taxableProfit >= 0
+  return (
+    <div className="space-y-6">
+      {/* Taxable basis derived from the ledger P&L */}
+      <Grid cols={4}>
+        <KpiCard label="Revenue (YTD)" value={eurK(b.revenue)} accent={ACCENT} icon="chart-line" />
+        <KpiCard label="Deductible Expenses" value={eurK(b.deductibleExpenses)} sub={`COGS ${eurK(b.cogs)} · OpEx ${eurK(b.opex)}`} accent="#c94f4f" icon="card" />
+        <KpiCard label="Taxable Profit" value={eurK(b.taxableProfit)} delta={profitable ? 'profit' : 'loss'} deltaGood={profitable} accent={profitable ? '#3a9d5c' : '#c94f4f'} icon="finance" />
+        <KpiCard label="Net Margin" value={`${b.netMarginPct}%`} accent={b.netMarginPct >= 0 ? '#3a9d5c' : '#c94f4f'} icon="gauge" />
+      </Grid>
+
+      {/* Recommendation banner */}
+      <div className="rounded-lg border border-empire-gold/30 glass-gold px-4 py-3 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <EmpireIcon name="scales" size={18} className="text-empire-gold" />
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-empire-text-dim">Lowest total tax burden</div>
+            <div className="text-sm text-empire-text font-medium">{t.recommended.name} — {eur(t.recommended.totalTaxEur)} payable</div>
+          </div>
+        </div>
+        {t.recommended.savingVsHighestEur > 0 && (
+          <Pill text={`Saves ${eur(t.recommended.savingVsHighestEur)} vs alternative`} color="#3a9d5c" />
+        )}
+      </div>
+
+      {/* Side-by-side jurisdictions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {t.jurisdictions.map(j => (
+          <JurisdictionCard key={j.code} j={j} recommended={j.code === t.recommended.code} />
+        ))}
+      </div>
+
+      <p className="text-[11px] text-empire-text-dim">
+        Statutory rates: NL VAT 21% · CIT 19% to €200k, 25.8% above. UAE VAT 5% · CIT 0% to AED 375k, 9% above
+        (Small Business Relief 0% under AED 3M through 2026). UAE figures converted at {t.fx.aedPerEur} AED/€.
+        Computed from {t.period.label} ledger activity — guidance is indicative, not filed advice.
+      </p>
+    </div>
+  )
+}
+
+function JurisdictionCard({ j, recommended }: { j: Jurisdiction; recommended: boolean }) {
+  const vatPayable = j.vat.netVatPayable
+  const sortedGuidance = [...j.guidance].sort((a, c) => c.estSavingEur - a.estSavingEur)
+  return (
+    <Panel
+      title={`${j.name} (${j.currency})`}
+      icon={j.code === 'NL' ? 'compass' : 'flag'}
+      actions={recommended ? <Pill text="Recommended" color="#3a9d5c" /> : undefined}
+    >
+      <div className="space-y-4">
+        <Grid cols={2}>
+          <KpiCard label="Corporate Income Tax" value={localFmt(j.cit.total, j.currency)} sub={`eff. ${j.cit.effectiveRate}%${j.cit.smallBusinessRelief ? ' · relief' : ''}`} accent={ACCENT} icon="finance" />
+          <KpiCard label={vatPayable >= 0 ? 'Net VAT Payable' : 'VAT Reclaimable'} value={localFmt(Math.abs(vatPayable), j.currency)} accent={vatPayable >= 0 ? '#c94f4f' : '#3a9d5c'} icon="coins" />
+        </Grid>
+
+        <div>
+          <div className="text-[11px] uppercase tracking-wide text-empire-text-dim mb-1.5">Total tax burden</div>
+          <div className="flex items-baseline justify-between border-t border-empire-border/40 pt-2">
+            <span className="text-sm text-empire-text-muted">{j.code === 'NL' ? 'In EUR' : `In ${j.currency} (€${Math.round(j.totalTaxEur).toLocaleString()})`}</span>
+            <span className="font-empire text-empire-gold text-lg">{localFmt(j.totalTaxLocal, j.currency)}</span>
+          </div>
+          <div className="mt-1"><ProgressBar value={Math.min(100, j.effectiveTaxRate)} color={ACCENT} /></div>
+          <div className="text-[10px] text-empire-text-dim mt-0.5">{j.effectiveTaxRate}% effective on revenue</div>
+        </div>
+
+        {j.cit.brackets.length > 0 && (
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-empire-text-dim mb-1">CIT brackets</div>
+            {j.cit.brackets.map((bk, i) => (
+              <Field key={i} label={`${(bk.rate * 100).toFixed(bk.rate * 100 % 1 ? 1 : 0)}% · ${localFmt(bk.from, j.currency)}${bk.to ? `–${localFmt(bk.to, j.currency)}` : '+'}`}>
+                {localFmt(bk.tax, j.currency)}
+              </Field>
+            ))}
+          </div>
+        )}
+
+        <div>
+          <div className="text-[11px] uppercase tracking-wide text-empire-text-dim mb-1.5">How to lower it</div>
+          <div className="space-y-2">
+            {sortedGuidance.map((g, i) => (
+              <div key={i} className="rounded border border-empire-border/50 bg-empire-bg/40 px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm text-empire-text font-medium flex items-center gap-2">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: IMPACT_COLOR[g.impact] }} />
+                    {g.title}
+                  </span>
+                  {g.estSavingEur > 0 && <Pill text={`~${eur(g.estSavingEur)}`} color={IMPACT_COLOR[g.impact]} />}
+                </div>
+                <p className="text-xs text-empire-text-dim mt-1 leading-relaxed">{g.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Panel>
+  )
+}
+
 /* ---------------- Ledger (journal + post entry) ---------------- */
-type Account = { id: string; code: string; name: string; type: string; balance: number }
+type Account = { id: string; code: string; name: string; type: string; balance: number; debitTotal?: number; creditTotal?: number; subtype?: string; sortOrder?: number }
+const ACCT_TYPE_ORDER = ['asset', 'liability', 'equity', 'revenue', 'expense']
+const ACCT_TYPE_COLOR: Record<string, string> = { asset: '#3a9d5c', liability: '#c94f4f', equity: '#4f8ff7', revenue: '#c9a233', expense: '#b06ad6' }
 type JournalEntry = { id: string; date: string; memo: string; source: string; debitTotal: number; creditTotal: number; lines: { id: string; debit: number; credit: number; account: { code: string; name: string } }[] }
 type JournalPage = { data: JournalEntry[]; page: number; pageSize: number; total: number; totalPages: number }
 
@@ -360,8 +784,22 @@ function Ledger({ departmentSlug }: { departmentSlug: string }) {
     ) },
   ]
 
+  // Trial balance health — the sum of every account's debit & credit movement.
+  // In a correct double-entry ledger these are equal to the cent.
+  const tbDebit = (accts || []).reduce((s, a) => s + (a.debitTotal || 0), 0)
+  const tbCredit = (accts || []).reduce((s, a) => s + (a.creditTotal || 0), 0)
+  const tbBalanced = Math.abs(tbDebit - tbCredit) < 0.005
+  const manualCount = (journal?.data || []).filter(e => e.source === 'manual').length
+
   return (
     <div className="space-y-6">
+      <Grid cols={4}>
+        <KpiCard label="Posted Entries" value={`${journal?.total ?? 0}`} sub="all balanced" accent={ACCENT} icon="book" />
+        <KpiCard label="Trial Balance" value={tbBalanced ? 'In balance' : `Off ${eur(tbDebit - tbCredit)}`} sub={`Dr ${eurK(tbDebit)} = Cr ${eurK(tbCredit)}`} accent={tbBalanced ? '#3a9d5c' : '#c94f4f'} icon={tbBalanced ? 'check' : 'alert'} />
+        <KpiCard label="Accounts" value={`${accts?.length ?? 0}`} sub="chart of accounts" accent={ACCENT} icon="document" />
+        <KpiCard label="Manual / Page" value={`${manualCount}`} sub="hand-posted entries" accent="#b06ad6" icon="pen" />
+      </Grid>
+
       <div className="flex items-center justify-between">
         <p className="text-empire-text-muted text-xs">{journal?.total ?? 0} posted entries · every one balances to the cent.</p>
         <button onClick={() => setShowForm(!showForm)} className="inline-flex items-center gap-1.5 px-4 py-2 bg-empire-gold-dim border border-empire-gold/30 text-empire-gold text-xs uppercase tracking-widest rounded hover:bg-empire-gold/20 transition-colors">
@@ -401,25 +839,43 @@ function Ledger({ departmentSlug }: { departmentSlug: string }) {
 
       <Panel title="Chart of Accounts" icon="book">
         {accts && accts.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {accts.map(a => (
-              <div key={a.id} className="bg-empire-surface border border-empire-border rounded-lg p-3 group">
-                <div className="flex items-start justify-between gap-1">
-                  <div className="text-empire-text-dim text-[11px]">{a.code} · {a.type}</div>
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <RowActions
-                      size={13}
-                      onView={() => setViewAcct(a)}
-                      onEdit={() => setEditAcct(a)}
-                      onDelete={() => deleteAccount(a.id)}
-                      deleteLabel={`account ${a.code} · ${a.name}`}
-                    />
+          <div className="space-y-5">
+            {ACCT_TYPE_ORDER.filter(t => accts.some(a => a.type === t)).map(type => {
+              const group = accts.filter(a => a.type === type).sort((a, b) => a.code.localeCompare(b.code))
+              const subtotal = group.reduce((s, a) => s + (a.balance || 0), 0)
+              const color = ACCT_TYPE_COLOR[type] || ACCENT
+              return (
+                <div key={type}>
+                  <div className="flex items-center justify-between border-b border-empire-border/60 pb-1.5 mb-2.5">
+                    <span className="inline-flex items-center gap-2 text-[11px] uppercase tracking-widest" style={{ color }}>
+                      <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: color }} />{type}
+                      <span className="text-empire-text-dim normal-case tracking-normal">· {group.length}</span>
+                    </span>
+                    <span className="font-data text-xs tabular-nums" style={{ color }}>{eur(subtotal)}</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {group.map(a => (
+                      <div key={a.id} className="bg-empire-surface border border-empire-border rounded-lg p-3 group hover:border-empire-gold/40 transition-colors">
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="font-data text-empire-text-dim text-[11px]">{a.code}{a.subtype ? ` · ${a.subtype.replace(/_/g, ' ')}` : ''}</div>
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <RowActions
+                              size={13}
+                              onView={() => setViewAcct(a)}
+                              onEdit={() => setEditAcct(a)}
+                              onDelete={() => deleteAccount(a.id)}
+                              deleteLabel={`account ${a.code} · ${a.name}`}
+                            />
+                          </div>
+                        </div>
+                        <div className="text-empire-text text-xs font-medium truncate">{a.name}</div>
+                        <div className="text-sm tabular-nums mt-1 font-data" style={{ color }}>{eur(a.balance)}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-                <div className="text-empire-text text-xs font-medium truncate">{a.name}</div>
-                <div className="text-empire-gold text-sm tabular-nums mt-1">{eur(a.balance)}</div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : <EmptyState icon="book" title="No accounts" hint="Seed or create a chart of accounts." />}
       </Panel>
@@ -438,6 +894,9 @@ function Ledger({ departmentSlug }: { departmentSlug: string }) {
             <Field label="Code">{viewAcct.code}</Field>
             <Field label="Name">{viewAcct.name}</Field>
             <Field label="Type"><span className="capitalize">{viewAcct.type}</span></Field>
+            {viewAcct.subtype && <Field label="Subtype"><span className="capitalize">{viewAcct.subtype.replace(/_/g, ' ')}</span></Field>}
+            {viewAcct.debitTotal != null && <Field label="Total Debits"><span className="tabular-nums">{eur(viewAcct.debitTotal)}</span></Field>}
+            {viewAcct.creditTotal != null && <Field label="Total Credits"><span className="tabular-nums">{eur(viewAcct.creditTotal)}</span></Field>}
             <Field label="Balance"><span className="text-empire-gold tabular-nums">{eur(viewAcct.balance)}</span></Field>
           </div>
         )}
@@ -499,6 +958,164 @@ function AccountEdit({ account, onClose, onSaved }: { account: Account | null; o
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
           <button onClick={save} disabled={busy || !f.name} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-black disabled:opacity-50" style={{ background: ACCENT }}>{busy ? 'Saving…' : 'Save'}</button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+/* ---------------- Bank Connections (open banking) ---------------- */
+type BankProvider = { id: string; name: string; region: string; method: string; feasible: boolean; institutions: string[]; note: string }
+type BankRegion = { region: string; label: string; feasible: boolean; framework: string; summary: string; providers: string[] }
+type Feasibility = { regions: BankRegion[]; providers: BankProvider[] }
+type BankConn = { id: string; provider: string; region: string; institution: string; accountName: string | null; iban: string | null; currency: string; status: string; lastSyncedAt: string | null; consentExpiresAt: string | null; balance: number }
+type ConnList = { data: BankConn[]; total: number; totalPages: number; totalBalance: number; connected: number }
+
+const CONN_STATUS_COLOR: Record<string, string> = { connected: '#3a9d5c', pending: '#c9a233', disconnected: '#7a7a82', error: '#c94f4f' }
+
+function BankCenter() {
+  const { data: feas } = useFin<Feasibility>('bank/feasibility')
+  const [conns, setConns] = useState<ConnList | null>(null)
+  const [page, setPage] = useState(0)
+  const [edit, setEdit] = useState<BankConn | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  const reload = useCallback(() => {
+    fetcher(`/api/finance/bank/connections?page=${page + 1}&pageSize=10`).then(setConns).catch(console.error)
+  }, [page])
+  useEffect(() => { reload() }, [reload])
+
+  async function sync(id: string) {
+    setBusyId(id)
+    await post(`/api/finance/bank/connections/${id}/sync`, {}).catch(console.error)
+    setBusyId(null); reload()
+  }
+  async function remove(id: string) {
+    await del(`/api/finance/bank/connections/${id}`).catch(console.error); reload()
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Feasibility briefing */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {feas?.regions.map(r => (
+          <Panel key={r.region} title={r.label} icon={r.region === 'NL' ? 'compass' : 'flag'}
+            actions={<Pill text={r.feasible ? 'Feasible today' : 'Not yet'} color={r.feasible ? '#3a9d5c' : '#c94f4f'} />}>
+            <div className="space-y-2">
+              <Field label="Framework">{r.framework}</Field>
+              <p className="text-xs text-empire-text-dim leading-relaxed">{r.summary}</p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {feas.providers.filter(p => r.providers.includes(p.id)).map(p => (
+                  <span key={p.id} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] text-empire-text-muted border border-empire-border/60 bg-empire-bg/40" title={p.note}>{p.name}</span>
+                ))}
+              </div>
+            </div>
+          </Panel>
+        ))}
+      </div>
+
+      {/* Connections */}
+      <Panel title="Linked Accounts" icon="card"
+        actions={<button onClick={() => setCreating(true)} className="rounded px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-black" style={{ background: ACCENT }}>Connect bank</button>}>
+        {!conns ? <Loading /> : conns.data.length === 0 ? (
+          <EmptyState icon="card" title="No banks linked" hint="Connect an account to pull balances and transactions." />
+        ) : (
+          <>
+            <Grid cols={3}>
+              <KpiCard label="Linked Accounts" value={`${conns.total}`} accent={ACCENT} icon="card" />
+              <KpiCard label="Connected (live)" value={`${conns.connected}`} accent="#3a9d5c" icon="check" />
+              <KpiCard label="Aggregate Balance" value={eurK(conns.totalBalance)} sub="connected accounts" accent={ACCENT} icon="coins" />
+            </Grid>
+            <div className="mt-4 space-y-2">
+              {conns.data.map(c => (
+                <div key={c.id} className="flex items-center justify-between gap-3 rounded border border-empire-border/50 bg-empire-bg/40 px-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-empire-text font-medium truncate">{c.institution}</span>
+                      <Pill text={c.status} color={CONN_STATUS_COLOR[c.status] || '#7a7a82'} />
+                      <span className="text-[10px] uppercase tracking-wide text-empire-text-dim">{c.region}</span>
+                    </div>
+                    <div className="text-[11px] text-empire-text-dim mt-0.5 truncate">
+                      {c.accountName ? `${c.accountName} · ` : ''}{c.provider}{c.lastSyncedAt ? ` · synced ${new Date(c.lastSyncedAt).toLocaleDateString()}` : ''}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => sync(c.id)} disabled={busyId === c.id} className="rounded px-2.5 py-1 text-[10px] uppercase tracking-widest text-empire-gold border border-empire-gold/40 hover:bg-empire-gold/10 disabled:opacity-50">{busyId === c.id ? 'Syncing…' : 'Sync'}</button>
+                    <RowActions onEdit={() => setEdit(c)} onDelete={() => remove(c.id)} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            {conns.totalPages > 1 && (
+              <div className="mt-4"><Pagination page={page} pageCount={conns.totalPages} total={conns.total} onPage={setPage} accent={ACCENT} /></div>
+            )}
+          </>
+        )}
+      </Panel>
+
+      <BankConnectionEdit conn={edit} creating={creating} providers={feas?.providers || []}
+        onClose={() => { setEdit(null); setCreating(false) }}
+        onSaved={() => { setEdit(null); setCreating(false); reload() }} />
+    </div>
+  )
+}
+
+function BankConnectionEdit({ conn, creating, providers, onClose, onSaved }: { conn: BankConn | null; creating: boolean; providers: BankProvider[]; onClose: () => void; onSaved: () => void }) {
+  const open = !!conn || creating
+  const [f, setF] = useState({ provider: 'gocardless', region: 'NL', institution: '', accountName: '', iban: '', currency: 'EUR', status: 'pending' })
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    if (conn) setF({ provider: conn.provider, region: conn.region, institution: conn.institution, accountName: conn.accountName || '', iban: conn.iban || '', currency: conn.currency, status: conn.status })
+    else if (creating) setF({ provider: 'gocardless', region: 'NL', institution: '', accountName: '', iban: '', currency: 'EUR', status: 'pending' })
+  }, [conn, creating])
+
+  const provider = providers.find(p => p.id === f.provider)
+  const institutions = provider?.institutions.filter(i => i !== 'Any') || []
+
+  async function save() {
+    if (!f.institution) return
+    setBusy(true)
+    const body = { provider: f.provider, region: f.region, institution: f.institution, accountName: f.accountName || null, iban: f.iban || null, currency: f.currency, status: f.status }
+    if (conn) await patch(`/api/finance/bank/connections/${conn.id}`, body).catch(console.error)
+    else await post('/api/finance/bank/connections', body).catch(console.error)
+    setBusy(false); onSaved()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={conn ? 'Edit connection' : 'Connect a bank'} icon={<EmpireIcon name={conn ? 'pen' : 'card'} size={18} />} width="max-w-md">
+      <div className="space-y-3">
+        <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Region</span>
+          <select className={modalInput} value={f.region} onChange={e => setF(p => ({ ...p, region: e.target.value }))}>
+            <option value="NL">Netherlands</option><option value="UAE">United Arab Emirates</option><option value="EU">EU (other)</option>
+          </select></label>
+        <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Provider</span>
+          <select className={modalInput} value={f.provider} onChange={e => setF(p => ({ ...p, provider: e.target.value }))}>
+            {providers.map(p => <option key={p.id} value={p.id}>{p.name} ({p.method})</option>)}
+          </select></label>
+        {provider && <p className="text-[11px] text-empire-text-dim -mt-1 leading-relaxed">{provider.note}</p>}
+        <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Institution</span>
+          {institutions.length > 0 ? (
+            <select className={modalInput} value={f.institution} onChange={e => setF(p => ({ ...p, institution: e.target.value }))}>
+              <option value="">Select bank…</option>
+              {institutions.map(i => <option key={i} value={i}>{i}</option>)}
+            </select>
+          ) : (
+            <input className={modalInput} value={f.institution} onChange={e => setF(p => ({ ...p, institution: e.target.value }))} placeholder="Bank name" />
+          )}</label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Account name</span>
+            <input className={modalInput} value={f.accountName} onChange={e => setF(p => ({ ...p, accountName: e.target.value }))} placeholder="e.g. Operating" /></label>
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Currency</span>
+            <select className={modalInput} value={f.currency} onChange={e => setF(p => ({ ...p, currency: e.target.value }))}>
+              <option value="EUR">EUR</option><option value="AED">AED</option><option value="USD">USD</option>
+            </select></label>
+        </div>
+        <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">IBAN (last 4 / masked)</span>
+          <input className={modalInput} value={f.iban} onChange={e => setF(p => ({ ...p, iban: e.target.value }))} placeholder="•••• 4521" /></label>
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
+          <button onClick={save} disabled={busy || !f.institution} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-black disabled:opacity-50" style={{ background: ACCENT }}>{busy ? 'Saving…' : conn ? 'Save' : 'Connect'}</button>
         </div>
       </div>
     </Modal>

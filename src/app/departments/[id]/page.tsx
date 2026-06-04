@@ -13,6 +13,7 @@ import { Modal } from '@/components/molecules/Modal'
 import { Pagination } from '@/components/molecules/Pagination'
 import { rankIcon } from '@/lib/rank-icons'
 import { ContractsPanel } from '@/components/organisms/ContractsPanel'
+import { TicketsPanel } from '@/components/organisms/TicketsPanel'
 import { RuleBook } from '@/components/organisms/RuleBook'
 import { MetricsPanel } from '@/components/organisms/MetricsPanel'
 import { InteractionsPanel } from '@/components/organisms/InteractionsPanel'
@@ -81,7 +82,7 @@ export default function DepartmentPage() {
   const [entries, setEntries] = useState<DeptEntry[]>([])
   const [allDepts, setAllDepts] = useState<AllDept[]>([])
   const [loading, setLoading] = useState(true)
-  type TabId = 'overview' | 'structure' | 'metrics' | 'interactions' | 'finance' | 'engineering' | 'legal' | 'marketing' | 'client-success' | 'partnerships' | 'hr' | 'operations' | 'creative' | 'executive' | 'advisory' | 'kpis' | 'followups' | 'dept' | 'contracts'
+  type TabId = 'overview' | 'structure' | 'metrics' | 'interactions' | 'finance' | 'engineering' | 'legal' | 'marketing' | 'client-success' | 'partnerships' | 'hr' | 'operations' | 'creative' | 'executive' | 'advisory' | 'kpis' | 'followups' | 'dept' | 'tickets' | 'contracts'
   const initialTab = (searchParams.get('tab') as TabId) || 'overview'
   const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   // Persist the active tab in the URL so a reload restores the same section
@@ -158,6 +159,7 @@ export default function DepartmentPage() {
     { id: 'kpis', label: 'KPIs', icon: 'chart-bar' },
     { id: 'followups', label: `Follow-ups${openFollowUps > 0 ? ` (${openFollowUps})` : ''}`, icon: 'flag' },
     ...(deptTab ? [{ id: 'dept' as const, label: deptTab.label, icon: deptTab.icon }] : []),
+    { id: 'tickets', label: 'Tickets', icon: 'rocket' },
     { id: 'contracts', label: 'Contracts', icon: 'document' },
   ]
 
@@ -276,6 +278,9 @@ export default function DepartmentPage() {
             allDepts={allDepts}
             onUpdate={load}
           />
+        )}
+        {activeTab === 'tickets' && (
+          <TicketsPanel departmentSlug={dept.slug} accent={dept.color || '#c9a233'} />
         )}
         {activeTab === 'contracts' && (
           <ContractsPanel

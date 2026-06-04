@@ -34,6 +34,7 @@ const TABS = [
   { id: 'campaigns', label: 'Campaigns' },
   { id: 'channels', label: 'Channels' },
   { id: 'leads', label: 'Pipeline' },
+  { id: 'accounts', label: 'Social Accounts' },
   { id: 'influencers', label: 'Influencers' },
 ]
 
@@ -71,6 +72,7 @@ export function MarketingPanel() {
       {tab === 'campaigns' && <Campaigns />}
       {tab === 'channels' && <Channels />}
       {tab === 'leads' && <Leads />}
+      {tab === 'accounts' && <SocialAccounts />}
       {tab === 'influencers' && <Influencers />}
     </div>
   )
@@ -646,6 +648,289 @@ function InfluencerEdit({ influencer, open, onClose, onSaved }: { influencer: In
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
           <button onClick={save} disabled={busy || !f.title} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white disabled:opacity-50" style={{ background: ACCENT }}>{busy ? 'Saving…' : 'Save'}</button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+/* ---------------- Social Accounts (connected presences + dashboards) ----------------
+ * Connect IG/Meta/etc., choose an account or view all together. Per-account and
+ * all-accounts dashboards plus prescriptive "you need an increase here" fixes —
+ * all derived from the SocialSnapshot series (/api/marketing/social/*). Real auth
+ * keys go in env/Secrets later; the surface works DB-driven today. */
+const SOCIAL_PLATFORMS = ['instagram', 'facebook', 'tiktok', 'x', 'linkedin', 'youtube']
+const SOCIAL_CONNECTIONS = [
+  { id: 'login_session', label: 'IG / Meta login session' },
+  { id: 'oauth', label: 'OAuth app' },
+  { id: 'api_key', label: 'API key' },
+  { id: 'manual', label: 'Manual entry' },
+]
+const ACC_STATUS_COLOR: Record<string, string> = { connected: '#10b981', pending: '#f59e0b', disconnected: '#6b7280', error: '#c94f4f' }
+const SEV_COLOR: Record<string, string> = { high: '#c94f4f', medium: '#f59e0b', low: '#6b7280' }
+
+type Fix = { area: string; severity: 'high' | 'medium' | 'low'; message: string; metric: string; handle?: string; platform?: string }
+type SocialAcc = {
+  id: string; platform: string; handle: string; displayName: string | null; avatarUrl: string | null
+  status: string; connection: string; lastSyncedAt: string | null
+  followers: number; reach: number; impressions: number; engagements: number; posts: number; engagementRate: number
+  deltas: { followers: number; reach: number; engagements: number; impressions: number }
+  series: { labels: string[]; followers: number[]; reach: number[]; engagements: number[]; impressions: number[] }
+  fixes: Fix[]
+}
+type SocialOverview = {
+  totals: { followers: number; reach: number; engagements: number; impressions: number; posts: number }
+  avgEngagementRate: number; accountsTracked: number; connected: number
+  perAccount: { id: string; platform: string; handle: string; displayName: string | null; avatarUrl: string | null; status: string; followers: number; engagementRate: number; deltas: SocialAcc['deltas']; fixCount: number }[]
+  portfolioFixes: Fix[]
+}
+
+function Delta({ v, pct = true }: { v: number; pct?: boolean }) {
+  const color = v > 0 ? '#10b981' : v < 0 ? '#c94f4f' : '#6b7280'
+  const sign = v > 0 ? '+' : ''
+  return <span className="font-data text-[11px]" style={{ color }}>{sign}{v}{pct ? '%' : ''}</span>
+}
+
+function FixCard({ f }: { f: Fix }) {
+  const c = SEV_COLOR[f.severity]
+  return (
+    <div className="rounded-lg border p-3" style={{ borderColor: `${c}44`, background: `${c}0d` }}>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <span className="text-[11px] uppercase tracking-wide font-medium" style={{ color: c }}>{f.area}</span>
+        <span className="font-data text-[11px] text-empire-text-muted">{f.metric}{f.handle ? ` · ${f.handle}` : ''}</span>
+      </div>
+      <p className="text-empire-text-muted text-xs leading-relaxed">{f.message}</p>
+    </div>
+  )
+}
+
+function SocialAccounts() {
+  const [accounts, setAccounts] = useState<SocialAcc[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState<string>('all') // 'all' | account id
+  const [overview, setOverview] = useState<SocialOverview | null>(null)
+  const [detail, setDetail] = useState<SocialAcc | null>(null)
+  const [connecting, setConnecting] = useState(false)
+  const [editing, setEditing] = useState<SocialAcc | null>(null)
+  const [snapFor, setSnapFor] = useState<SocialAcc | null>(null)
+  const [page, setPage] = useState(0)
+  const PS = 6
+
+  const loadAccounts = useCallback(() => {
+    setLoading(true)
+    fetcher('/api/marketing/social/accounts?pageSize=100')
+      .then((r: Page<SocialAcc>) => setAccounts(r.data || []))
+      .catch(console.error).finally(() => setLoading(false))
+  }, [])
+  const loadOverview = useCallback(() => {
+    fetcher('/api/marketing/social/overview').then(setOverview).catch(console.error)
+  }, [])
+  const loadDetail = useCallback((id: string) => {
+    fetcher(`/api/marketing/social/accounts/${id}/metrics`).then(setDetail).catch(console.error)
+  }, [])
+
+  useEffect(() => { loadAccounts(); loadOverview() }, [loadAccounts, loadOverview])
+  useEffect(() => { if (selected !== 'all') loadDetail(selected) }, [selected, loadDetail])
+  function reloadAll() { loadAccounts(); loadOverview(); if (selected !== 'all') loadDetail(selected) }
+
+  async function sync(id: string) {
+    try { await post(`/api/marketing/social/accounts/${id}/sync`, {}); reloadAll() } catch (e) { console.error(e) }
+  }
+  async function remove(id: string) {
+    try { await del(`/api/marketing/social/accounts/${id}`); if (selected === id) setSelected('all'); reloadAll() } catch (e) { console.error(e) }
+  }
+
+  if (loading) return <Loading />
+
+  const selectedAcc = accounts.find(a => a.id === selected)
+  const pageRows = overview ? overview.perAccount.slice(page * PS, page * PS + PS) : []
+
+  return (
+    <div className="space-y-6">
+      {/* Toolbar: choose account / all, connect, sync */}
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-[11px] uppercase tracking-wide text-empire-text-dim">View</span>
+        <select className={inputCls} value={selected} onChange={e => { setSelected(e.target.value); setPage(0) }}>
+          <option value="all">All accounts (portfolio)</option>
+          {accounts.map(a => <option key={a.id} value={a.id}>{a.handle} · {a.platform}</option>)}
+        </select>
+        {selectedAcc && (
+          <>
+            <Pill text={selectedAcc.status} color={ACC_STATUS_COLOR[selectedAcc.status] || '#6b7280'} />
+            <button onClick={() => sync(selectedAcc.id)} className="rounded px-3 py-1.5 text-xs uppercase tracking-widest border border-empire-border text-empire-text-muted hover:text-empire-text hover:border-empire-gold/40 inline-flex items-center gap-1.5">
+              <EmpireIcon name="rocket" size={12} /> Sync now
+            </button>
+            <button onClick={() => setSnapFor(selectedAcc)} className="rounded px-3 py-1.5 text-xs uppercase tracking-widest border border-empire-border text-empire-text-muted hover:text-empire-text">+ Period data</button>
+            <RowActions onEdit={() => setEditing(selectedAcc)} onDelete={() => remove(selectedAcc.id)} deleteLabel={`account ${selectedAcc.handle}`} />
+          </>
+        )}
+        <button onClick={() => setConnecting(true)} className="ml-auto rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white" style={{ background: ACCENT }}>
+          + Connect account
+        </button>
+      </div>
+
+      {accounts.length === 0 ? (
+        <EmptyState icon="megaphone" title="No accounts connected" hint="Connect an Instagram / Meta account (login session or API key) to pull reach, engagement and follower growth. Real keys go in env later — connect now to start recording." />
+      ) : selected === 'all' ? (
+        /* ---- Portfolio (all accounts together) ---- */
+        <div className="space-y-6">
+          <Grid cols={5}>
+            <KpiCard icon="people" label="Total Followers" value={fmt(overview?.totals.followers || 0)} sub={`${overview?.accountsTracked || 0} accounts`} accent={ACCENT} />
+            <KpiCard icon="gauge" label="Avg Engagement" value={`${overview?.avgEngagementRate || 0}%`} accent={(overview?.avgEngagementRate || 0) >= 3 ? '#10b981' : (overview?.avgEngagementRate || 0) >= 1 ? '#f59e0b' : '#c94f4f'} />
+            <KpiCard icon="chart-line" label="Reach" value={fmt(overview?.totals.reach || 0)} accent={ACCENT} />
+            <KpiCard icon="megaphone" label="Impressions" value={fmt(overview?.totals.impressions || 0)} accent={ACCENT} />
+            <KpiCard icon="check" label="Connected" value={`${overview?.connected || 0}/${overview?.accountsTracked || 0}`} accent={ACCENT} />
+          </Grid>
+
+          <Panel icon="people" title="Accounts">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {pageRows.map(a => {
+                const c = PLATFORM_COLOR[a.platform] || ACCENT
+                return (
+                  <button key={a.id} onClick={() => { setSelected(a.id); setPage(0) }} className="text-left rounded-lg border border-empire-border bg-empire-elevated/30 p-3 hover:border-empire-gold/40 transition-colors">
+                    <div className="flex items-center gap-2.5">
+                      <span className="grid place-items-center w-8 h-8 rounded-full text-[11px] font-semibold" style={{ background: `${c}22`, color: c }}>{a.platform.slice(0, 2).toUpperCase()}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2"><span className="text-empire-text text-sm truncate">{a.handle}</span><Pill text={a.status} color={ACC_STATUS_COLOR[a.status] || '#6b7280'} /></div>
+                        <div className="text-[11px] text-empire-text-dim">{a.platform}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-2.5 text-[11px] text-empire-text-muted font-data">
+                      <span>{fmt(a.followers)} followers <Delta v={a.deltas.followers} pct={false} /></span>
+                      <span>{a.engagementRate}% eng</span>
+                      {a.fixCount > 0 && <span style={{ color: '#f59e0b' }}>{a.fixCount} fix{a.fixCount > 1 ? 'es' : ''}</span>}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+            <Pagination page={page} pageCount={Math.ceil((overview?.perAccount.length || 0) / PS)} total={overview?.perAccount.length || 0} onPage={setPage} accent={ACCENT} />
+          </Panel>
+
+          {overview && overview.portfolioFixes.length > 0 && (
+            <Panel icon="alert" title="Recommended actions — where to push next">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {overview.portfolioFixes.map((f, i) => <FixCard key={i} f={f} />)}
+              </div>
+            </Panel>
+          )}
+        </div>
+      ) : detail ? (
+        /* ---- Single account dashboard ---- */
+        <div className="space-y-6">
+          <Grid cols={5}>
+            <KpiCard icon="people" label="Followers" value={fmt(detail.followers)} sub={`${detail.deltas.followers >= 0 ? '+' : ''}${detail.deltas.followers} vs prev`} accent={ACCENT} />
+            <KpiCard icon="gauge" label="Engagement Rate" value={`${detail.engagementRate}%`} accent={detail.engagementRate >= 3 ? '#10b981' : detail.engagementRate >= 1 ? '#f59e0b' : '#c94f4f'} />
+            <KpiCard icon="chart-line" label="Reach" value={fmt(detail.reach)} accent={ACCENT} />
+            <KpiCard icon="megaphone" label="Impressions" value={fmt(detail.impressions)} accent={ACCENT} />
+            <KpiCard icon="sparkle" label="Posts / period" value={String(detail.posts)} accent={ACCENT} />
+          </Grid>
+
+          {detail.series.labels.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Panel icon="chart-line" title={`Followers — ${detail.series.labels.join(' → ')}`}><AreaChart series={detail.series.followers} color={ACCENT} height={200} /></Panel>
+              <Panel icon="chart-line" title="Engagements"><AreaChart series={detail.series.engagements} color="#a855f7" height={200} /></Panel>
+            </div>
+          ) : (
+            <EmptyState icon="chart-line" title="No period data yet" hint="Add a reporting period (or sync once keys are configured) to chart growth." />
+          )}
+
+          {detail.fixes.length > 0 && (
+            <Panel icon="alert" title="Recommended actions — you need an increase here">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {detail.fixes.map((f, i) => <FixCard key={i} f={f} />)}
+              </div>
+            </Panel>
+          )}
+        </div>
+      ) : <Loading />}
+
+      {/* Connect / edit modal */}
+      <SocialAccountEdit account={connecting ? null : editing} open={connecting || !!editing} onClose={() => { setConnecting(false); setEditing(null) }} onSaved={() => { setConnecting(false); setEditing(null); reloadAll() }} />
+      {/* Add period snapshot */}
+      <SocialSnapshotForm account={snapFor} open={!!snapFor} onClose={() => setSnapFor(null)} onSaved={() => { setSnapFor(null); reloadAll() }} />
+    </div>
+  )
+}
+
+function SocialAccountEdit({ account, open, onClose, onSaved }: { account: SocialAcc | null; open: boolean; onClose: () => void; onSaved: () => void }) {
+  const empty = { platform: 'instagram', handle: '', displayName: '', connection: 'login_session', status: 'pending' }
+  const [f, setF] = useState<Record<string, string>>(empty)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    setF(account ? { platform: account.platform, handle: account.handle, displayName: account.displayName ?? '', connection: account.connection, status: account.status } : empty)
+  }, [account, open]) // eslint-disable-line react-hooks/exhaustive-deps
+  const set = (k: string, v: string) => setF(p => ({ ...p, [k]: v }))
+  async function save() {
+    if (!f.handle) return
+    setBusy(true)
+    const body = { platform: f.platform, handle: f.handle, displayName: f.displayName || null, connection: f.connection, ...(account && { status: f.status }) }
+    try {
+      if (account) await patch(`/api/marketing/social/accounts/${account.id}`, body)
+      else await post('/api/marketing/social/accounts', body)
+      onSaved()
+    } catch (e) { console.error(e) } finally { setBusy(false) }
+  }
+  return (
+    <Modal open={open} onClose={onClose} title={account ? 'Edit account' : 'Connect account'} icon={<EmpireIcon name={account ? 'pen' : 'plus'} size={18} />}>
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Platform</span>
+            <select className={modalInput} value={f.platform} onChange={e => set('platform', e.target.value)}>{SOCIAL_PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}</select></label>
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Handle</span>
+            <input className={modalInput} value={f.handle} onChange={e => set('handle', e.target.value)} placeholder="@cregen" /></label>
+        </div>
+        <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Display name</span>
+          <input className={modalInput} value={f.displayName} onChange={e => set('displayName', e.target.value)} placeholder="Cregen" /></label>
+        <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Connection method</span>
+          <select className={modalInput} value={f.connection} onChange={e => set('connection', e.target.value)}>{SOCIAL_CONNECTIONS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></label>
+        {account && (
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Status</span>
+            <select className={modalInput} value={f.status} onChange={e => set('status', e.target.value)}>{Object.keys(ACC_STATUS_COLOR).map(s => <option key={s} value={s}>{s}</option>)}</select></label>
+        )}
+        <p className="text-[11px] text-empire-text-dim leading-relaxed">Auth keys/tokens are added in env later — connecting now records the account so metrics light up on first sync.</p>
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
+          <button onClick={save} disabled={busy || !f.handle} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white disabled:opacity-50" style={{ background: ACCENT }}>{busy ? 'Saving…' : account ? 'Save' : 'Connect'}</button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function SocialSnapshotForm({ account, open, onClose, onSaved }: { account: SocialAcc | null; open: boolean; onClose: () => void; onSaved: () => void }) {
+  const empty = { periodLabel: '', followers: '', reach: '', impressions: '', engagements: '', posts: '', clicks: '' }
+  const [f, setF] = useState<Record<string, string>>(empty)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { if (open) setF(empty) }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  const set = (k: string, v: string) => setF(p => ({ ...p, [k]: v }))
+  async function save() {
+    if (!account || !f.periodLabel) return
+    setBusy(true)
+    try {
+      await post(`/api/marketing/social/accounts/${account.id}/snapshots`, {
+        periodLabel: f.periodLabel,
+        followers: Number(f.followers) || 0, reach: Number(f.reach) || 0, impressions: Number(f.impressions) || 0,
+        engagements: Number(f.engagements) || 0, posts: Number(f.posts) || 0, clicks: Number(f.clicks) || 0,
+      })
+      onSaved()
+    } catch (e) { console.error(e) } finally { setBusy(false) }
+  }
+  return (
+    <Modal open={open} onClose={onClose} title={`Add period · ${account?.handle || ''}`} icon={<EmpireIcon name="calendar" size={18} />}>
+      <div className="space-y-3">
+        <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Period label</span>
+          <input className={modalInput} value={f.periodLabel} onChange={e => set('periodLabel', e.target.value)} placeholder="May 2026" /></label>
+        <div className="grid grid-cols-3 gap-3">
+          {(['followers', 'reach', 'impressions', 'engagements', 'posts', 'clicks'] as const).map(k => (
+            <label key={k} className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted capitalize">{k}</span>
+              <input type="number" className={modalInput} value={f[k]} onChange={e => set(k, e.target.value)} /></label>
+          ))}
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
+          <button onClick={save} disabled={busy || !f.periodLabel} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white disabled:opacity-50" style={{ background: ACCENT }}>{busy ? 'Saving…' : 'Save period'}</button>
         </div>
       </div>
     </Modal>

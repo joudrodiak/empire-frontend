@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { DockNav } from '@/components/templates/DockNav'
+import { AuthProvider } from '@/lib/auth'
+import { AuthGate } from '@/components/templates/AuthGate'
 
 export const metadata: Metadata = {
   title: 'Empire OS — Cregen Inc.',
@@ -18,9 +20,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeBoot }} />
       </head>
       <body className="bg-empire-void min-h-screen">
-        {/* pb leaves room for the floating bottom dock */}
-        <div className="pb-28">{children}</div>
-        <DockNav />
+        <AuthProvider>
+          <AuthGate>
+            {/* pb leaves room for the floating bottom dock */}
+            <div className="pb-28">{children}</div>
+            <DockNav />
+          </AuthGate>
+        </AuthProvider>
       </body>
     </html>
   )

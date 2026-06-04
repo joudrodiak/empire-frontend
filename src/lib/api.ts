@@ -5,15 +5,28 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 // API as `x-company-slug` so every request is scoped to the selected company.
 // Server-side / no storage → no header (back-compat: API returns all rows).
 const PROFILE_KEY = 'empire-os-active-profile'
+const TOKEN_KEY = 'empire-os-token'
 
 function activeCompanySlug(): string | null {
   if (typeof window === 'undefined') return null
   try { return localStorage.getItem(PROFILE_KEY) } catch { return null }
 }
 
+function authToken(): string | null {
+  if (typeof window === 'undefined') return null
+  try { return localStorage.getItem(TOKEN_KEY) } catch { return null }
+}
+
+// Every request carries the active company scope AND (when logged in) the
+// session token so the API can enforce IAM. The server soft-attaches the user
+// from this Bearer header; protected writes require it.
 function companyHeaders(base: Record<string, string> = {}): Record<string, string> {
+  const out = { ...base }
   const slug = activeCompanySlug()
-  return slug ? { ...base, 'x-company-slug': slug } : base
+  if (slug) out['x-company-slug'] = slug
+  const tok = authToken()
+  if (tok) out['Authorization'] = `Bearer ${tok}`
+  return out
 }
 
 // Panels fetch their data on mount with the current company header. When the
@@ -32,6 +45,11 @@ if (typeof window !== 'undefined') {
 // can show a real reason — e.g. "That reporting line would create a cycle."
 async function ensureOk(res: Response) {
   if (res.ok) return
+  // Session gone/expired → drop the token and let the AuthGate bounce to /login.
+  if (res.status === 401 && typeof window !== 'undefined') {
+    try { localStorage.removeItem(TOKEN_KEY) } catch { /* ignore */ }
+    window.dispatchEvent(new Event('empire-auth-expired'))
+  }
   let msg = `API error: ${res.status}`
   try {
     const body = await res.json()

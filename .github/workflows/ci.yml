@@ -18,6 +18,13 @@ jobs:
       - run: npm ci
       - name: Type-check (gate)
         run: npx tsc --noEmit
+      - name: Emoji scan (gate — zero emojis in web/src)
+        run: |
+          if grep -rlP '[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{FE00}-\x{FE0F}]' src; then
+            echo "::error::Emoji found in web/src — use <EmpireIcon> line glyphs."
+            exit 1
+          fi
+          echo "No emojis in web/src."
       - name: Build
         run: npm run build
         env:

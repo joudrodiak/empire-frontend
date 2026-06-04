@@ -1,7 +1,7 @@
 'use client'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useAuth, userCan } from '@/lib/auth'
-import { fetcher, patch } from '@/lib/api'
+import { fetcher, patch, del } from '@/lib/api'
 import { EmpireIcon, type IconName } from '@/components/atoms/EmpireIcon'
 import { GlassPanel } from '@/components/atoms/GlassPanel'
 import { Panel } from '@/components/molecules/Panel'
@@ -149,6 +149,7 @@ function CompanyTab({ canManage }: { canManage: boolean }) {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [confirmDel, setConfirmDel] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -170,6 +171,21 @@ function CompanyTab({ canManage }: { canManage: boolean }) {
       })
       setMsg('Company updated.'); await load()
     } catch (e: any) { setErr(e?.message || 'Failed to update company') } finally { setBusy(false) }
+  }
+
+  // Delete the active tenant. The backend guards the flagship, the last company,
+  // and any tenant that still owns data (409 with a clear reason — surfaced here).
+  async function remove() {
+    if (!company) return
+    setErr(null); setMsg(null); setBusy(true)
+    try {
+      await del(`/api/companies/${company.id}`)
+      try { localStorage.removeItem(KEY) } catch { /* noop */ }
+      // Drop back to the default tenant; the switcher re-reads /api/companies.
+      window.location.href = '/'
+    } catch (e: any) {
+      setErr(e?.message || 'Failed to delete company'); setConfirmDel(false)
+    } finally { setBusy(false) }
   }
 
   if (!company) return <EmptyState icon="briefcase" title="No active company" hint="Pick a company from the switcher first." />
@@ -196,7 +212,24 @@ function CompanyTab({ canManage }: { canManage: boolean }) {
         {err && <div className="flex items-center gap-2 rounded-lg border border-empire-red/40 bg-empire-red/10 px-3 py-2 text-xs text-empire-red-bright"><EmpireIcon name="alert" size={14} /> {err}</div>}
         {msg && <div className="flex items-center gap-2 rounded-lg border border-empire-green/40 bg-empire-green-bg px-3 py-2 text-xs text-empire-green-bright"><EmpireIcon name="check" size={14} /> {msg}</div>}
         {canManage && (
-          <div className="flex justify-end pt-1">
+          <div className="flex items-center justify-between gap-3 pt-1">
+            {company.slug !== 'cregen' ? (
+              confirmDel ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-empire-text-muted">Delete this company?</span>
+                  <button onClick={remove} disabled={busy} className="rounded-lg border border-empire-red/50 bg-empire-red/10 px-3 py-1.5 text-xs text-empire-red-bright transition-colors hover:bg-empire-red/20 disabled:opacity-50">
+                    {busy ? 'Deleting…' : 'Confirm delete'}
+                  </button>
+                  <button onClick={() => setConfirmDel(false)} disabled={busy} className="px-2 py-1.5 text-xs text-empire-text-muted hover:text-empire-text">Cancel</button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirmDel(true)} className="flex items-center gap-1.5 rounded-lg border border-empire-border px-3 py-1.5 text-xs text-empire-text-muted transition-colors hover:border-empire-red/50 hover:text-empire-red-bright">
+                  <EmpireIcon name="trash" size={13} /> Delete company
+                </button>
+              )
+            ) : (
+              <span className="font-data text-[10px] text-empire-text-dim">flagship — cannot be deleted</span>
+            )}
             <LiquidMetalButton variant="gold" size="sm" icon={<EmpireIcon name="check" size={14} />} onClick={save} disabled={busy}>
               {busy ? 'Saving…' : 'Save changes'}
             </LiquidMetalButton>

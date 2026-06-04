@@ -6,6 +6,15 @@ key pages return 200.
 
 ---
 
+## 2026-06-04 — Ticket dependencies in the board (TicketViewer)
+- `components/organisms/TicketsPanel.tsx` — `TicketViewer` now loads full ticket
+  detail (`GET /api/tickets/:id`) and renders a **Dependencies** section: existing
+  links (blocks in red / is-blocked-by / relates) each with peer key·title·status
+  and a remove (trash) action, plus an add row (link-type select + ticket picker
+  scoped to the Unit + Link button). Wired to `POST /:id/links` and
+  `DELETE /links/:linkId`; `departmentSlug` threaded through for candidate list.
+- Verification: `tsc --noEmit` EXIT 0 · emoji scan clean · /departments/engineering 200.
+
 ## 2026-06-04 — Settings page + DockNav button
 - `app/settings/page.tsx` — new `/settings` surface, 4 tabs via `TabBar`:
   **Integrations** (live Slack/Telegram status from `/api/agent/status`; Meta +

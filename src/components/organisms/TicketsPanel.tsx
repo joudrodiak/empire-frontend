@@ -345,7 +345,7 @@ export function TicketsPanel({ departmentSlug, accent = '#c9a233' }: {
       )}
 
       {/* Modals */}
-      {viewing && <TicketViewer t={viewing} onClose={() => setViewing(null)} onEdit={() => { setEditing(viewing); setViewing(null) }} onDeleted={() => { setViewing(null); reload() }} />}
+      {viewing && <TicketViewer t={viewing} departmentSlug={departmentSlug} onClose={() => setViewing(null)} onEdit={() => { setEditing(viewing); setViewing(null) }} onDeleted={() => { setViewing(null); reload() }} />}
       {(creating || editing) && (
         <TicketForm
           departmentSlug={departmentSlug}
@@ -576,10 +576,46 @@ function fmtHours(h: number): string {
   return `${Math.round(h / 24 * 10) / 10}d`
 }
 
-function TicketViewer({ t, onClose, onEdit, onDeleted }: {
-  t: Ticket; onClose: () => void; onEdit: () => void; onDeleted: () => void
+type LinkRow = { linkId: string; dir: 'in' | 'out'; type: string; label: string; ticket: { id: string; key: string; title: string; status: string; type: string } }
+const LINK_TYPE_OPTS = [
+  { value: 'blocks', label: 'blocks' },
+  { value: 'relates', label: 'relates to' },
+  { value: 'duplicates', label: 'duplicates' },
+]
+
+function TicketViewer({ t, departmentSlug, onClose, onEdit, onDeleted }: {
+  t: Ticket; departmentSlug: string; onClose: () => void; onEdit: () => void; onDeleted: () => void
 }) {
   const [deleting, setDeleting] = useState(false)
+  const [links, setLinks] = useState<LinkRow[]>([])
+  const [candidates, setCandidates] = useState<{ id: string; key: string; title: string }[]>([])
+  const [linkTarget, setLinkTarget] = useState('')
+  const [linkType, setLinkType] = useState('blocks')
+  const [linking, setLinking] = useState(false)
+
+  const loadLinks = useCallback(async () => {
+    try { const d = await fetcher(`/api/tickets/${t.id}`); setLinks(d?.links ?? []) }
+    catch (e) { console.error(e) }
+  }, [t.id])
+  useEffect(() => { loadLinks() }, [loadLinks])
+  useEffect(() => {
+    fetcher(`/api/tickets?departmentSlug=${departmentSlug}&pageSize=200`)
+      .then(r => setCandidates((r?.data ?? []).filter((x: { id: string }) => x.id !== t.id).map((x: { id: string; key: string; title: string }) => ({ id: x.id, key: x.key, title: x.title }))))
+      .catch(() => {})
+  }, [departmentSlug, t.id])
+
+  async function addLink() {
+    if (!linkTarget) return
+    setLinking(true)
+    try { await post(`/api/tickets/${t.id}/links`, { targetId: linkTarget, type: linkType }); setLinkTarget(''); await loadLinks() }
+    catch (e) { console.error(e) }
+    finally { setLinking(false) }
+  }
+  async function removeLink(linkId: string) {
+    try { await del(`/api/tickets/links/${linkId}`); await loadLinks() }
+    catch (e) { console.error(e) }
+  }
+
   async function remove() {
     setDeleting(true)
     try { await del(`/api/tickets/${t.id}`); onDeleted() }
@@ -619,6 +655,44 @@ function TicketViewer({ t, onClose, onEdit, onDeleted }: {
             <p className="text-empire-text-muted text-sm leading-relaxed whitespace-pre-wrap">{t.description}</p>
           </div>
         )}
+
+        {/* Dependencies — Jira-style blocks / blocked-by / relates links */}
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-empire-text-dim mb-1.5">Dependencies</div>
+          {links.length > 0 ? (
+            <div className="space-y-1.5">
+              {links.map(l => (
+                <div key={l.linkId} className="flex items-center gap-2 rounded border border-empire-border px-2.5 py-1.5">
+                  <span className={`px-1.5 py-0.5 text-[9px] rounded uppercase tracking-wider ${l.type === 'blocks' ? 'border border-empire-red/40 text-empire-red-bright' : 'border border-empire-border text-empire-text-muted'}`}>{l.label}</span>
+                  <span className="font-data text-xs text-empire-text-muted">{l.ticket.key}</span>
+                  <span className="text-xs text-empire-text truncate flex-1">{l.ticket.title}</span>
+                  <span className="text-[10px] text-empire-text-dim">{STATUS_LABEL[l.ticket.status as Ticket['status']] ?? l.ticket.status}</span>
+                  <button onClick={() => removeLink(l.linkId)} title="Remove link" className="text-empire-text-dim hover:text-empire-red-bright transition-colors">
+                    <EmpireIcon name="trash" size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-empire-text-dim">No dependencies.</p>
+          )}
+          <div className="mt-2 flex items-center gap-2">
+            <select value={linkType} onChange={e => setLinkType(e.target.value)}
+              className="bg-empire-elevated border border-empire-border rounded px-2 py-1 text-xs text-empire-text">
+              {LINK_TYPE_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <select value={linkTarget} onChange={e => setLinkTarget(e.target.value)}
+              className="bg-empire-elevated border border-empire-border rounded px-2 py-1 text-xs text-empire-text flex-1 min-w-0">
+              <option value="">Select a ticket…</option>
+              {candidates.map(c => <option key={c.id} value={c.id}>{c.key} · {c.title}</option>)}
+            </select>
+            <button onClick={addLink} disabled={!linkTarget || linking}
+              className="text-xs px-3 py-1 border border-empire-gold/30 text-empire-gold rounded hover:bg-empire-gold/10 transition-colors disabled:opacity-50">
+              {linking ? 'Linking…' : 'Link'}
+            </button>
+          </div>
+        </div>
+
         <div className="flex justify-end gap-2 border-t border-empire-border pt-4">
           <button onClick={remove} disabled={deleting} className="text-xs px-3 py-1.5 border border-empire-red/30 text-empire-red-bright rounded hover:bg-empire-red/10 transition-colors disabled:opacity-50">
             {deleting ? 'Deleting…' : 'Delete'}

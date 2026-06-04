@@ -6,6 +6,21 @@ key pages return 200.
 
 ---
 
+## 2026-06-04 — Phase 7: Operator Console (frontend)
+- `app/agent/page.tsx` — `/agent` console for the AI operator (Lukas Beckers /
+  "Rodiak"). Header shows live Slack/Telegram channel badges (`GET /api/agent/status`).
+  Three tabs (TabBar): **Console** — broadcast form (channel multi-select +
+  priority → `POST /api/agent/message`) + Raise-approval modal
+  (`POST /api/agent/request-approval`), gated by `agent:act` with a `Locked`
+  panel fallback; **Approvals** — live queue from `/api/approvals`, pending
+  cards approve/reject gated by `approvals:decide`, recently-decided strip;
+  **Message log** — paginated agent log (`GET /api/agent/messages`).
+- Reuses GlassPanel, LiquidMetalButton, Modal, Pagination, TabBar, EmpireIcon —
+  no new primitives. "No channels connected" hint when env unset.
+- `components/templates/DockNav.tsx` — added "Operator" dock link → `/agent`.
+- Add-only: existing Overview `ApprovalsTab` in `app/page.tsx` left untouched.
+- Verified: `tsc --noEmit` EXIT 0 · emoji scan clean · `/agent` + `/admin` 200.
+
 ## 2026-06-04 — Phase 6: Auth portal + IAM admin (frontend)
 - `lib/auth.tsx` — `AuthProvider` / `useAuth()` context: token storage
   (`empire-os-token`), `login()` (POST /api/auth/login), `logout()`, `/me` bootstrap,

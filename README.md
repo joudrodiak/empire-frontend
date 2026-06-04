@@ -44,5 +44,13 @@ Never run `next build` on the host while the dev server is live.
 - The active company is stored in `localStorage` (`empire-os-active-profile`) and
   sent to the API as `x-company-slug`.
 
+## Settings
+`/settings` (reachable from the bottom `<DockNav>`) is the operator console for the
+platform: **Integrations · Agent · Company · Environment** tabs. The Environment tab
+reads `GET /api/settings/env` — a presence-only checklist (configured / missing) for
+every integration key, so you can see what's wired without ever exposing a secret.
+Login is at `/login`; the admin/IAM surface is `/admin`, the operator agent at
+`/agent`.
+
 ## Environment
 `.env` / `.env.local` are local-dev only and never committed. See `.env.example`.

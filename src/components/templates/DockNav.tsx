@@ -21,6 +21,7 @@ type DockItem = { label: string; icon: IconName; href: string }
 const MAIN: DockItem[] = [
   { label: 'Overview', icon: 'overview', href: '/' },
   { label: 'Operator', icon: 'sparkle', href: '/agent' },
+  { label: 'Settings', icon: 'cog', href: '/settings' },
 ]
 
 export function DockNav() {

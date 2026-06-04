@@ -6,6 +6,19 @@ key pages return 200.
 
 ---
 
+## 2026-06-04 — Settings page + DockNav button
+- `app/settings/page.tsx` — new `/settings` surface, 4 tabs via `TabBar`:
+  **Integrations** (live Slack/Telegram status from `/api/agent/status`; Meta +
+  Banking "Not set" cards listing required keys), **Agent** (Rodiak identity +
+  channel live/off from `/api/agent/status`), **Company** (edit active company via
+  `patch('/api/companies/:id')`, gated `company:manage`, reads active slug from
+  localStorage), **Environment** (`GET /api/settings/env` grouped presence
+  checklist, owner-gated with an "Owner only" `EmptyState` fallback).
+- `components/templates/DockNav.tsx` — added Settings (`cog`) to the dock `MAIN`
+  array alongside Overview + Operator.
+- Verification: `docker exec -i empire_web npx tsc --noEmit` EXIT 0 · emoji scan
+  clean · `/settings` returns 200.
+
 ## 2026-06-04 — Phase 8: Design polish (glass/metal · charts · 3D · create-tenant)
 - `app/globals.css` — new `.metal-frame`: frosted-glass body wrapped in a thin
   molten-gold hairline. The gold gradient sits on a padded `::before` masked to a

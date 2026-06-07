@@ -1,0 +1,29 @@
+# Empire Web (Next.js 16) — PRODUCTION image. Multi-stage, pinned, NON-ROOT.
+# (The dev image is ./Dockerfile, used by docker-compose for hot-reload.)
+# Requires `output: 'standalone'` in next.config.js for the slim runtime copy.
+
+# ---- deps ----
+FROM node:20.18.1-alpine3.20 AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+
+# ---- build ----
+FROM node:20.18.1-alpine3.20 AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+# ---- runtime: minimal, non-root ----
+FROM node:20.18.1-alpine3.20 AS runtime
+RUN apk add --no-cache tini
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3001
+WORKDIR /app
+COPY --from=build --chown=node:node /app/.next/standalone ./
+COPY --from=build --chown=node:node /app/.next/static ./.next/static
+USER node
+EXPOSE 3001
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "server.js"]

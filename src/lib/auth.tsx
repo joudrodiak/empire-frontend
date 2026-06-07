@@ -9,7 +9,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
  * UI can hide what a role can't do (the server still enforces — UI is a courtesy).
  */
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+const API = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
 export const TOKEN_KEY = 'empire-os-token'
 
 export type AuthRole = { id: string; key: string; name: string; level: number; permissions: string[] }

@@ -1,4 +1,4 @@
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+const API = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
 
 // Active company (tenant) — Empire OS profiles are COMPANIES. The active company
 // slug is stored in localStorage by the profile switcher; we forward it to the
@@ -22,7 +22,9 @@ function authToken(): string | null {
 // from this Bearer header; protected writes require it.
 function companyHeaders(base: Record<string, string> = {}): Record<string, string> {
   const out = { ...base }
-  const slug = activeCompanySlug()
+  // An explicit override (e.g. seeding a brand-new tenant from the onboarding
+  // wizard before it becomes the active company) wins over the stored slug.
+  const slug = out['x-company-slug'] || activeCompanySlug()
   if (slug) out['x-company-slug'] = slug
   const tok = authToken()
   if (tok) out['Authorization'] = `Bearer ${tok}`
@@ -64,20 +66,24 @@ export async function fetcher(path: string) {
   return res.json()
 }
 
-export async function post(path: string, body: unknown) {
+export async function post(path: string, body: unknown, companySlug?: string) {
+  const base: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (companySlug) base['x-company-slug'] = companySlug
   const res = await fetch(`${API}${path}`, {
     method: 'POST',
-    headers: companyHeaders({ 'Content-Type': 'application/json' }),
+    headers: companyHeaders(base),
     body: JSON.stringify(body),
   })
   await ensureOk(res)
   return res.json()
 }
 
-export async function patch(path: string, body: unknown) {
+export async function patch(path: string, body: unknown, companySlug?: string) {
+  const base: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (companySlug) base['x-company-slug'] = companySlug
   const res = await fetch(`${API}${path}`, {
     method: 'PATCH',
-    headers: companyHeaders({ 'Content-Type': 'application/json' }),
+    headers: companyHeaders(base),
     body: JSON.stringify(body),
   })
   await ensureOk(res)
@@ -88,6 +94,19 @@ export async function del(path: string) {
   const res = await fetch(`${API}${path}`, { method: 'DELETE', headers: companyHeaders() })
   await ensureOk(res)
   return res.json()
+}
+
+// Download a file (e.g. a CSV export) through the API with the active company +
+// auth headers attached, then trigger a browser save. A plain <a download> can't
+// carry the tenant/auth headers, so we fetch as a blob and save it here.
+export async function download(path: string, filename: string) {
+  const res = await fetch(`${API}${path}`, { headers: companyHeaders() })
+  await ensureOk(res)
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = filename; a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 export function ragColor(status: string) {

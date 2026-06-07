@@ -7,6 +7,7 @@ import { RowActions } from '@/components/molecules/RowActions'
 import { Modal } from '@/components/molecules/Modal'
 import { EmptyState } from '@/components/atoms/EmptyState'
 import { EmpireIcon, type IconName } from '@/components/atoms/EmpireIcon'
+import { AreaChart } from '@/components/organisms/charts/AreaChart'
 import { format } from 'date-fns'
 
 // A Jira-shaped issue. Mirrors the API `Ticket` model (routes/tickets.ts).
@@ -340,7 +341,7 @@ export function TicketsPanel({ departmentSlug, accent = '#c9a233' }: {
         ) : !metrics || metrics.total === 0 ? (
           <EmptyState icon="gauge" title="No delivery data yet" hint="Create tickets and run sprints — this dashboard scores delivery health, velocity, flow and throughput from your real data." />
         ) : (
-          <Dashboard m={metrics} accent={accent} scopeLabel={activeSprint ? activeSprint.name : 'All projects'} />
+          <Dashboard m={metrics} accent={accent} scopeLabel={activeSprint ? activeSprint.name : 'All projects'} sprintId={activeSprint ? activeSprint.id : null} />
         )
       )}
 
@@ -423,7 +424,44 @@ function Segmented({ label, value, options, onChange, accent }: {
 }
 
 // ---- Delivery dashboard (board/list/dashboard toggle) ----
-function Dashboard({ m, accent, scopeLabel }: { m: Metrics; accent: string; scopeLabel: string }) {
+type BurndownData = {
+  sprintName: string; committed: number; completed: number; remaining: number
+  days: { date: string; remaining: number; ideal: number; completed: number }[]
+}
+
+// Sprint burndown — actual remaining points vs. the ideal straight-line glide
+// path. Fetched per-sprint from /api/tickets/burndown.
+function Burndown({ sprintId, accent }: { sprintId: string; accent: string }) {
+  const [data, setData] = useState<BurndownData | null>(null)
+  useEffect(() => {
+    let on = true
+    fetcher(`/api/tickets/burndown?sprintId=${sprintId}`).then(d => { if (on) setData(d) }).catch(() => { if (on) setData(null) })
+    return () => { on = false }
+  }, [sprintId])
+  if (!data || data.days.length < 2 || data.committed === 0) return null
+
+  const remaining = data.days.map(d => d.remaining)
+  const ideal = data.days.map(d => d.ideal)
+  const labels = data.days.map(d => format(new Date(d.date), 'MMM d'))
+  return (
+    <div className="bg-empire-surface border border-empire-border rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[10px] uppercase tracking-widest text-empire-text-dim inline-flex items-center gap-2">
+          <EmpireIcon name="chart-line" size={12} /> Burndown · {data.sprintName}
+        </span>
+        <span className="font-data text-[10px] text-empire-text-muted tabular-nums">{data.remaining}/{data.committed} pts left</span>
+      </div>
+      <AreaChart
+        series={remaining} compare={ideal} labels={labels}
+        color={accent} compareColor="#6b7280"
+        seriesLabel="Remaining" compareLabel="Ideal"
+        valueFormat={(v) => `${Math.round(v)} pts`}
+      />
+    </div>
+  )
+}
+
+function Dashboard({ m, accent, scopeLabel, sprintId }: { m: Metrics; accent: string; scopeLabel: string; sprintId: string | null }) {
   const band = m.healthBand
   const bandColor = HEALTH_COLOR[band]
   const ring = 2 * Math.PI * 52
@@ -516,6 +554,9 @@ function Dashboard({ m, accent, scopeLabel }: { m: Metrics; accent: string; scop
           </div>
         </div>
       )}
+
+      {/* Burndown — ideal vs. actual remaining points (only meaningful per-sprint) */}
+      {sprintId && <Burndown sprintId={sprintId} accent={accent} />}
 
       {/* Contributors leaderboard */}
       {m.contributors.length > 0 && (
@@ -693,6 +734,9 @@ function TicketViewer({ t, departmentSlug, onClose, onEdit, onDeleted }: {
           </div>
         </div>
 
+        {/* Collaboration — comments, attachments & notes (§4) */}
+        <TicketActivity ticketId={t.id} />
+
         <div className="flex justify-end gap-2 border-t border-empire-border pt-4">
           <button onClick={remove} disabled={deleting} className="text-xs px-3 py-1.5 border border-empire-red/30 text-empire-red-bright rounded hover:bg-empire-red/10 transition-colors disabled:opacity-50">
             {deleting ? 'Deleting…' : 'Delete'}
@@ -701,6 +745,165 @@ function TicketViewer({ t, departmentSlug, onClose, onEdit, onDeleted }: {
         </div>
       </div>
     </Modal>
+  )
+}
+
+// Comments + attachments + notes for a single ticket (§4). Three small tabs so
+// the viewer stays compact; each is full CRUD against the live API.
+type CommentRow = { id: string; body: string; createdAt: string; author: { id: string; name: string } | null }
+type AttachmentRow = { id: string; name: string; url: string; mimeType: string | null; size: number | null; createdAt: string }
+type NoteRow = { id: string; body: string; pinned: boolean; createdAt: string; author: { id: string; name: string } | null }
+
+function TicketActivity({ ticketId }: { ticketId: string }) {
+  const [tab, setTab] = useState<'comments' | 'attachments' | 'notes'>('comments')
+  const [comments, setComments] = useState<CommentRow[]>([])
+  const [attachments, setAttachments] = useState<AttachmentRow[]>([])
+  const [notes, setNotes] = useState<NoteRow[]>([])
+  const [draft, setDraft] = useState('')
+  const [noteDraft, setNoteDraft] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(async () => {
+    try {
+      const [c, a, n] = await Promise.all([
+        fetcher(`/api/tickets/${ticketId}/comments?pageSize=100`),
+        fetcher(`/api/tickets/${ticketId}/attachments?pageSize=100`),
+        fetcher(`/api/notes?ticketId=${ticketId}&pageSize=100`),
+      ])
+      setComments(c?.data ?? [])
+      setAttachments(a?.data ?? [])
+      setNotes(n?.data ?? [])
+    } catch (e) { console.error(e) }
+  }, [ticketId])
+  useEffect(() => { load() }, [load])
+
+  async function addComment() {
+    if (!draft.trim()) return
+    setBusy(true)
+    try { await post(`/api/tickets/${ticketId}/comments`, { body: draft }); setDraft(''); await load() }
+    catch (e) { console.error(e) } finally { setBusy(false) }
+  }
+  async function delComment(id: string) {
+    try { await del(`/api/tickets/comments/${id}`); await load() } catch (e) { console.error(e) }
+  }
+  async function addNote() {
+    if (!noteDraft.trim()) return
+    setBusy(true)
+    try { await post(`/api/notes`, { body: noteDraft, ticketId }); setNoteDraft(''); await load() }
+    catch (e) { console.error(e) } finally { setBusy(false) }
+  }
+  async function togglePin(n: NoteRow) {
+    try { await patch(`/api/notes/${n.id}`, { pinned: !n.pinned }); await load() } catch (e) { console.error(e) }
+  }
+  async function delNote(id: string) {
+    try { await del(`/api/notes/${id}`); await load() } catch (e) { console.error(e) }
+  }
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 6 * 1024 * 1024) { console.error('attachment too large (6MB max)'); return }
+    setBusy(true)
+    try {
+      const url: string = await new Promise((resolve, reject) => {
+        const r = new FileReader()
+        r.onload = () => resolve(String(r.result))
+        r.onerror = reject
+        r.readAsDataURL(file)
+      })
+      await post(`/api/tickets/${ticketId}/attachments`, { name: file.name, url, mimeType: file.type, size: file.size })
+      await load()
+    } catch (err) { console.error(err) } finally { setBusy(false); e.target.value = '' }
+  }
+  async function delAttachment(id: string) {
+    try { await del(`/api/tickets/attachments/${id}`); await load() } catch (e) { console.error(e) }
+  }
+
+  const TabBtn = ({ id, label, count }: { id: typeof tab; label: string; count: number }) => (
+    <button onClick={() => setTab(id)}
+      className={`px-2.5 py-1 text-[11px] uppercase tracking-wider rounded transition-colors ${tab === id ? 'bg-empire-gold-dim text-empire-gold border border-empire-gold/30' : 'text-empire-text-muted hover:text-empire-text border border-transparent'}`}>
+      {label}{count > 0 && <span className="ml-1 font-data text-[10px] opacity-70">{count}</span>}
+    </button>
+  )
+
+  return (
+    <div className="border-t border-empire-border pt-4">
+      <div className="flex items-center gap-1.5 mb-3">
+        <TabBtn id="comments" label="Comments" count={comments.length} />
+        <TabBtn id="attachments" label="Files" count={attachments.length} />
+        <TabBtn id="notes" label="Notes" count={notes.length} />
+      </div>
+
+      {tab === 'comments' && (
+        <div className="space-y-2">
+          {comments.length === 0 && <p className="text-xs text-empire-text-dim">No comments yet.</p>}
+          {comments.map(c => (
+            <div key={c.id} className="rounded border border-empire-border px-2.5 py-1.5">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[11px] text-empire-text">{c.author?.name ?? 'System'}</span>
+                <span className="text-[10px] text-empire-text-dim">{format(new Date(c.createdAt), 'MMM d, HH:mm')}</span>
+                <button onClick={() => delComment(c.id)} title="Delete comment" className="ml-auto text-empire-text-dim hover:text-empire-red-bright transition-colors">
+                  <EmpireIcon name="trash" size={12} />
+                </button>
+              </div>
+              <p className="text-sm text-empire-text-muted whitespace-pre-wrap">{c.body}</p>
+            </div>
+          ))}
+          <div className="flex items-start gap-2 pt-1">
+            <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={2} placeholder="Add a comment…"
+              className="flex-1 bg-empire-elevated border border-empire-border rounded px-2.5 py-1.5 text-sm text-empire-text resize-none" />
+            <button onClick={addComment} disabled={busy || !draft.trim()}
+              className="text-xs px-3 py-1.5 border border-empire-gold/30 text-empire-gold rounded hover:bg-empire-gold/10 transition-colors disabled:opacity-50">Post</button>
+          </div>
+        </div>
+      )}
+
+      {tab === 'attachments' && (
+        <div className="space-y-2">
+          {attachments.length === 0 && <p className="text-xs text-empire-text-dim">No files attached.</p>}
+          {attachments.map(a => (
+            <div key={a.id} className="flex items-center gap-2 rounded border border-empire-border px-2.5 py-1.5">
+              <EmpireIcon name="document" size={14} />
+              <a href={a.url} download={a.name} className="text-sm text-empire-text hover:text-empire-gold truncate flex-1">{a.name}</a>
+              {a.size != null && <span className="font-data text-[10px] text-empire-text-dim">{Math.max(1, Math.round(a.size / 1024))} KB</span>}
+              <button onClick={() => delAttachment(a.id)} title="Remove file" className="text-empire-text-dim hover:text-empire-red-bright transition-colors">
+                <EmpireIcon name="trash" size={12} />
+              </button>
+            </div>
+          ))}
+          <label className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 border border-empire-gold/30 text-empire-gold rounded hover:bg-empire-gold/10 transition-colors cursor-pointer mt-1">
+            <EmpireIcon name="plus" size={12} /> {busy ? 'Uploading…' : 'Attach file'}
+            <input type="file" onChange={onFile} disabled={busy} className="hidden" />
+          </label>
+        </div>
+      )}
+
+      {tab === 'notes' && (
+        <div className="space-y-2">
+          {notes.length === 0 && <p className="text-xs text-empire-text-dim">No notes.</p>}
+          {notes.map(n => (
+            <div key={n.id} className={`rounded border px-2.5 py-1.5 ${n.pinned ? 'border-empire-gold/40 bg-empire-gold-dim/30' : 'border-empire-border'}`}>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[11px] text-empire-text">{n.author?.name ?? 'Note'}</span>
+                <span className="text-[10px] text-empire-text-dim">{format(new Date(n.createdAt), 'MMM d, HH:mm')}</span>
+                <button onClick={() => togglePin(n)} title={n.pinned ? 'Unpin' : 'Pin'} className={`ml-auto transition-colors ${n.pinned ? 'text-empire-gold' : 'text-empire-text-dim hover:text-empire-gold'}`}>
+                  <EmpireIcon name="star" size={12} />
+                </button>
+                <button onClick={() => delNote(n.id)} title="Delete note" className="text-empire-text-dim hover:text-empire-red-bright transition-colors">
+                  <EmpireIcon name="trash" size={12} />
+                </button>
+              </div>
+              <p className="text-sm text-empire-text-muted whitespace-pre-wrap">{n.body}</p>
+            </div>
+          ))}
+          <div className="flex items-start gap-2 pt-1">
+            <textarea value={noteDraft} onChange={e => setNoteDraft(e.target.value)} rows={2} placeholder="Add a note…"
+              className="flex-1 bg-empire-elevated border border-empire-border rounded px-2.5 py-1.5 text-sm text-empire-text resize-none" />
+            <button onClick={addNote} disabled={busy || !noteDraft.trim()}
+              className="text-xs px-3 py-1.5 border border-empire-gold/30 text-empire-gold rounded hover:bg-empire-gold/10 transition-colors disabled:opacity-50">Add</button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

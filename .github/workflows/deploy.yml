@@ -1,0 +1,67 @@
+name: Deploy Serverless Web
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: Environment to deploy
+        required: true
+        type: choice
+        options: [DEV, CONS, PROD]
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: web-${{ inputs.stage || 'DEV' }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.stage || 'DEV' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve stage
+        run: echo "STAGE=$(echo '${{ inputs.stage || 'DEV' }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+      - name: Build static application
+        run: npm run build:static
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.API_URL }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Publish immutable web artifact and live site
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 sync out "s3://${{ vars.WEB_BUCKET }}/" --delete --only-show-errors
+          aws cloudfront create-invalidation --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" --paths '/*' > invalidation.json
+          jq -n \
+            --arg stage "$STAGE" \
+            --arg sha "$GITHUB_SHA" \
+            --arg api "${{ vars.API_URL }}" \
+            '{stage:$stage,commit:$sha,api:$api}' > deployment.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-${{ env.STAGE }}-${{ github.sha }}
+          path: |
+            deployment.json
+            invalidation.json
+          retention-days: 30

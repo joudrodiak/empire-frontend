@@ -73,6 +73,7 @@ export default function AgentPage() {
       <TabBar
         tabs={[
           { id: 'console', label: 'Console', icon: 'sparkle' },
+          { id: 'capabilities', label: 'Capabilities', icon: 'shield' },
           { id: 'roster', label: 'Agents', icon: 'user' },
           { id: 'approvals', label: 'Approvals', icon: 'scales' },
           { id: 'log', label: 'Message log', icon: 'document' },
@@ -82,10 +83,167 @@ export default function AgentPage() {
       />
 
       {tab === 'console' && <ConsoleTab canAct={canAct} channels={status?.channels} />}
+      {tab === 'capabilities' && <CapabilitiesTab canAct={canAct} />}
       {tab === 'roster' && <RosterTab canAct={canAct} />}
       {tab === 'approvals' && <ApprovalQueue canAct={canAct} canDecide={canDecide} />}
       {tab === 'log' && <MessageLog />}
     </main>
+  )
+}
+
+/* ============================ CAPABILITIES (§19 boundaries) ============================ */
+type Capability = {
+  key: string; label: string; description: string
+  permission: string | null; scope: 'company' | 'global'
+  deptScoped: boolean; approvalGated: boolean; enabled: boolean; allowed: boolean
+}
+type CapabilityManifest = {
+  agent: string; codename: string
+  boundaries: { scope: string; gating: string; auth: string }
+  capabilities: Capability[]
+}
+type ReportDigest = {
+  company: string; headcount: number; monthlyPayroll: number; activeDeals: number
+  pipelineValue: number; wonDeals: number; agentActions7d: number
+  approvalsRaised: number; generatedAt: string
+}
+
+/**
+ * The permission-boundary matrix (§19). Renders the agent's declared capability
+ * manifest from `/api/agent/capabilities` — each action with its required
+ * permission, scope, gating, and a caller-resolved Allowed/Blocked badge — so the
+ * boundary is introspectable, not implicit. Operators (`agent:act`) can also run a
+ * live operational report here; the digest renders inline (viewable, no dead-end)
+ * and is persisted to the message log.
+ */
+function CapabilitiesTab({ canAct }: { canAct: boolean }) {
+  const [manifest, setManifest] = useState<CapabilityManifest | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [report, setReport] = useState<ReportDigest | null>(null)
+  const [reportErr, setReportErr] = useState<string | null>(null)
+  const [broadcast, setBroadcast] = useState(false)
+
+  useEffect(() => { fetcher('/api/agent/capabilities').then(setManifest).catch(e => setErr(e?.message || 'Failed to load capabilities')) }, [])
+
+  async function generate() {
+    setReportErr(null); setReport(null); setBusy(true)
+    try {
+      const res = await post('/api/agent/report', { broadcast })
+      setReport(res?.report || null)
+    } catch (e: any) { setReportErr(e?.message || 'Report failed') } finally { setBusy(false) }
+  }
+
+  return (
+    <section className="animate-fade-in space-y-4">
+      {err && <ErrBar msg={err} />}
+
+      {manifest && (
+        <GlassPanel className="p-5">
+          <h2 className="font-empire text-lg text-empire-text">Permission boundaries</h2>
+          <p className="mt-1 text-xs text-empire-text-muted">
+            What {manifest.agent} ({manifest.codename}) may do — and the gate each action sits behind. Resolved against your role.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <BoundaryNote icon="compass" title="Scope" text={manifest.boundaries.scope} />
+            <BoundaryNote icon="scales" title="Gating" text={manifest.boundaries.gating} />
+            <BoundaryNote icon="lock" title="Auth" text={manifest.boundaries.auth} />
+          </div>
+        </GlassPanel>
+      )}
+
+      {manifest && (
+        <GlassPanel className="overflow-hidden p-0">
+          <div className="divide-y divide-empire-border/50">
+            {manifest.capabilities.map(c => (
+              <div key={c.key} className="px-4 py-3.5">
+                <div className="flex items-center gap-2">
+                  <EmpireIcon name="shield" size={14} className="shrink-0 text-empire-gold" />
+                  <p className="min-w-0 flex-1 truncate text-sm text-empire-text">{c.label}</p>
+                  {!c.enabled
+                    ? <CapBadge tone="muted" text="Roadmap" />
+                    : c.allowed
+                      ? <CapBadge tone="green" text="Allowed" />
+                      : <CapBadge tone="red" text="Blocked" />}
+                </div>
+                <p className="mt-1 pl-6 text-xs text-empire-text-muted">{c.description}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-6">
+                  <CapBadge tone="border" text={c.permission ? c.permission : 'read · any user'} mono />
+                  <CapBadge tone="border" text={`scope: ${c.scope}`} />
+                  {c.deptScoped && <CapBadge tone="border" text="unit-scoped" />}
+                  {c.approvalGated && <CapBadge tone="amber" text="Throne-gated" />}
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassPanel>
+      )}
+
+      <GlassPanel className="p-5">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="font-empire text-lg text-empire-text">Operational report</h2>
+          {canAct && (
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-empire-text-muted">
+              <input type="checkbox" checked={broadcast} onChange={() => setBroadcast(v => !v)} className="accent-empire-gold" />
+              Broadcast to channels
+            </label>
+          )}
+        </div>
+        <p className="text-xs text-empire-text-muted">
+          A live, company-scoped digest compiled from real data (headcount, payroll, pipeline, recent agent activity). Saved to the message log.
+        </p>
+        {!canAct && <div className="mt-3"><Locked perm="agent:act" verb="generate operational reports" /></div>}
+        {canAct && (
+          <div className="mt-4">
+            <LiquidMetalButton variant="gold" size="sm" icon={<EmpireIcon name="document" size={14} />} onClick={generate} disabled={busy}>
+              {busy ? 'Compiling…' : 'Generate report'}
+            </LiquidMetalButton>
+            {reportErr && <div className="mt-3"><ErrBar msg={reportErr} /></div>}
+            {report && (
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <ReportStat label="Headcount" value={report.headcount.toLocaleString()} />
+                <ReportStat label="Monthly payroll" value={report.monthlyPayroll.toLocaleString()} />
+                <ReportStat label="Open pipeline" value={`${report.activeDeals} · ${report.pipelineValue.toLocaleString()}`} />
+                <ReportStat label="Won deals" value={report.wonDeals.toLocaleString()} />
+                <ReportStat label="Agent actions · 7d" value={report.agentActions7d.toLocaleString()} />
+                <ReportStat label="Approvals raised" value={report.approvalsRaised.toLocaleString()} />
+                <ReportStat label="Scope" value={report.company} mono />
+                <ReportStat label="Generated" value={new Date(report.generatedAt).toLocaleTimeString()} />
+              </div>
+            )}
+          </div>
+        )}
+      </GlassPanel>
+    </section>
+  )
+}
+
+function BoundaryNote({ icon, title, text }: { icon: string; title: string; text: string }) {
+  return (
+    <div className="rounded-lg border border-empire-border bg-empire-surface/40 px-3 py-2.5">
+      <p className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-empire-text-muted">
+        <EmpireIcon name={icon as any} size={12} className="text-empire-gold" />{title}
+      </p>
+      <p className="text-[11px] leading-relaxed text-empire-text-dim">{text}</p>
+    </div>
+  )
+}
+
+function CapBadge({ tone, text, mono }: { tone: 'green' | 'red' | 'amber' | 'muted' | 'border'; text: string; mono?: boolean }) {
+  const cls = tone === 'green' ? 'border-rag-green/40 bg-rag-green/10 text-rag-green'
+    : tone === 'red' ? 'border-empire-red/40 bg-empire-red/10 text-empire-red-bright'
+      : tone === 'amber' ? 'border-rag-amber/40 bg-rag-amber/10 text-rag-amber'
+        : tone === 'muted' ? 'border-empire-border bg-empire-surface/40 text-empire-text-dim'
+          : 'border-empire-border text-empire-text-muted'
+  return <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-widest ${mono ? 'font-data lowercase tracking-normal' : ''} ${cls}`}>{text}</span>
+}
+
+function ReportStat({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="rounded-lg border border-empire-border bg-empire-surface/40 px-3 py-2.5">
+      <p className="text-[10px] uppercase tracking-widest text-empire-text-muted">{label}</p>
+      <p className={`mt-1 text-sm text-empire-text ${mono ? 'font-data' : 'font-empire'}`}>{value}</p>
+    </div>
   )
 }
 

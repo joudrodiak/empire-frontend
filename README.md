@@ -56,7 +56,7 @@ fixed in `tailwind.config.ts` and the `atoms/` layer.
 
 ## Deployment
 Hosted on **Vercel or Amplify Hosting** (edge), pointed at the API via build-time
-env: `NEXT_PUBLIC_API_BASE` (the `ApiUrl` stack output) plus the Cognito pool/
+env: `NEXT_PUBLIC_API_URL` (the `ApiUrl` stack output) plus the Cognito pool/
 client IDs. Connect the `joudrodiak/empire-frontend` repo, set the env vars, deploy
 `main`. Never run `next build` on the live dev host. Full steps in the **infra**
 repo `DEPLOYMENT.md` §5.

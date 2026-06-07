@@ -43,7 +43,7 @@ export const RULE_SECTIONS: RuleSection[] = [
     title: 'Earning XP',
     icon: 'sparkle',
     body: [
-      'Every completed follow-up awards XP to the person assigned to it. There is no other way to earn XP — points always map to real work that got done.',
+      'Completed ticket story points convert directly to XP: 1 story point = 50 XP. Historical completed tickets are backfilled using the same rule.',
       'The amount depends on the task’s priority:',
     ],
     table: [

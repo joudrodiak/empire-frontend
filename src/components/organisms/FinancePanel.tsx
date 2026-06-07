@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { fetcher, post, patch, del } from '@/lib/api'
+import { fetcher, post, patch, del, download } from '@/lib/api'
 import { KpiCard, Panel, AreaChart, BarChart, DonutChart, ProgressBar, DataTable, Badge, TabBar, Grid, EmptyState, type Column } from '@/lib/ui'
 import { Pagination } from '@/components/molecules/Pagination'
 import { RowActions } from '@/components/molecules/RowActions'
@@ -159,6 +159,21 @@ function PnL() {
     { key: 'line', label: 'Line Item', render: r => <span className={r.bold ? 'font-semibold text-empire-text' : 'text-empire-text-muted pl-4'}>{r.line}</span> },
     { key: 'amount', label: 'Amount', align: 'right', render: r => <span className={`${r.bold ? 'font-semibold' : ''} ${r.amount < 0 ? 'text-empire-text' : 'text-rag-green'}`}>{eur(r.amount)}</span> },
   ]
+  function exportStatement() {
+    printStatement('Income Statement (P&L)', 'Period-to-date · derived from posted revenue & expense entries', [
+      { rows: [
+        { label: 'Revenue', amount: p!.revenue, bold: true },
+        ...p!.revenueLines.map(l => ({ label: l.name, amount: l.amount, indent: true })),
+        { label: 'Cost of Revenue', amount: -p!.cogs, bold: true },
+        ...p!.cogsLines.map(l => ({ label: l.name, amount: -l.amount, indent: true })),
+        { label: 'Gross Profit', amount: p!.grossProfit, bold: true, rule: true },
+        { label: 'Operating Expenses', amount: -p!.opex, bold: true },
+        ...p!.opexLines.map(l => ({ label: l.name, amount: -l.amount, indent: true })),
+        { label: 'Operating Income', amount: p!.operatingIncome, bold: true, rule: true },
+        { label: `Net Income (${p!.netMarginPct}% margin)`, amount: p!.netIncome, bold: true, rule: true },
+      ] },
+    ])
+  }
   return (
     <div className="space-y-6">
       <Grid cols={4}>
@@ -167,7 +182,7 @@ function PnL() {
         <KpiCard label="Operating Income" value={eurK(p.operatingIncome)} accent={ACCENT} icon="gauge" />
         <KpiCard label="Net Income" value={eurK(p.netIncome)} delta={p.netIncome >= 0 ? 'profit' : 'loss'} deltaGood={p.netIncome >= 0} accent={p.netIncome >= 0 ? '#3a9d5c' : '#c94f4f'} icon="finance" />
       </Grid>
-      <Panel title="Income Statement" icon="document"><DataTable columns={cols} rows={rows} /></Panel>
+      <Panel title="Income Statement" icon="document" actions={<ExportBtn onClick={exportStatement} />}><DataTable columns={cols} rows={rows} /></Panel>
     </div>
   )
 }
@@ -183,6 +198,24 @@ function BalanceSheet() {
     { key: 'name', label: 'Account', render: r => <span className="text-empire-text-muted">{r.code} · {r.name}</span> },
     { key: 'amount', label: 'Amount', align: 'right', render: r => <span className="tabular-nums">{eur(r.amount)}</span> },
   ]
+  function exportStatement() {
+    printStatement('Balance Sheet', `As of ${new Date().toLocaleDateString()} · ${b!.balanced ? 'balanced' : `out by ${eur(b!.difference)}`}`, [
+      { heading: 'Assets', rows: [
+        ...b!.assets.map(l => ({ label: `${l.code} · ${l.name}`, amount: l.amount, indent: true })),
+        { label: 'Total Assets', amount: b!.totalAssets, bold: true, rule: true },
+      ] },
+      { heading: 'Liabilities', rows: [
+        ...b!.liabilities.map(l => ({ label: `${l.code} · ${l.name}`, amount: l.amount, indent: true })),
+        { label: 'Total Liabilities', amount: b!.totalLiabilities, bold: true, rule: true },
+      ] },
+      { heading: 'Equity', rows: [
+        ...b!.equity.map(l => ({ label: `${l.code} · ${l.name}`, amount: l.amount, indent: true })),
+        { label: 'Retained Earnings (current)', amount: b!.retainedEarnings, indent: true },
+        { label: 'Total Equity', amount: b!.totalEquity, bold: true, rule: true },
+        { label: 'Liabilities + Equity', amount: b!.totalLiabilities + b!.totalEquity, bold: true, rule: true },
+      ] },
+    ])
+  }
   return (
     <div className="space-y-6">
       <Grid cols={4}>
@@ -191,6 +224,7 @@ function BalanceSheet() {
         <KpiCard label="Total Equity" value={eurK(b.totalEquity)} sub={`incl. retained ${eurK(b.retainedEarnings)}`} accent="#3a9d5c" icon="shield" />
         <KpiCard label="A = L + E" value={b.balanced ? 'Balanced' : `Off ${eur(b.difference)}`} accent={b.balanced ? '#3a9d5c' : '#c94f4f'} icon={b.balanced ? 'check' : 'alert'} />
       </Grid>
+      <div className="flex justify-end"><ExportBtn onClick={exportStatement} /></div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Panel title={`Assets — ${eur(b.totalAssets)}`} icon="coins"><DataTable columns={sectCols} rows={b.assets} empty="No asset balances" /></Panel>
         <div className="space-y-4">
@@ -204,11 +238,75 @@ function BalanceSheet() {
   )
 }
 
+/* ---------------- Statement print-to-PDF (shared) ----------------
+ * Same dependency-free pattern as the spend voucher: open a styled window with a
+ * clean letterhead and trigger the browser's native "Save as PDF". Used by P&L,
+ * Balance Sheet and Cash Flow so every financial statement is exportable. */
+type StmtRow = { label: string; amount: number; bold?: boolean; indent?: boolean; rule?: boolean }
+type StmtSection = { heading?: string; rows: StmtRow[] }
+function printStatement(title: string, periodLabel: string, sections: StmtSection[]) {
+  const fmt = (n: number) => `${n < 0 ? '-' : ''}€${Math.abs(Math.round(n)).toLocaleString()}`
+  const body = sections.map(sec => {
+    const head = sec.heading ? `<tr><td class="sec" colspan="2">${sec.heading}</td></tr>` : ''
+    const rows = sec.rows.map(r =>
+      `<tr class="${r.bold ? 'b' : ''} ${r.rule ? 'rule' : ''}"><td class="${r.indent ? 'ind' : ''}">${r.label}</td><td class="num ${r.amount < 0 ? 'neg' : ''}">${fmt(r.amount)}</td></tr>`).join('')
+    return head + rows
+  }).join('<tr class="gap"><td colspan="2"></td></tr>')
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
+  <style>
+    *{box-sizing:border-box} body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;margin:48px;background:#fff}
+    .hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #C9A233;padding-bottom:14px;margin-bottom:8px}
+    .brand{font-size:22px;letter-spacing:3px;text-transform:uppercase}
+    .sub{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#888}
+    .ttl{font-size:18px;margin:18px 0 2px}
+    .per{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#888;font-family:Arial,sans-serif;margin-bottom:16px}
+    table{width:100%;border-collapse:collapse}
+    td{padding:6px 4px;font-size:13px}
+    td.num{text-align:right;font-variant-numeric:tabular-nums;font-family:Arial,sans-serif}
+    td.neg{color:#9a2b2b}
+    td.ind{padding-left:22px;color:#666}
+    td.sec{text-transform:uppercase;font-size:10px;letter-spacing:1.5px;color:#888;font-family:Arial,sans-serif;padding-top:14px;border-bottom:1px solid #eee}
+    tr.b td{font-weight:bold;color:#1a1a1a}
+    tr.rule td{border-top:1px solid #C9A233;padding-top:8px}
+    tr.gap td{height:8px}
+    .ft{margin-top:40px;font-size:10px;color:#aaa;border-top:1px solid #eee;padding-top:10px;font-family:Arial,sans-serif}
+  </style></head><body>
+    <div class="hd"><div class="brand">Empire OS</div><div class="sub">Financial Statement</div></div>
+    <div class="ttl">${title}</div><div class="per">${periodLabel}</div>
+    <table>${body}</table>
+    <div class="ft">Generated ${new Date().toLocaleString()} · Empire OS · derived from the posted double-entry ledger</div>
+    <script>window.onload=function(){window.print()}</script>
+  </body></html>`
+  const w = window.open('', '_blank')
+  if (w) { w.document.write(html); w.document.close() }
+}
+
+// Small "Save as PDF" / export action button used in statement panel headers.
+function ExportBtn({ onClick, label = 'Save as PDF', icon = 'document' }: { onClick: () => void; label?: string; icon?: string }) {
+  return (
+    <button onClick={onClick}
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] uppercase tracking-widest rounded border border-empire-gold/30 text-empire-gold hover:bg-empire-gold/10 transition-colors">
+      <EmpireIcon name={icon as any} size={13} className="text-empire-gold-muted" />{label}
+    </button>
+  )
+}
+
 /* ---------------- Cash Flow ---------------- */
 type CFData = { operating: number; investing: number; financing: number; netCashFlow: number; openingCash: number; closingCash: number; activity: { date: string; memo: string; section: string; amount: number }[] }
+type CFSeriesPt = { key: string; label: string; operating: number; investing: number; financing: number; net: number; closingCash: number }
+type CFForecast = {
+  ahead: number; history: CFSeriesPt[]
+  trend?: { slope: number; monthlyAvgNet: number; confidenceBand: number }
+  forecast: { key: string; label: string; net: number; low: number; high: number; closingCash: number }[]
+  projectedClosingCash?: number
+  runway: { monthsUntilNegative: number; message: string } | null
+  note?: string
+}
 
 function CashFlow() {
   const { data: c, loading } = useFin<CFData>('cash-flow')
+  const { data: series } = useFin<{ months: number; series: CFSeriesPt[] }>('cash-flow/series?months=12')
+  const { data: fc } = useFin<CFForecast>('cash-flow/forecast?months=6')
   if (loading) return <Loading />
   if (!c) return <EmptyState icon="coins" title="No cash flow data" hint="Post entries that touch cash." />
   const cols: Column<CFData['activity'][number]>[] = [
@@ -216,6 +314,30 @@ function CashFlow() {
     { key: 'memo', label: 'Activity' },
     { key: 'amount', label: 'Amount', align: 'right', render: r => <span className={r.amount >= 0 ? 'text-rag-green' : 'text-empire-text'}>{r.amount >= 0 ? '+' : ''}{eur(r.amount)}</span> },
   ]
+  const s = series?.series || []
+  // Forecast chart: stitch history closing-cash with projected closing-cash + band.
+  const hist = fc?.history || []
+  const proj = fc?.forecast || []
+  const closingLine = [...hist.map(h => h.closingCash), ...proj.map(p => p.closingCash)]
+  const closingLabels = [...hist.map(h => h.label), ...proj.map(p => p.label)]
+  const bandHigh = [...hist.map(h => h.closingCash), ...proj.map(p => p.high)]
+  const bandLow = [...hist.map(h => h.closingCash), ...proj.map(p => p.low)]
+
+  function exportStatement() {
+    printStatement('Cash Flow Statement', 'Indirect roll-up · all posted cash activity', [
+      { heading: 'Cash flows by activity', rows: [
+        { label: 'Operating activities', amount: c!.operating },
+        { label: 'Investing activities', amount: c!.investing },
+        { label: 'Financing activities', amount: c!.financing },
+        { label: 'Net change in cash', amount: c!.netCashFlow, bold: true, rule: true },
+      ] },
+      { heading: 'Cash position', rows: [
+        { label: 'Opening cash', amount: c!.openingCash },
+        { label: 'Closing cash', amount: c!.closingCash, bold: true, rule: true },
+      ] },
+    ])
+  }
+
   return (
     <div className="space-y-6">
       <Grid cols={4}>
@@ -224,7 +346,57 @@ function CashFlow() {
         <KpiCard label="Financing" value={eurK(c.financing)} accent={ACCENT} icon="coins" />
         <KpiCard label="Net Cash Flow" value={eurK(c.netCashFlow)} delta={c.netCashFlow >= 0 ? 'inflow' : 'outflow'} deltaGood={c.netCashFlow >= 0} accent={ACCENT} icon={c.netCashFlow >= 0 ? 'arrow-up' : 'arrow-down'} />
       </Grid>
-      <Panel title="Cash Movements (direct method)" icon="chart-line"><DataTable columns={cols} rows={c.activity} empty="No cash activity" /></Panel>
+
+      {s.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Panel title="Closing Cash (12 mo)" className="lg:col-span-2" icon="chart-line">
+            <AreaChart series={s.map(p => p.closingCash)} labels={s.map(p => p.label)} color={ACCENT} height={200} />
+            <div className="flex gap-6 mt-3 text-xs text-empire-text-muted">
+              <span>Opening {eurK(c.openingCash)}</span><span>Closing {eurK(c.closingCash)}</span>
+              <span>Range {eurK(Math.min(...s.map(p => p.closingCash)))} – {eurK(Math.max(...s.map(p => p.closingCash)))}</span>
+            </div>
+          </Panel>
+          <Panel title="Net Cash by Month" icon="chart-bar">
+            <BarChart data={s.map(p => p.net)} labels={s.map(p => p.label)} color={ACCENT} height={200} />
+          </Panel>
+        </div>
+      )}
+
+      {fc && proj.length > 0 && (
+        <Panel title={`Cash Forecast (${fc.ahead} mo)`} icon="compass"
+          actions={fc.runway
+            ? <Pill text={`Runway ~${fc.runway.monthsUntilNegative} mo`} color="#c94f4f" />
+            : <Pill text="No cash-out in horizon" color="#3a9d5c" />}>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2">
+              <AreaChart series={closingLine} labels={closingLabels} color={ACCENT} height={200} />
+              <div className="flex gap-5 mt-3 text-xs text-empire-text-muted flex-wrap">
+                <span className="flex items-center gap-2"><span className="w-3 h-0.5" style={{ background: ACCENT }} />Projected closing cash</span>
+                <span>Confidence band ±{eurK(fc.trend?.confidenceBand)}</span>
+                <span>Avg monthly net {eurK(fc.trend?.monthlyAvgNet)}</span>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <KpiCard label="Projected Closing" value={eurK(fc.projectedClosingCash)} sub={`in ${fc.ahead} months`} accent={(fc.projectedClosingCash ?? 0) >= 0 ? '#3a9d5c' : '#c94f4f'} icon="coins" />
+              <KpiCard label="Cash Runway" value={fc.runway ? `${fc.runway.monthsUntilNegative} mo` : '∞'} sub={fc.runway ? 'until negative' : 'positive trend'} accent={fc.runway ? '#c94f4f' : '#3a9d5c'} icon="clock" />
+              <div className="text-[11px] text-empire-text-dim leading-relaxed">
+                {fc.runway?.message || 'At the current trend cash stays positive across the forecast horizon.'} Bands are ±1σ of the trailing trend residual.
+              </div>
+            </div>
+          </div>
+        </Panel>
+      )}
+      {fc?.note && <p className="text-[11px] text-empire-text-dim">{fc.note}</p>}
+
+      <Panel title="Cash Movements (direct method)" icon="chart-line"
+        actions={
+          <div className="flex items-center gap-2">
+            <ExportBtn onClick={exportStatement} />
+            <ExportBtn onClick={() => download('/api/finance/export/ledger.csv', 'empire-ledger.csv')} label="Ledger CSV" icon="arrow-down" />
+          </div>
+        }>
+        <DataTable columns={cols} rows={c.activity} empty="No cash activity" />
+      </Panel>
     </div>
   )
 }
@@ -663,6 +835,8 @@ function TaxCenter() {
         ))}
       </div>
 
+      <DutchFilingCenter />
+
       <p className="text-[11px] text-empire-text-dim">
         Statutory rates: NL VAT 21% · CIT 19% to €200k, 25.8% above. UAE VAT 5% · CIT 0% to AED 375k, 9% above
         (Small Business Relief 0% under AED 3M through 2026). UAE figures converted at {t.fx.aedPerEur} AED/€.
@@ -670,6 +844,57 @@ function TaxCenter() {
       </p>
     </div>
   )
+}
+
+type FilingField = { code: string; label: string; amount: number; tax?: number; source: string }
+type FilingForm = { type: string; period: string; form: FilingField[]; totals: Record<string, number>; warnings: string[] }
+
+function DutchFilingCenter() {
+  const now = new Date()
+  const [period, setPeriod] = useState(`${now.getFullYear()}-Q${Math.floor(now.getMonth() / 3) + 1}`)
+  const [year, setYear] = useState(String(now.getFullYear()))
+  const [vat, setVat] = useState<FilingForm | null>(null)
+  const [vpb, setVpb] = useState<FilingForm | null>(null)
+  const [recipient, setRecipient] = useState('')
+  const [dueDate, setDueDate] = useState('')
+  const [msg, setMsg] = useState('')
+
+  async function load() {
+    const [vatForm, vpbForm] = await Promise.all([
+      fetcher(`/api/finance/tax/nl-filing?period=${encodeURIComponent(period)}`),
+      fetcher(`/api/finance/tax/nl-aangifte?year=${encodeURIComponent(year)}`),
+    ])
+    setVat(vatForm); setVpb(vpbForm)
+  }
+  async function save(form: FilingForm) {
+    await post('/api/finance/tax/filings', { type: form.type, period: form.period, values: form, status: 'draft' })
+    setMsg(`${form.type} draft saved`)
+  }
+  async function remind() {
+    await post('/api/finance/tax/reminders', { filingType: 'NL_BTW', recipient, dueDate, remindDays: [30, 14, 7, 1] })
+    setMsg('Email reminder scheduled')
+  }
+
+  return <Panel title="Dutch filing forms" icon="document">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="text-xs text-empire-text-muted">VAT quarter<input className={`${modalInput} mt-1 w-28`} value={period} onChange={e => setPeriod(e.target.value)} /></label>
+        <label className="text-xs text-empire-text-muted">Aangifte year<input className={`${modalInput} mt-1 w-24`} value={year} onChange={e => setYear(e.target.value)} /></label>
+        <button className="empire-btn-primary" onClick={load}>Build forms</button>
+      </div>
+      {[vat, vpb].filter(Boolean).map(form => <div key={form!.type} className="rounded-lg border border-empire-border p-3">
+        <div className="mb-2 flex items-center justify-between"><h3 className="text-sm font-semibold text-empire-text">{form!.type} · {form!.period}</h3><button className="text-xs text-empire-gold" onClick={() => save(form!)}>Save draft</button></div>
+        <div className="space-y-1">{form!.form.map(row => <div key={row.code} className="grid grid-cols-[3rem_1fr_auto] gap-2 border-t border-empire-border/40 py-1.5 text-xs"><span className="font-data text-empire-gold">{row.code}</span><span className="text-empire-text-muted" title={row.source}>{row.label}</span><span className="font-data text-empire-text">{eur(row.amount)}</span></div>)}</div>
+        {form!.warnings.map(w => <p key={w} className="mt-2 text-[10px] text-rag-amber">{w}</p>)}
+      </div>)}
+      <div className="grid gap-2 border-t border-empire-border pt-3 sm:grid-cols-[1fr_10rem_auto]">
+        <input type="email" className={modalInput} placeholder="Reminder email" value={recipient} onChange={e => setRecipient(e.target.value)} />
+        <input type="date" className={modalInput} value={dueDate} onChange={e => setDueDate(e.target.value)} />
+        <button className="empire-btn-primary" onClick={remind} disabled={!recipient || !dueDate}>Schedule reminder</button>
+      </div>
+      {msg && <p className="text-xs text-empire-green-bright">{msg}</p>}
+    </div>
+  </Panel>
 }
 
 function JurisdictionCard({ j, recommended }: { j: Jurisdiction; recommended: boolean }) {
@@ -880,7 +1105,8 @@ function Ledger({ departmentSlug }: { departmentSlug: string }) {
         ) : <EmptyState icon="book" title="No accounts" hint="Seed or create a chart of accounts." />}
       </Panel>
 
-      <Panel title="General Journal" icon="document">
+      <Panel title="General Journal" icon="document"
+        actions={<ExportBtn onClick={() => download('/api/finance/export/ledger.csv', 'empire-ledger.csv')} label="Export CSV" icon="arrow-down" />}>
         {loading ? <Loading /> : <DataTable columns={cols} rows={journal?.data || []} empty="No journal entries yet" />}
         {journal && (
           <Pagination page={page} pageCount={journal.totalPages} total={journal.total} onPage={setPage} accent={ACCENT} />

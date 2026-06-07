@@ -121,12 +121,30 @@ body {
    reference (rgba white 0.2 / radius 16 / blur / 1px border) but
    inverted to a near-black tint so cream text stays readable. */
 .glass {
-  background: rgb(var(--glass-bg) / var(--glass-bg-a));
+  /* Faithful glassmorphism: a thin white film over a dark tint (so cream text
+     stays legible), a white hairline border, the reference soft shadow, real
+     blur, and — the actual "glass tell" — an inset top sheen. Mirrors the
+     reference recipe (rgba white / radius 16 / blur / 1px white border / soft
+     shadow), inverted for a dark UI. */
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02) 42%),
+    rgb(var(--glass-bg) / var(--glass-bg-a));
   border-radius: 16px;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.45);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  backdrop-filter: blur(14px) saturate(140%);
-  border: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 4px 30px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+}
+html.light .glass {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.30) 42%),
+    rgb(var(--glass-bg) / var(--glass-bg-a));
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 4px 30px rgba(120, 100, 40, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 /* Brighter gold-frost variant for floating chrome (dock / brand). */
 .glass-gold {
@@ -219,71 +237,59 @@ html.light .glass-edgeless {
     0 6px 20px rgba(0,0,0,0.4);
 }
 
-/* Liquid-metal HAIRLINE frame — frosted-glass body wrapped in a thin molten-
-   gold border that runs the same sheen sweep as .liquid-metal. Used for the
-   company switcher trigger and other chrome that wants a metal edge without a
-   full metal fill. The gradient sits on a padded pseudo-element masked to a
-   ring so only the border shows. */
-.metal-frame {
-  position: relative;
-  isolation: isolate;
-  background: rgba(13, 13, 26, 0.55);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
-  backdrop-filter: blur(14px) saturate(150%);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-.metal-frame::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background:
-    linear-gradient(100deg, #6e5410 0%, #c9a233 22%, #f4e39b 38%, #c9a233 52%, #8a6f1e 72%, #c9a233 100%);
-  background-size: 220% 100%;
-  background-position: var(--lm-pos, 0%) 0;
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0.7;
-  animation: lm-sheen 7s linear infinite;
-  pointer-events: none;
-}
-.metal-frame:hover::before { opacity: 1; }
-html.light .metal-frame {
-  background: rgba(250, 246, 238, 0.7);
-  box-shadow: 0 6px 24px rgba(120, 100, 40, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.5);
-}
+/* (Removed `.metal-frame` — the CSS fake liquid-metal rim. The company switcher
+   now uses the real WebGL shader border via <LiquidMetalFrame>, so this faux
+   gradient-ring is dead and was deleted to avoid two competing "metal" looks.) */
 
 /* 3D unit medallion — static layered "coin" the unit glyph sits on.
-   Radial gold light, beveled rim, cast shadow. No motion. */
+   One consistent light source (top-left, 30%/26%) shared by every Empire 3D
+   surface: a domed gold body, a beveled inner rim (::after), and a specular
+   "moon" glint (::before) aligned to that same light. No motion. */
 .medallion {
   position: relative;
   display: grid;
   place-items: center;
   border-radius: 9999px;
   background:
-    radial-gradient(circle at 32% 26%, #f4e39b 0%, #c9a233 30%, #8a6f1e 62%, #5a460f 100%);
+    radial-gradient(circle at 30% 26%, #fbf1c4 0%, #f4e39b 14%, #c9a233 38%, #8a6f1e 68%, #4a3a0c 100%);
   box-shadow:
-    inset 0 2px 3px rgba(255,255,255,0.55),
-    inset 0 -3px 6px rgba(0,0,0,0.5),
-    inset 0 0 0 1px rgba(255,255,255,0.15),
-    0 4px 10px rgba(0,0,0,0.55),
-    0 1px 0 rgba(255,255,255,0.1);
+    inset 0 2px 3px rgba(255,255,255,0.6),
+    inset 0 -4px 8px rgba(0,0,0,0.55),
+    inset 0 0 0 1px rgba(255,255,255,0.18),
+    inset 2px 3px 6px rgba(255,255,255,0.22),
+    inset -3px -4px 8px rgba(0,0,0,0.4),
+    0 6px 16px rgba(0,0,0,0.6),
+    0 1px 0 rgba(255,255,255,0.12);
   color: #2a2208;
 }
+/* Specular "moon" — the bright spherical glint, centered on the light source
+   (top-left). This is the element that reads the coin as a dome, not a disc. */
+.medallion::before {
+  content: '';
+  position: absolute;
+  left: 16%; top: 13%;
+  width: 42%; height: 34%;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 38% 34%, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.3) 36%, rgba(255,255,255,0) 70%);
+  filter: blur(0.5px);
+  pointer-events: none;
+  z-index: 1;
+}
+/* Beveled inner rim. */
 .medallion::after {
   content: '';
   position: absolute; inset: 14%;
   border-radius: 9999px;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.35), inset 0 -1px 1px rgba(255,255,255,0.25);
+  box-shadow:
+    inset 0 1px 2px rgba(0,0,0,0.4),
+    inset 0 -1px 1px rgba(255,255,255,0.28),
+    inset 1px 2px 3px rgba(0,0,0,0.22);
   pointer-events: none;
 }
-/* Steel medallion for neutral/non-active units. */
+/* Steel medallion for neutral/non-active units — same light source. */
 .medallion-steel {
   background:
-    radial-gradient(circle at 32% 26%, #d6d9e2 0%, #9aa0b0 34%, #5a5f72 66%, #2c3040 100%);
+    radial-gradient(circle at 30% 26%, #eef0f4 0%, #d6d9e2 14%, #9aa0b0 40%, #5a5f72 70%, #232734 100%);
   color: #15171f;
 }
 

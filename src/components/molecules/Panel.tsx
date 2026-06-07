@@ -10,7 +10,7 @@ export function Panel({ title, actions, children, className, pad = true, icon }:
   icon?: IconName
 }) {
   return (
-    <div className={cn('bg-empire-surface border border-empire-border rounded-xl overflow-hidden', className)}>
+    <div className={cn('glass overflow-hidden', className)}>
       {title && (
         <div className="relative flex items-center justify-between gap-3 px-4 py-3">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-empire-text min-w-0">

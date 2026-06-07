@@ -132,10 +132,10 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M12 2.5v2.2M12 19.3v2.2M21.5 12h-2.2M4.7 12H2.5M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6M18.7 18.7l-1.6-1.6M6.9 6.9L5.3 5.3" />
     </>
   ),
-  // moon — dark mode
+  // moon — dark mode (nudged down-left so the crescent reads centred in the box)
   moon: (
     <>
-      <path d="M20 13.2A8 8 0 0 1 10.8 4a6.5 6.5 0 1 0 9.2 9.2z" />
+      <path transform="translate(-1.6 1.6)" d="M20 13.2A8 8 0 0 1 10.8 4a6.5 6.5 0 1 0 9.2 9.2z" />
     </>
   ),
   // sitemap — org / reporting structure (one top node feeding two below)

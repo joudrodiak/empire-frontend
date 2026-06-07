@@ -20,7 +20,9 @@ type DockItem = { label: string; icon: IconName; href: string }
 
 const MAIN: DockItem[] = [
   { label: 'Overview', icon: 'overview', href: '/' },
+  { label: 'Approvals', icon: 'scales', href: '/approvals' },
   { label: 'Operator', icon: 'sparkle', href: '/agent' },
+  { label: 'MCP', icon: 'link', href: '/mcp' },
   { label: 'Settings', icon: 'cog', href: '/settings' },
 ]
 

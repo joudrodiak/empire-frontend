@@ -36,9 +36,6 @@ export default function LoginPage() {
 
   return (
     <div className="relative grid min-h-screen place-items-center overflow-hidden bg-empire-void px-4">
-      {/* gold vignette */}
-      <div aria-hidden className="pointer-events-none absolute inset-0"
-        style={{ background: 'radial-gradient(60% 50% at 50% 30%, rgba(201,162,51,0.10), transparent 70%)' }} />
       <div className="glass-gold relative w-full max-w-md animate-slide-up p-8">
         <div className="mb-7 flex flex-col items-center gap-3 text-center">
           <span className="medallion grid place-items-center" style={{ width: 56, height: 56 }}>

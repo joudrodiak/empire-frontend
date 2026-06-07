@@ -26,6 +26,7 @@ export type Contract = {
   notes: string | null
   templateKey?: string | null
   signedAt?: string | null
+  approvalRequestId?: string | null
   createdAt: string
   department: { name: string; slug: string; icon: string; color: string } | null
   employee: { id: string; name: string; role: string } | null
@@ -41,15 +42,34 @@ type LegalDoc = { id: string; title: string; counterparty: string | null; templa
 type LegalTemplate = { id: string; key: string; name: string; category: string }
 
 const TYPES = ['all', 'employee', 'company', 'partner'] as const
-const STATUSES = ['all', 'draft', 'signed', 'active', 'expired', 'terminated'] as const
+const STATUSES = ['all', 'draft', 'review', 'approval', 'signed', 'active', 'expired', 'terminated', 'archived'] as const
 const TYPE_ICON: Record<string, IconName> = { employee: 'user', company: 'briefcase', partner: 'handshake' }
+
+// The forward lifecycle pipeline rendered as a stepper (mirrors the API's
+// /api/contracts/meta/lifecycle pipeline; off-ramps live outside it).
+const LIFECYCLE_PIPELINE = ['draft', 'review', 'approval', 'signed', 'archived'] as const
+// Allowed transitions out of each state — mirrors api/src/lib/contractLifecycle.ts.
+// Kept in sync so the edit form only offers legal moves (the API enforces it too).
+const LIFECYCLE_NEXT: Record<string, string[]> = {
+  draft: ['review', 'archived'],
+  review: ['approval', 'draft', 'archived'],
+  approval: ['signed', 'review', 'archived'],
+  signed: ['active', 'expired', 'terminated', 'archived'],
+  active: ['expired', 'terminated', 'archived'],
+  expired: ['active', 'archived'],
+  terminated: ['archived'],
+  archived: [],
+}
 
 const STATUS_STYLE: Record<string, string> = {
   active: 'text-empire-green-bright border-empire-green/40',
   signed: 'text-empire-green-bright border-empire-green/40',
   draft: 'text-empire-amber-bright border-empire-amber/40',
+  review: 'text-empire-amber-bright border-empire-amber/40',
+  approval: 'text-empire-gold border-empire-gold/40',
   expired: 'text-empire-text-dim border-empire-border',
   terminated: 'text-empire-text-dim border-empire-border',
+  archived: 'text-empire-text-dim border-empire-border',
 }
 
 const PAGE_SIZE = 10
@@ -328,6 +348,40 @@ function ContractViewer({ contract, onClose, onDeleted }: {
         </div>
 
         <div className="px-6 py-5 space-y-5">
+          {/* Lifecycle stepper (§5): draft → review → approval → signed → archived.
+              Off-ramp states (active/expired/terminated) show as a trailing chip. */}
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-empire-text-dim mb-2">Lifecycle</div>
+            <div className="flex items-center flex-wrap gap-x-1 gap-y-2">
+              {LIFECYCLE_PIPELINE.map((s, i) => {
+                const idx = LIFECYCLE_PIPELINE.indexOf(contract.status as typeof LIFECYCLE_PIPELINE[number])
+                const onPipeline = idx >= 0
+                const done = onPipeline && i < idx
+                const current = onPipeline && i === idx
+                return (
+                  <span key={s} className="flex items-center gap-1">
+                    <span className={`px-2 py-0.5 text-[11px] rounded border capitalize ${
+                      current ? 'bg-empire-gold-dim border-empire-gold/50 text-empire-gold'
+                        : done ? 'border-empire-green/40 text-empire-green-bright'
+                        : 'border-empire-border text-empire-text-dim'}`}>{s}</span>
+                    {i < LIFECYCLE_PIPELINE.length - 1 && (
+                      <EmpireIcon name="chevron-right" size={12} className={done ? 'text-empire-green/50' : 'text-empire-text-dim'} />
+                    )}
+                  </span>
+                )
+              })}
+              {!LIFECYCLE_PIPELINE.includes(contract.status as typeof LIFECYCLE_PIPELINE[number]) && (
+                <span className={`ml-2 px-2 py-0.5 text-[11px] rounded border capitalize ${STATUS_STYLE[contract.status] || 'border-empire-border text-empire-text-dim'}`}>{contract.status}</span>
+              )}
+            </div>
+            {contract.approvalRequestId && (
+              <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-empire-gold">
+                <EmpireIcon name="shield" size={12} className="text-empire-gold-muted" />
+                Linked approval raised — awaiting the Throne.
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             {contract.counterparty && <Field label="Counterparty">{contract.counterparty}</Field>}
             {contract.employee && <Field label="Employee">{contract.employee.name} · {contract.employee.role}</Field>}
@@ -563,8 +617,14 @@ function ContractForm({ departmentSlug, contract, prefillEmployeeId, onCreated, 
         </div>
         <div>
           <label className="empire-label">Status</label>
+          {/* Lifecycle gate: when editing, only the current state + its legal next
+              moves are offered (the API rejects illegal jumps). On create, any
+              entry state is allowed (e.g. recording an already-active contract). */}
           <select value={f.status} onChange={e => setF({ ...f, status: e.target.value })} className="empire-input w-full mt-1">
-            {['draft', 'signed', 'active', 'expired', 'terminated'].map(s => <option key={s} value={s}>{s}</option>)}
+            {(isEdit && contract
+              ? [contract.status, ...(LIFECYCLE_NEXT[contract.status] ?? [])]
+              : ['draft', 'review', 'signed', 'active', 'expired', 'terminated']
+            ).map(s => <option key={s} value={s}>{s}{isEdit && contract && s === contract.status ? ' (current)' : ''}</option>)}
           </select>
         </div>
         <input placeholder="Title *" value={f.title} onChange={e => setF({ ...f, title: e.target.value })} className="col-span-2 empire-input" />

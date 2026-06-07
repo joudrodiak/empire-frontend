@@ -69,8 +69,8 @@ function IntegrationsTab() {
   const rows: { name: string; icon: IconName; on: boolean; hint: string; keys: string }[] = [
     { name: 'Slack', icon: 'megaphone', on: !!status?.channels?.slack, hint: 'Approval dispatch + agent broadcasts', keys: 'SLACK_WEBHOOK_URL' },
     { name: 'Telegram', icon: 'megaphone', on: !!status?.channels?.telegram, hint: 'Approval dispatch + agent broadcasts', keys: 'TELEGRAM_BOT_TOKEN · TELEGRAM_CHAT_ID' },
-    { name: 'Instagram / Meta', icon: 'people', on: false, hint: 'Marketing intelligence (awaiting credentials)', keys: 'META_APP_ID · META_APP_SECRET · IG_ACCESS_TOKEN' },
-    { name: 'Banking (NL / UAE)', icon: 'coins', on: false, hint: 'Open-banking aggregator (awaiting credentials)', keys: 'BANK_API_CLIENT_ID · BANK_API_CLIENT_SECRET' },
+    { name: 'Instagram / Meta', icon: 'people', on: false, hint: 'Marketing intelligence (awaiting credentials)', keys: 'INSTAGRAM_OAUTH_CLIENT_ID · INSTAGRAM_OAUTH_CLIENT_SECRET · FACEBOOK_OAUTH_*' },
+    { name: 'Banking (NL / UAE)', icon: 'coins', on: false, hint: 'Open-banking aggregator (awaiting credentials)', keys: 'TINK_* · GOCARDLESS_ACCESS_TOKEN · PLAID_* · LEAN_APP_TOKEN · TARABUT_*' },
   ]
 
   return (

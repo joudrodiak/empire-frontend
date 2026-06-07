@@ -7,7 +7,7 @@ import { Pagination } from '@/components/molecules/Pagination'
 import { RowActions } from '@/components/molecules/RowActions'
 import { Modal } from '@/components/molecules/Modal'
 import { useStickyTab } from '@/lib/use-sticky-tab'
-import { EmpireIcon } from '@/components/atoms/EmpireIcon'
+import { EmpireIcon, asIconName } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
 
 // Small read-only key/value row for view modals.
@@ -35,6 +35,7 @@ const TABS = [
   { id: 'channels', label: 'Channels' },
   { id: 'leads', label: 'Pipeline' },
   { id: 'accounts', label: 'Social Accounts' },
+  { id: 'intelligence', label: 'Intelligence' },
   { id: 'influencers', label: 'Influencers' },
 ]
 
@@ -73,6 +74,7 @@ export function MarketingPanel() {
       {tab === 'channels' && <Channels />}
       {tab === 'leads' && <Leads />}
       {tab === 'accounts' && <SocialAccounts />}
+      {tab === 'intelligence' && <Intelligence />}
       {tab === 'influencers' && <Influencers />}
     </div>
   )
@@ -730,6 +732,16 @@ function SocialAccounts() {
   }, [])
 
   useEffect(() => { loadAccounts(); loadOverview() }, [loadAccounts, loadOverview])
+  // Returning from the provider OAuth consent screen lands here with ?social=…
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const p = new URLSearchParams(window.location.search).get('social')
+    if (p === 'connected' || p === 'error') {
+      loadAccounts(); loadOverview()
+      const url = new URL(window.location.href); url.searchParams.delete('social')
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [loadAccounts, loadOverview])
   useEffect(() => { if (selected !== 'all') loadDetail(selected) }, [selected, loadDetail])
   function reloadAll() { loadAccounts(); loadOverview(); if (selected !== 'all') loadDetail(selected) }
 
@@ -853,15 +865,94 @@ function SocialAccounts() {
   )
 }
 
+/* ---------------- Campaign intelligence (§6) ----------------
+ * One consolidated read of the whole social portfolio, grouped into four lenses
+ * (engagement / growth / audience / content-gap). Every number is derived by the
+ * API from the snapshot series + campaign rows — nothing here is hard-coded. */
+type IntelRec = { severity: 'high' | 'medium' | 'low'; metric: string; message: string }
+type IntelCat = { key: string; title: string; score: number; severity: 'high' | 'medium' | 'low'; recommendations: IntelRec[] }
+type Intel = { generatedAt: string; accountsAnalyzed: number; withData: number; categories: IntelCat[] }
+const CAT_ICON: Record<string, string> = { engagement: 'gauge', growth: 'chart-line', audience: 'people', content_gap: 'megaphone' }
+
+function Intelligence() {
+  const [data, setData] = useState<Intel | null>(null)
+  const [loading, setLoading] = useState(true)
+  const load = useCallback(() => {
+    setLoading(true)
+    fetcher('/api/marketing/social/intelligence').then(setData).catch(console.error).finally(() => setLoading(false))
+  }, [])
+  useEffect(() => { load() }, [load])
+  if (loading) return <Loading />
+  if (!data || data.accountsAnalyzed === 0) return <EmptyState icon="sparkle" title="No accounts to analyse yet" hint="Connect a social account and record at least one reporting period — the intelligence engine reads the snapshot series to surface engagement, growth, audience and content-gap actions." />
+
+  const totalRecs = data.categories.reduce((s, c) => s + c.recommendations.length, 0)
+  const high = data.categories.reduce((s, c) => s + c.recommendations.filter(r => r.severity === 'high').length, 0)
+  return (
+    <div className="space-y-6">
+      <Grid cols={3}>
+        <KpiCard icon="people" label="Accounts analysed" value={String(data.accountsAnalyzed)} sub={`${data.withData} with period data`} accent={ACCENT} />
+        <KpiCard icon="sparkle" label="Recommendations" value={String(totalRecs)} sub="across 4 lenses" accent={ACCENT} />
+        <KpiCard icon="alert" label="High priority" value={String(high)} accent={high > 0 ? '#c94f4f' : '#10b981'} />
+      </Grid>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {data.categories.map(cat => {
+          const c = SEV_COLOR[cat.severity]
+          return (
+            <Panel key={cat.key} icon={asIconName(CAT_ICON[cat.key], 'sparkle')} title={cat.title}>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Pill text={cat.severity} color={c} />
+                  <span className="text-[11px] text-empire-text-dim font-data">{cat.recommendations.length} action{cat.recommendations.length === 1 ? '' : 's'}</span>
+                </div>
+                {cat.recommendations.length === 0 ? (
+                  <p className="text-empire-text-dim text-xs">Nothing flagged — this lens looks healthy.</p>
+                ) : cat.recommendations.map((r, i) => (
+                  <div key={i} className="rounded-lg border p-3" style={{ borderColor: `${SEV_COLOR[r.severity]}44`, background: `${SEV_COLOR[r.severity]}0d` }}>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="text-[11px] uppercase tracking-wide font-medium" style={{ color: SEV_COLOR[r.severity] }}>{r.severity}</span>
+                      <span className="font-data text-[11px] text-empire-text-muted">{r.metric}</span>
+                    </div>
+                    <p className="text-empire-text-muted text-xs leading-relaxed">{r.message}</p>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          )
+        })}
+      </div>
+      <p className="text-[11px] text-empire-text-dim text-right">Generated {new Date(data.generatedAt).toLocaleString()} · derived from live snapshot + campaign data</p>
+    </div>
+  )
+}
+
 function SocialAccountEdit({ account, open, onClose, onSaved }: { account: SocialAcc | null; open: boolean; onClose: () => void; onSaved: () => void }) {
   const empty = { platform: 'instagram', handle: '', displayName: '', connection: 'login_session', status: 'pending' }
   const [f, setF] = useState<Record<string, string>>(empty)
   const [busy, setBusy] = useState(false)
+  const [oauthBusy, setOauthBusy] = useState(false)
+  const [oauthNote, setOauthNote] = useState('')
   useEffect(() => {
     if (!open) return
+    setOauthNote('')
     setF(account ? { platform: account.platform, handle: account.handle, displayName: account.displayName ?? '', connection: account.connection, status: account.status } : empty)
   }, [account, open]) // eslint-disable-line react-hooks/exhaustive-deps
   const set = (k: string, v: string) => setF(p => ({ ...p, [k]: v }))
+  // Real authorization-code handshake. If the provider has live keys in env we
+  // bounce to its consent screen; otherwise we run the dev "simulate" connect so
+  // the flow is demoable on dummy data (no secrets required).
+  async function connectOAuth() {
+    if (!account) return
+    setOauthBusy(true); setOauthNote('')
+    try {
+      const r: { configured: boolean; url?: string; hint?: string } =
+        await fetcher(`/api/marketing/social/oauth/${account.platform}/authorize-url?accountId=${account.id}`)
+      if (r.configured && r.url) { window.location.href = r.url; return }
+      await post(`/api/marketing/social/accounts/${account.id}/oauth/simulate`, {})
+      setOauthNote('Simulated OAuth connection — add provider keys in env for a live token.')
+      onSaved()
+    } catch (e) { console.error(e); setOauthNote('Could not start OAuth.') } finally { setOauthBusy(false) }
+  }
   async function save() {
     if (!f.handle) return
     setBusy(true)
@@ -888,6 +979,18 @@ function SocialAccountEdit({ account, open, onClose, onSaved }: { account: Socia
         {account && (
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Status</span>
             <select className={modalInput} value={f.status} onChange={e => set('status', e.target.value)}>{Object.keys(ACC_STATUS_COLOR).map(s => <option key={s} value={s}>{s}</option>)}</select></label>
+        )}
+        {account && f.connection === 'oauth' && (
+          <div className="rounded-lg border border-empire-border bg-empire-elevated/30 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] uppercase tracking-wide text-empire-text-muted">OAuth authorization</span>
+              <button onClick={connectOAuth} disabled={oauthBusy} className="rounded px-3 py-1.5 text-xs uppercase tracking-widest border border-empire-gold/40 text-empire-gold hover:bg-empire-gold/10 disabled:opacity-50 inline-flex items-center gap-1.5">
+                <EmpireIcon name="lock" size={12} /> {oauthBusy ? 'Connecting…' : 'Connect via OAuth'}
+              </button>
+            </div>
+            <p className="text-[11px] text-empire-text-dim leading-relaxed">Starts the provider authorization-code flow. With live keys in env you are sent to the provider&apos;s consent screen; without keys it records a simulated connection so the flow is demoable.</p>
+            {oauthNote && <p className="text-[11px]" style={{ color: '#10b981' }}>{oauthNote}</p>}
+          </div>
         )}
         <p className="text-[11px] text-empire-text-dim leading-relaxed">Auth keys/tokens are added in env later — connecting now records the account so metrics light up on first sync.</p>
         <div className="flex justify-end gap-2 pt-2">

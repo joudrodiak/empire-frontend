@@ -207,12 +207,6 @@ function OverviewTab({ departments, totalPayroll, activeDeals, pipelineValue, he
         <ThroneMetric label="Pipeline Value" value={formatCurrency(pipelineValue)} sub="potential revenue" icon="chart-line" />
       </div>
 
-      {/* Domains launcher — every Unit, always reachable */}
-      <div id="domains" className="scroll-mt-24">
-        <SectionHeader title={TERMS.domains} subtitle={`Enter any ${TERMS.unitLower} — each runs as its own ${TERMS.domainLower}`} />
-        <MicroservicesLauncher departments={departments} />
-      </div>
-
       {/* Empire leaderboard */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">

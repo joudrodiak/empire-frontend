@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { LiquidMetalButton } from '@/components/atoms/LiquidMetalButton'
+import { PasswordInput } from '@/components/molecules/PasswordInput'
 
 /**
  * Empire OS login portal. Exchanges email + password for a session token
@@ -55,8 +56,8 @@ export default function LoginPage() {
           </div>
           <div>
             <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-empire-text-muted">Password</label>
-            <input type="password" autoComplete="current-password" required value={password}
-              onChange={e => setPassword(e.target.value)} placeholder="••••••••" className={field} />
+            <PasswordInput autoComplete="current-password" required value={password}
+              onChange={e => setPassword(e.target.value)} placeholder="••••••••" inputClassName={field} />
           </div>
 
           {error && (

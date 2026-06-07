@@ -14,8 +14,8 @@ describe('RagBadge', () => {
     render(<RagBadge status="GREEN" />)
     expect(screen.getByText('green')).toBeInTheDocument()
   })
-  it('falls back to pending when empty', () => {
+  it('falls back to not measured when empty', () => {
     render(<RagBadge status="" />)
-    expect(screen.getByText('pending')).toBeInTheDocument()
+    expect(screen.getByText('not measured')).toBeInTheDocument()
   })
 })

@@ -19,7 +19,7 @@ const RAG_DOT: Record<string, string> = {
 }
 
 export function RagBadge({ status }: { status: string }) {
-  const s = (status || 'pending').toLowerCase()
+  const s = (status || 'not measured').toLowerCase()
   const tone = s.startsWith('g') ? 'green' : s.startsWith('a') ? 'amber' : s.startsWith('r') ? 'red' : 'muted'
   return (
     <Badge tone={tone as any}>

@@ -4,6 +4,7 @@ import { EmpireIcon, type IconName } from '@/components/atoms/EmpireIcon'
 import { LiquidMetalButton } from '@/components/atoms/LiquidMetalButton'
 import { LiquidMetalFrame } from '@/components/atoms/LiquidMetalFrame'
 import { Modal } from '@/components/molecules/Modal'
+import { PasswordInput } from '@/components/molecules/PasswordInput'
 import { COMPANIES } from '@/lib/profiles'
 import { EMBLEMS, deterministicEmblem } from '@/lib/emblems'
 import { fetcher, post } from '@/lib/api'
@@ -420,7 +421,7 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
                     <input className={field} value={h.firstName} onChange={e => updateHire(i, { firstName: e.target.value })} placeholder="First name" />
                     <input className={field} value={h.lastName} onChange={e => updateHire(i, { lastName: e.target.value })} placeholder="Last name" />
                     <input className={field} type="email" value={h.email} onChange={e => updateHire(i, { email: e.target.value })} placeholder="Email" />
-                    <input className={field} type="password" minLength={10} value={h.password} onChange={e => updateHire(i, { password: e.target.value })} placeholder="Temporary password (10+)" />
+                    <PasswordInput inputClassName={field} minLength={10} value={h.password} onChange={e => updateHire(i, { password: e.target.value })} placeholder="Temporary password (10+)" />
                     <input className={field} value={h.role} onChange={e => updateHire(i, { role: e.target.value })} placeholder="Title / role" />
                     <select className={field} value={h.departmentId} onChange={e => updateHire(i, { departmentId: e.target.value })}>
                       <option value="">Select Unit…</option>

@@ -10,6 +10,7 @@ import { deptIcon } from '@/lib/dept-icons'
 import { RowActions } from '@/components/molecules/RowActions'
 import { PhotoDrop } from '@/components/molecules/PhotoDrop'
 import { Modal } from '@/components/molecules/Modal'
+import { PasswordInput } from '@/components/molecules/PasswordInput'
 import { Pagination } from '@/components/molecules/Pagination'
 import { rankIcon } from '@/lib/rank-icons'
 import { ContractsPanel } from '@/components/organisms/ContractsPanel'
@@ -608,7 +609,11 @@ function RosterEmployeeModal({ dept, allDepts, employee, onClose, onSaved }: {
             <div><label className="empire-label">First name *</label><input className="empire-input w-full mt-1" value={f.firstName} onChange={e => setF({ ...f, firstName: e.target.value })} /></div>
             <div><label className="empire-label">Last name *</label><input className="empire-input w-full mt-1" value={f.lastName} onChange={e => setF({ ...f, lastName: e.target.value })} /></div>
             <div><label className="empire-label">Email *</label><input type="email" className="empire-input w-full mt-1" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} /></div>
-            <div><label className="empire-label">Temporary password *</label><input type="password" minLength={10} className="empire-input w-full mt-1" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} /></div>
+            <div>
+              <label className="empire-label">Temporary password *</label>
+              <PasswordInput minLength={10} inputClassName="empire-input w-full mt-1" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} />
+              <p className="mt-1 text-[10px] text-empire-text-dim">Minimum 10 characters.</p>
+            </div>
           </div>
         )}
         <div>

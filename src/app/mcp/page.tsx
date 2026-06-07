@@ -54,7 +54,7 @@ function Connection() {
         <Fact label="Permissions" value={meta.permissions.join(', ') || 'read-only'} />
       </div>
       <pre className="mt-4 overflow-x-auto rounded-lg border border-empire-border bg-empire-void/70 p-3 text-[11px] text-empire-text-muted">{JSON.stringify({
-        mcpServers: { empire: { url: `${origin}${meta.endpoint}`, headers: { Authorization: 'Bearer YOUR_KEY' } } },
+        mcpServers: { empire: { url: `${origin}${meta.endpoint}`, headers: { Authorization: 'Client-ID YOUR_CLIENT_ID_TOKEN' } } },
       }, null, 2)}</pre>
     </GlassPanel>}
     {secret && <GlassPanel variant="gold" className="p-4">

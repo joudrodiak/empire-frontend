@@ -974,6 +974,7 @@ function Ledger({ departmentSlug }: { departmentSlug: string }) {
   // CRUD modal state
   const [viewAcct, setViewAcct] = useState<Account | null>(null)
   const [editAcct, setEditAcct] = useState<Account | null>(null)
+  const [creatingAcct, setCreatingAcct] = useState(false)
   const [viewEntry, setViewEntry] = useState<JournalEntry | null>(null)
 
   async function deleteAccount(id: string) { await del(`/api/finance/accounts/${id}`).catch(e => setErr(e?.message || 'delete failed')); reloadAccts() }
@@ -1062,7 +1063,11 @@ function Ledger({ departmentSlug }: { departmentSlug: string }) {
         </div>
       )}
 
-      <Panel title="Chart of Accounts" icon="book">
+      <Panel
+        title="Chart of Accounts"
+        icon="book"
+        actions={<button onClick={() => setCreatingAcct(true)} className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-black" style={{ background: ACCENT }}><EmpireIcon name="plus" size={13} />Add account</button>}
+      >
         {accts && accts.length > 0 ? (
           <div className="space-y-5">
             {ACCT_TYPE_ORDER.filter(t => accts.some(a => a.type === t)).map(type => {
@@ -1130,6 +1135,7 @@ function Ledger({ departmentSlug }: { departmentSlug: string }) {
 
       {/* Edit account */}
       <AccountEdit account={editAcct} onClose={() => setEditAcct(null)} onSaved={() => { setEditAcct(null); reloadAccts() }} />
+      <AccountCreate open={creatingAcct} onClose={() => setCreatingAcct(false)} onSaved={() => { setCreatingAcct(false); reloadAccts() }} />
 
       {/* View journal entry */}
       <Modal open={!!viewEntry} onClose={() => setViewEntry(null)} title={viewEntry?.memo || 'Journal entry'} icon={<EmpireIcon name="document" size={18} />} width="max-w-xl">
@@ -1160,6 +1166,52 @@ function Ledger({ departmentSlug }: { departmentSlug: string }) {
 
       {err && <p className="text-rag-red text-xs">{err}</p>}
     </div>
+  )
+}
+
+function AccountCreate({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {
+  const [f, setF] = useState({ code: '', name: '', type: 'asset', subtype: '', description: '', sortOrder: '0' })
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    if (open) { setF({ code: '', name: '', type: 'asset', subtype: '', description: '', sortOrder: '0' }); setErr('') }
+  }, [open])
+  async function save() {
+    if (!f.code || !f.name || !f.type) return
+    setBusy(true); setErr('')
+    try {
+      await post('/api/finance/accounts', { ...f, sortOrder: Number(f.sortOrder) || 0, subtype: f.subtype || null, description: f.description || null })
+      onSaved()
+    } catch (e: any) { setErr(e?.message || 'Failed to create account') } finally { setBusy(false) }
+  }
+  return (
+    <Modal open={open} onClose={onClose} title="Add account" icon={<EmpireIcon name="plus" size={18} />}>
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Code</span>
+            <input className={`${modalInput} font-mono`} value={f.code} onChange={e => setF(p => ({ ...p, code: e.target.value }))} placeholder="6100" /></label>
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Type</span>
+            <select className={modalInput} value={f.type} onChange={e => setF(p => ({ ...p, type: e.target.value }))}>
+              {ACCT_TYPE_ORDER.map(t => <option key={t} value={t}>{t}</option>)}
+            </select></label>
+        </div>
+        <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Name</span>
+          <input className={modalInput} value={f.name} onChange={e => setF(p => ({ ...p, name: e.target.value }))} placeholder="Software subscriptions" /></label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Subtype</span>
+            <input className={modalInput} value={f.subtype} onChange={e => setF(p => ({ ...p, subtype: e.target.value }))} placeholder="opex" /></label>
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Sort order</span>
+            <input type="number" className={modalInput} value={f.sortOrder} onChange={e => setF(p => ({ ...p, sortOrder: e.target.value }))} /></label>
+        </div>
+        <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Description</span>
+          <textarea className={modalInput} rows={2} value={f.description} onChange={e => setF(p => ({ ...p, description: e.target.value }))} /></label>
+        {err && <p className="text-rag-red text-xs">{err}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
+          <button onClick={save} disabled={busy || !f.code || !f.name} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-black disabled:opacity-50" style={{ background: ACCENT }}>{busy ? 'Creating…' : 'Create account'}</button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 

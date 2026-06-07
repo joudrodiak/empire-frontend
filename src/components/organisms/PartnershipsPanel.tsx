@@ -199,14 +199,14 @@ type TopDeal = { id: string; name: string; customer: string; partner: string; st
 type PipelineData = { funnel: FunnelStage[]; top: TopDeal[] }
 // Full co-sell deal record from /api/partnerships/deals (paginated CRUD).
 type CoSellDeal = { id: string; name: string; customer: string; stage: string; amount: number; probability: number; motion: string; partner: string; tier: string; weighted: number; closeDate: string | null; ownerName: string | null }
-const DEAL_FIELDS: FieldDef[] = [
+type UnitMember = { id: string; name: string; role: string }
+const BASE_DEAL_FIELDS: FieldDef[] = [
   { key: 'name', label: 'Deal', full: true },
   { key: 'customer', label: 'Customer' },
   { key: 'stage', label: 'Stage', type: 'select', options: ['registered', 'qualified', 'proposal', 'committed', 'closed_won', 'closed_lost'].map(v => ({ value: v, label: v.replace('_', ' ') })) },
   { key: 'motion', label: 'Motion', type: 'select', options: ['partner_sourced', 'partner_influenced', 'co_sell'].map(v => ({ value: v, label: v.replace(/_/g, ' ') })) },
   { key: 'amount', label: 'Amount', type: 'number' },
   { key: 'probability', label: 'Probability %', type: 'number' },
-  { key: 'ownerName', label: 'Owner' },
   { key: 'closeDate', label: 'Close date', type: 'date' },
   { key: 'partner', label: 'Partner', readOnly: true },
 ]
@@ -251,8 +251,19 @@ function CoSellDeals() {
   const [stage, setStage] = useState('')
   const { data, loading, reload } = usePtr<Page<CoSellDeal>>(`deals?pageSize=15&page=${page + 1}${stage ? `&stage=${stage}` : ''}`)
   const [active, setActive] = useState<{ row: CoSellDeal; mode: 'view' | 'edit' } | null>(null)
+  const [members, setMembers] = useState<UnitMember[]>([])
+  useEffect(() => {
+    fetcher('/api/employees?department=partnerships').then((rows: UnitMember[]) => setMembers(Array.isArray(rows) ? rows : [])).catch(() => setMembers([]))
+  }, [])
   async function remove(id: string) { await del(`/api/partnerships/deals/${id}`).catch(console.error); reload() }
   async function saveEdit(p: Record<string, any>) { if (!active) return; await patch(`/api/partnerships/deals/${active.row.id}`, p).catch(console.error); setActive(null); reload() }
+  const dealFields: FieldDef[] = [
+    ...BASE_DEAL_FIELDS.slice(0, 6),
+    members.length
+      ? { key: 'ownerName', label: 'Partnerships member', type: 'select', options: [{ value: '', label: 'Unassigned' }, ...members.map(m => ({ value: m.name, label: `${m.name} · ${m.role}` }))] }
+      : { key: 'ownerName', label: 'Partnerships member' },
+    ...BASE_DEAL_FIELDS.slice(6),
+  ]
   const rows = data?.data || []
   const cols: Column<CoSellDeal>[] = [
     { key: 'name', label: 'Deal', render: d => <div><div className="font-medium text-empire-text text-sm">{d.name}</div><div className="text-empire-text-dim text-[11px]">{d.customer || '—'} · via {d.partner}</div></div> },
@@ -281,7 +292,7 @@ function CoSellDeals() {
         icon="flag"
         accent={ACCENT}
         entity={active?.row ?? null}
-        fields={DEAL_FIELDS}
+        fields={dealFields}
         onClose={() => setActive(null)}
         onSave={saveEdit}
       />

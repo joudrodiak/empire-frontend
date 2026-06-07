@@ -9,6 +9,7 @@ import { MICROSERVICES } from '@/lib/microservices'
 import { TERMS } from '@/lib/terms'
 import { ThemeToggle } from '@/components/molecules/ThemeToggle'
 import { useAuth, isAdmin } from '@/lib/auth'
+import { fetcher } from '@/lib/api'
 
 /**
  * DockNav — the primary Empire OS menu, packaged in an edgeless frosted-glass
@@ -17,6 +18,7 @@ import { useAuth, isAdmin } from '@/lib/auth'
  * globally from the root layout.
  */
 type DockItem = { label: string; icon: IconName; href: string }
+type Unit = { id: string; name: string; slug: string }
 
 const MAIN: DockItem[] = [
   { label: 'Overview', icon: 'overview', href: '/' },
@@ -30,6 +32,7 @@ export function DockNav() {
   const pathname = usePathname() || '/'
   const [unitsOpen, setUnitsOpen] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
+  const [units, setUnits] = useState<Unit[]>([])
   const ref = useRef<HTMLDivElement>(null)
   const { user, logout } = useAuth()
 
@@ -39,6 +42,9 @@ export function DockNav() {
     return () => document.removeEventListener('mousedown', onDoc)
   }, [])
   useEffect(() => { setUnitsOpen(false); setUserOpen(false) }, [pathname])
+  useEffect(() => {
+    fetcher('/api/departments').then((rows: Unit[]) => setUnits(Array.isArray(rows) ? rows : [])).catch(() => setUnits([]))
+  }, [])
 
   // The dock is app chrome — never show it on the login portal.
   if (pathname === '/login' || pathname.startsWith('/login/')) return null
@@ -52,10 +58,10 @@ export function DockNav() {
       <div className="relative">
         {/* Units launcher popover */}
         {unitsOpen && (
-          <GlassPanel variant="gold" className="absolute bottom-[calc(100%+12px)] left-1/2 w-[min(92vw,560px)] -translate-x-1/2 origin-bottom animate-pop-in p-3">
+          <GlassPanel variant="gold" className="absolute bottom-[calc(100%+12px)] right-0 w-[min(92vw,560px)] origin-bottom-right animate-pop-in p-3">
             <p className="px-1 pb-2 text-[10px] uppercase tracking-widest text-empire-text-muted">{TERMS.units} · {TERMS.domains}</p>
             <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-              {MICROSERVICES.map(ms => {
+              {(units.length ? units : MICROSERVICES).map(ms => {
                 const active = pathname === `/departments/${ms.slug}`
                 return (
                   <Link

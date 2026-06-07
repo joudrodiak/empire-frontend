@@ -26,10 +26,10 @@ type Approval = {
   dueBy: string | null; createdAt: string; metadata?: Record<string, unknown> | null
 }
 type ChannelStatus = { slack: boolean; telegram: boolean }
+type Department = { id: string; name: string; slug: string }
 
 const PAGE_SIZE = 8
 const PRIORITIES = ['low', 'normal', 'high', 'critical']
-const CATEGORIES = ['Operations', 'Finance', 'HR', 'Legal', 'Strategy', 'Marketing', 'Engineering', 'Spend']
 const ACCENT = '#c9a233'
 const field = 'w-full rounded-lg border border-empire-border bg-empire-surface/60 px-3 py-2 text-sm text-empire-text placeholder:text-empire-text-dim outline-none transition-colors focus:border-empire-gold/50'
 const label = 'mb-1 block text-[10px] uppercase tracking-widest text-empire-text-muted'
@@ -50,7 +50,7 @@ export default function ApprovalsPage() {
   const [raiseOpen, setRaiseOpen] = useState(false)
 
   const canDecide = userCan(user, 'approvals:decide') || userCan(user, '*')
-  const canRaise = userCan(user, 'approvals:create') || userCan(user, 'agent:act') || userCan(user, '*')
+  const canRaise = !!user
 
   const reload = useCallback(async () => {
     const list = await fetcher('/api/approvals').catch(() => [])
@@ -200,6 +200,12 @@ function ApprovalRow({ approval, canDecide, canComment, channels, onChanged }: {
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-empire-text-dim">
             <span className="text-empire-text-muted">{approval.category}</span>
+            {typeof approval.metadata?.targetDepartmentName === 'string' && approval.metadata.targetDepartmentName !== approval.category && (
+              <span>to {approval.metadata.targetDepartmentName}</span>
+            )}
+            {typeof approval.metadata?.sourceDepartmentName === 'string' && (
+              <span>from {approval.metadata.sourceDepartmentName}</span>
+            )}
             <span>by {approval.requestedBy}</span>
             <span>{formatDistanceToNow(new Date(approval.createdAt), { addSuffix: true })}</span>
             {!pending && <span className={`uppercase tracking-widest ${statusTone}`}>{approval.status}</span>}
@@ -321,15 +327,29 @@ function CommentThread({ approvalId, canComment }: { approvalId: string; canComm
 function RaiseModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [category, setCategory] = useState(CATEGORIES[0])
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [sourceDepartmentId, setSourceDepartmentId] = useState('')
+  const [targetDepartmentId, setTargetDepartmentId] = useState('')
   const [priority, setPriority] = useState('normal')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  useEffect(() => {
+    fetcher('/api/departments').then((d: Department[]) => {
+      const rows = Array.isArray(d) ? d : []
+      setDepartments(rows)
+      setTargetDepartmentId(rows[0]?.id || '')
+    }).catch(() => setDepartments([]))
+  }, [])
 
   async function submit() {
     if (!title.trim()) { setErr('A title is required'); return }
+    if (!targetDepartmentId) { setErr('Choose the department that should approve this'); return }
     setBusy(true); setErr(null)
-    try { await post('/api/approvals', { title, description, category, priority }); onCreated() }
+    try {
+      const target = departments.find(d => d.id === targetDepartmentId)
+      await post('/api/approvals', { title, description, category: target?.name || 'Approval', priority, sourceDepartmentId: sourceDepartmentId || null, targetDepartmentId })
+      onCreated()
+    }
     catch (e: any) { setErr(e?.message || 'Could not raise request') } finally { setBusy(false) }
   }
 
@@ -346,17 +366,24 @@ function RaiseModal({ onClose, onCreated }: { onClose: () => void; onCreated: ()
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={label}>Category</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className={field}>
-              {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            <label className={label}>From department</label>
+            <select value={sourceDepartmentId} onChange={(e) => setSourceDepartmentId(e.target.value)} className={field}>
+              <option value="">No specific source</option>
+              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
           <div>
-            <label className={label}>Priority</label>
-            <select value={priority} onChange={(e) => setPriority(e.target.value)} className={field}>
-              {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+            <label className={label}>Approval department</label>
+            <select value={targetDepartmentId} onChange={(e) => setTargetDepartmentId(e.target.value)} className={field}>
+              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
+        </div>
+        <div>
+          <label className={label}>Priority</label>
+          <select value={priority} onChange={(e) => setPriority(e.target.value)} className={field}>
+            {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
         </div>
         {err && <p className="text-xs text-empire-red-bright">{err}</p>}
         <div className="flex justify-end gap-2 pt-1">

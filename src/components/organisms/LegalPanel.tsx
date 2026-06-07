@@ -369,6 +369,7 @@ function Templates() {
   const rows = data?.data || []
   const [viewing, setViewing] = useState<Template | null>(null)
   const [editing, setEditing] = useState<Template | null>(null)
+  const [creating, setCreating] = useState(false)
   const removeTpl = async (r: Template) => { await del(`/api/legal/templates/${r.id}`); reload() }
   const cols: Column<Template>[] = [
     { key: 'name', label: 'Template', render: r => <span className="text-empire-text font-medium">{r.name}</span> },
@@ -381,11 +382,16 @@ function Templates() {
     ) },
   ]
   return (
-    <Panel title={`Template Library (${data?.total ?? rows.length})`} icon="book">
+    <Panel
+      title={`Template Library (${data?.total ?? rows.length})`}
+      icon="book"
+      actions={<button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-black" style={{ background: ACCENT }}><EmpireIcon name="plus" size={13} />Create template</button>}
+    >
       <DataTable columns={cols} rows={rows} empty="No templates." />
       {data && <Pagination page={page} pageCount={data.totalPages} total={data.total} onPage={setPage} accent={ACCENT} />}
 
-      <TemplateEditModal tpl={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload() }} />
+      <TemplateEditModal tpl={editing} mode="edit" open={!!editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload() }} />
+      <TemplateEditModal tpl={null} mode="create" open={creating} onClose={() => setCreating(false)} onSaved={() => { setCreating(false); setPage(0); reload() }} />
 
       <Modal open={!!viewing} onClose={() => setViewing(null)} title={viewing?.name || 'Template'} icon={<EmpireIcon name="book" size={18} />} width="max-w-2xl">
         {viewing && (
@@ -440,25 +446,35 @@ function Templates() {
   )
 }
 
-/* Edit a contract template (name / type / jurisdiction / description / body). */
-function TemplateEditModal({ tpl, onClose, onSaved }: { tpl: Template | null; onClose: () => void; onSaved: () => void }) {
-  const [f, setF] = useState({ name: '', category: '', jurisdiction: '', description: '', bodyMarkdown: '' })
+/* Create/edit a contract template (key / name / type / jurisdiction / body). */
+function TemplateEditModal({ tpl, mode, open, onClose, onSaved }: { tpl: Template | null; mode: 'create' | 'edit'; open: boolean; onClose: () => void; onSaved: () => void }) {
+  const [f, setF] = useState({ key: '', name: '', category: 'commercial', jurisdiction: 'EU', description: '', bodyMarkdown: '' })
   const [saving, setSaving] = useState(false)
   useEffect(() => {
+    if (!open) return
     if (tpl) setF({
-      name: tpl.name || '', category: tpl.category || '', jurisdiction: tpl.jurisdiction || '',
+      key: tpl.key || '', name: tpl.name || '', category: tpl.category || '', jurisdiction: tpl.jurisdiction || '',
       description: tpl.description || '', bodyMarkdown: tpl.bodyMarkdown || '',
     })
-  }, [tpl])
+    else setF({ key: '', name: '', category: 'commercial', jurisdiction: 'EU', description: '', bodyMarkdown: '# {{clientName}} Agreement\n\nThis agreement is between Cregen AI Ltd and {{clientName}}.' })
+  }, [tpl, open])
   const save = async () => {
-    if (!tpl) return
+    if (!f.name || !f.category || !f.bodyMarkdown || (mode === 'create' && !f.key)) return
     setSaving(true)
-    try { await patch(`/api/legal/templates/${tpl.id}`, f); onSaved() }
+    try {
+      if (mode === 'create') await post('/api/legal/templates', f)
+      else if (tpl) await patch(`/api/legal/templates/${tpl.id}`, f)
+      onSaved()
+    }
     catch (e) { console.error(e) } finally { setSaving(false) }
   }
   return (
-    <Modal open={!!tpl} onClose={onClose} title={tpl ? `Edit · ${tpl.name}` : 'Edit template'} icon={<EmpireIcon name="pen" size={18} />} width="max-w-2xl">
+    <Modal open={open} onClose={onClose} title={mode === 'create' ? 'Create template' : tpl ? `Edit · ${tpl.name}` : 'Edit template'} icon={<EmpireIcon name={mode === 'create' ? 'plus' : 'pen'} size={18} />} width="max-w-2xl">
       <div className="space-y-3">
+        {mode === 'create' && (
+          <label className="block"><span className="empire-label">Key</span>
+            <input className="empire-input w-full mt-1 font-mono text-xs" value={f.key} onChange={e => setF({ ...f, key: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-') })} placeholder="msa-eu-v1" /></label>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <label className="block"><span className="empire-label">Name</span>
             <input className="empire-input w-full mt-1" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></label>
@@ -473,7 +489,7 @@ function TemplateEditModal({ tpl, onClose, onSaved }: { tpl: Template | null; on
           <textarea className="empire-input w-full mt-1 font-mono text-xs" rows={10} value={f.bodyMarkdown} onChange={e => setF({ ...f, bodyMarkdown: e.target.value })} /></label>
         <div className="flex justify-end gap-2 pt-1">
           <button onClick={onClose} className="px-4 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
-          <button onClick={save} disabled={saving} className="empire-btn-primary disabled:opacity-50">{saving ? 'Saving…' : 'Save changes'}</button>
+          <button onClick={save} disabled={saving || !f.name || !f.category || !f.bodyMarkdown || (mode === 'create' && !f.key)} className="empire-btn-primary disabled:opacity-50">{saving ? 'Saving…' : mode === 'create' ? 'Create template' : 'Save changes'}</button>
         </div>
       </div>
     </Modal>

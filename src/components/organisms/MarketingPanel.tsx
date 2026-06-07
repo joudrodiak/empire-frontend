@@ -442,7 +442,7 @@ function LeadEdit({ lead, onClose, onSaved }: { lead: Lead | null; onClose: () =
  * captures the data-integration approach we still need to decide on. */
 type Influencer = {
   id: string; title: string; status: string; description: string | null
-  metadata: { handle?: string; platform?: string; followers?: number; engagementRate?: number; dealValue?: number; tier?: string } | null
+  metadata: { handle?: string; platform?: string; platforms?: string[]; followers?: number; engagementRate?: number; dealValue?: number; tier?: string } | null
 }
 const INF_PLATFORMS = ['instagram', 'tiktok', 'youtube', 'x', 'linkedin', 'twitch', 'newsletter', 'podcast']
 const INF_TIERS = ['nano', 'micro', 'mid', 'macro', 'mega']
@@ -473,7 +473,7 @@ function Influencers() {
   const filtered = list.filter(i => {
     if (!q) return true
     const m = i.metadata || {}
-    return [i.title, m.handle, m.platform, i.status].filter(Boolean).join(' ').toLowerCase().includes(q.toLowerCase())
+    return [i.title, m.handle, m.platform, ...(m.platforms || []), i.status].filter(Boolean).join(' ').toLowerCase().includes(q.toLowerCase())
   })
   const totalPages = Math.max(1, Math.ceil(filtered.length / INF_PAGE_SIZE))
   const rows = filtered.slice(page * INF_PAGE_SIZE, page * INF_PAGE_SIZE + INF_PAGE_SIZE)
@@ -518,10 +518,11 @@ function Influencers() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {rows.map(inf => {
               const m = inf.metadata || {}
+              const platforms = m.platforms?.length ? m.platforms : m.platform ? [m.platform] : []
               return (
                 <div key={inf.id} className="glass rounded-lg border border-empire-border p-3 flex items-start gap-3">
                   <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                       style={{ background: `${PLATFORM_COLOR[m.platform || ''] || ACCENT}22`, color: PLATFORM_COLOR[m.platform || ''] || ACCENT }}>
+                       style={{ background: `${PLATFORM_COLOR[platforms[0] || ''] || ACCENT}22`, color: PLATFORM_COLOR[platforms[0] || ''] || ACCENT }}>
                     {inf.title.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -530,7 +531,7 @@ function Influencers() {
                       <Pill text={inf.status} color={INF_STATUS_COLOR[inf.status] || '#6b7280'} />
                     </div>
                     <div className="text-empire-text-dim text-[11px] mt-0.5 truncate">
-                      {m.handle ? `${m.handle} · ` : ''}{m.platform || '—'}{m.tier ? ` · ${m.tier}` : ''}
+                      {m.handle ? `${m.handle} · ` : ''}{platforms.length ? platforms.join(', ') : '—'}{m.tier ? ` · ${m.tier}` : ''}
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[11px] text-empire-text-muted font-data">
                       <span>{fmt(Number(m.followers) || 0)} followers</span>
@@ -557,7 +558,9 @@ function Influencers() {
           <div className="space-y-0.5">
             <Field label="Status"><Pill text={viewing.status} color={INF_STATUS_COLOR[viewing.status] || '#6b7280'} /></Field>
             <Field label="Handle">{m.handle || '—'}</Field>
-            <Field label="Platform">{m.platform ? <Pill text={m.platform} color={PLATFORM_COLOR[m.platform] || '#6b7280'} /> : '—'}</Field>
+            <Field label="Platforms">{(m.platforms?.length ? m.platforms : m.platform ? [m.platform] : []).length
+              ? <span className="inline-flex flex-wrap justify-end gap-1">{(m.platforms?.length ? m.platforms : [m.platform!]).map(p => <Pill key={p} text={p} color={PLATFORM_COLOR[p] || '#6b7280'} />)}</span>
+              : '—'}</Field>
             <Field label="Tier">{m.tier || '—'}</Field>
             <Field label="Followers">{m.followers != null ? Number(m.followers).toLocaleString() : '—'}</Field>
             <Field label="Engagement">{m.engagementRate != null ? `${m.engagementRate}%` : '—'}</Field>
@@ -578,7 +581,7 @@ function Influencers() {
 }
 
 function InfluencerEdit({ influencer, open, onClose, onSaved }: { influencer: Influencer | null; open: boolean; onClose: () => void; onSaved: () => void }) {
-  const empty = { title: '', status: 'prospect', handle: '', platform: 'instagram', tier: 'micro', followers: '', engagementRate: '', dealValue: '', description: '' }
+  const empty = { title: '', status: 'prospect', handle: '', platforms: 'instagram', tier: 'micro', followers: '', engagementRate: '', dealValue: '', description: '' }
   const [f, setF] = useState<Record<string, string>>(empty)
   const [busy, setBusy] = useState(false)
   useEffect(() => {
@@ -587,7 +590,7 @@ function InfluencerEdit({ influencer, open, onClose, onSaved }: { influencer: In
       const m = influencer.metadata || {}
       setF({
         title: influencer.title, status: influencer.status,
-        handle: m.handle ?? '', platform: m.platform ?? 'instagram', tier: m.tier ?? 'micro',
+        handle: m.handle ?? '', platforms: (m.platforms?.length ? m.platforms : m.platform ? [m.platform] : ['instagram']).join(','), tier: m.tier ?? 'micro',
         followers: m.followers != null ? String(m.followers) : '',
         engagementRate: m.engagementRate != null ? String(m.engagementRate) : '',
         dealValue: m.dealValue != null ? String(m.dealValue) : '',
@@ -596,11 +599,17 @@ function InfluencerEdit({ influencer, open, onClose, onSaved }: { influencer: In
     } else setF(empty)
   }, [influencer, open]) // eslint-disable-line react-hooks/exhaustive-deps
   const set = (k: string, v: string) => setF(p => ({ ...p, [k]: v }))
+  const selectedPlatforms = f.platforms.split(',').map(p => p.trim()).filter(Boolean)
+  const togglePlatform = (platform: string) => {
+    const next = selectedPlatforms.includes(platform) ? selectedPlatforms.filter(p => p !== platform) : [...selectedPlatforms, platform]
+    set('platforms', next.join(','))
+  }
   async function save() {
     if (!f.title) return
     setBusy(true)
+    const platforms = selectedPlatforms.length ? selectedPlatforms : ['instagram']
     const metadata = {
-      handle: f.handle || null, platform: f.platform, tier: f.tier,
+      handle: f.handle || null, platform: platforms[0], platforms, tier: f.tier,
       followers: f.followers ? Number(f.followers) : null,
       engagementRate: f.engagementRate ? Number(f.engagementRate) : null,
       dealValue: f.dealValue ? Number(f.dealValue) : null,
@@ -624,10 +633,15 @@ function InfluencerEdit({ influencer, open, onClose, onSaved }: { influencer: In
             <input className={modalInput} value={f.handle} onChange={e => set('handle', e.target.value)} placeholder="@handle" /></label>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Platform</span>
-            <select className={modalInput} value={f.platform} onChange={e => set('platform', e.target.value)}>
-              {INF_PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
-            </select></label>
+          <div className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Platforms</span>
+            <div className="mt-1 flex min-h-[36px] flex-wrap gap-1.5 rounded border border-empire-border bg-empire-bg px-2 py-1.5">
+              {INF_PLATFORMS.map(p => (
+                <button key={p} type="button" onClick={() => togglePlatform(p)}
+                  className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide transition-colors ${selectedPlatforms.includes(p) ? 'border-empire-gold/50 bg-empire-gold/10 text-empire-gold' : 'border-empire-border text-empire-text-dim hover:text-empire-text'}`}>
+                  {p}
+                </button>
+              ))}
+            </div></div>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Tier</span>
             <select className={modalInput} value={f.tier} onChange={e => set('tier', e.target.value)}>
               {INF_TIERS.map(t => <option key={t} value={t}>{t}</option>)}

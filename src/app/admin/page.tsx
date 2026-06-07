@@ -10,6 +10,7 @@ import { Modal } from '@/components/molecules/Modal'
 import { RowActions } from '@/components/molecules/RowActions'
 import { Pagination } from '@/components/molecules/Pagination'
 import { TabBar } from '@/components/templates/TabBar'
+import { PasswordInput } from '@/components/molecules/PasswordInput'
 
 /* ---------- types ---------- */
 type Role = { id: string; key: string; name: string; description: string | null; level: number; permissions: string[]; isSystem: boolean; _count?: { users: number } }
@@ -186,7 +187,7 @@ function UserModal({ user, roles, ranks, onClose, onSaved }: {
         </div>
         <div>
           <label className={label}>{isNew ? 'Password' : 'New password (leave blank to keep)'}</label>
-          <input className={field} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
+          <PasswordInput inputClassName={field} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>

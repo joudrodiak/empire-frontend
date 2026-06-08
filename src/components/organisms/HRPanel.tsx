@@ -153,7 +153,96 @@ function Hiring() {
           <BarChart data={data.bySource.map(s => s.count)} labels={data.bySource.map(s => s.source)} color="#8b5cf6" height={140} />
         </Panel>
       </div>
+      <CandidateBoard />
     </div>
+  )
+}
+
+type Candidate = { id: string; name: string; stage: string; source: string; rating: number | null; role: string; team: string; appliedAt: string; ageDays: number }
+const CAND_EMPTY = { reqId: '', name: '', stage: 'applied', source: 'inbound', rating: '' }
+function CandidateBoard() {
+  const [page, setPage] = useState(0)
+  const [stage, setStage] = useState('')
+  const { data, loading, reload } = useHr<Page<Candidate>>(`candidates?pageSize=10&page=${page + 1}${stage ? `&stage=${stage}` : ''}`)
+  const [reqs, setReqs] = useState<Req[]>([])
+  const [editing, setEditing] = useState<Candidate | null>(null)
+  const [creating, setCreating] = useState(false)
+  useEffect(() => {
+    fetcher('/api/hr/reqs?pageSize=100').then(r => setReqs(r?.data || [])).catch(console.error)
+  }, [])
+  async function remove(id: string) { await del(`/api/hr/candidates/${id}`).catch(console.error); reload() }
+  const rows = data?.data || []
+  const cols: Column<Candidate>[] = [
+    { key: 'name', label: 'Candidate', render: c => <div><div className="font-medium text-empire-text">{c.name}</div><div className="text-empire-text-dim text-[11px]">{c.role} · {c.team}</div></div> },
+    { key: 'stage', label: 'Stage', render: c => <Pill text={c.stage} color={STAGE_COLOR[c.stage] || '#6b7280'} /> },
+    { key: 'source', label: 'Source', render: c => <span className="text-empire-text-muted text-xs">{c.source}</span> },
+    { key: 'rating', label: 'Rating', align: 'right', render: c => <Stars n={c.rating} /> },
+    { key: 'ageDays', label: 'Age', align: 'right', render: c => <span className="text-empire-text-muted text-xs">{c.ageDays}d</span> },
+    { key: 'id', label: '', align: 'right', render: c => <RowActions onEdit={() => setEditing(c)} onDelete={() => remove(c.id)} deleteLabel={`candidate “${c.name}”`} /> },
+  ]
+  return (
+    <Panel
+      icon="people"
+      title={`Candidate pipeline (${data?.total ?? rows.length})`}
+      actions={<button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-white" style={{ background: ACCENT }}><EmpireIcon name="plus" size={13} />Add candidate</button>}
+    >
+      <div className="mb-3 flex items-center gap-2">
+        <select className={inputCls} value={stage} onChange={e => { setStage(e.target.value); setPage(0) }}>
+          <option value="">All stages</option>
+          {Object.keys(STAGE_COLOR).map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+      {loading ? <Loading /> : <DataTable columns={cols} rows={rows} empty="No candidates yet." />}
+      {data && <Pagination page={page} pageCount={data.totalPages} total={data.total} onPage={setPage} accent={ACCENT} />}
+      <CandidateModal open={creating} reqs={reqs} initial={null} onClose={() => setCreating(false)} onSaved={() => { setCreating(false); reload() }} />
+      <CandidateModal open={!!editing} reqs={reqs} initial={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload() }} />
+    </Panel>
+  )
+}
+
+function CandidateModal({ open, reqs, initial, onClose, onSaved }: { open: boolean; reqs: Req[]; initial: Candidate | null; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState(CAND_EMPTY)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    if (initial) {
+      const req = reqs.find(r => r.title === initial.role && r.team === initial.team)
+      setForm({ reqId: req?.id || '', name: initial.name, stage: initial.stage, source: initial.source, rating: initial.rating != null ? String(initial.rating) : '' })
+    } else setForm({ ...CAND_EMPTY, reqId: reqs[0]?.id || '' })
+  }, [open, initial, reqs])
+  async function save() {
+    if (!form.name || (!initial && !form.reqId)) return
+    setBusy(true)
+    try {
+      const payload = { reqId: form.reqId, name: form.name, stage: form.stage, source: form.source, rating: form.rating ? Number(form.rating) : null }
+      if (initial) await patch(`/api/hr/candidates/${initial.id}`, payload)
+      else await post('/api/hr/candidates', payload)
+      onSaved()
+    } catch (e) { console.error(e) } finally { setBusy(false) }
+  }
+  return (
+    <Modal open={open} onClose={onClose} title={initial ? `Edit candidate · ${initial.name}` : 'Add candidate'} icon={<EmpireIcon name={initial ? 'pen' : 'plus'} size={18} />}>
+      <div className="space-y-3">
+        {!initial && (
+          <select className={`${inputCls} w-full`} value={form.reqId} onChange={e => setForm({ ...form, reqId: e.target.value })}>
+            <option value="">Select requisition…</option>
+            {reqs.map(r => <option key={r.id} value={r.id}>{r.title} · {r.team}</option>)}
+          </select>
+        )}
+        <input className={`${inputCls} w-full`} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Candidate name" />
+        <div className="flex flex-wrap gap-2">
+          <select className={inputCls} value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })}>{Object.keys(STAGE_COLOR).map(s => <option key={s} value={s}>{s}</option>)}</select>
+          <input className={`${inputCls} flex-1`} value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} placeholder="Source" />
+          <select className={inputCls} value={form.rating} onChange={e => setForm({ ...form, rating: e.target.value })}>
+            <option value="">Rating…</option>{[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}/5</option>)}
+          </select>
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text disabled:opacity-50">Cancel</button>
+          <button onClick={save} disabled={busy || !form.name || (!initial && !form.reqId)} className="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-40" style={{ background: ACCENT }}>{busy ? 'Saving…' : initial ? 'Save changes' : 'Create'}</button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 

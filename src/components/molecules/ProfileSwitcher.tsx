@@ -263,37 +263,36 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
   }
 
   return (
-    <Modal open onClose={onClose} title="Onboard a company" icon={<EmpireIcon name="crown" size={18} />}>
-      <div className="space-y-4">
+    <Modal open onClose={onClose} title="Onboard a company" icon={<EmpireIcon name="crown" size={18} />} width="max-w-3xl">
+      <div className="max-w-full overflow-hidden space-y-4">
         {/* step rail */}
-        <div className="flex items-center gap-1.5">
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
           {WIZARD_STEPS.map((s, i) => (
-            <React.Fragment key={s}>
+            <div key={s} className="min-w-0">
               <button
                 type="button"
                 onClick={() => { if (i < step || (i > step && name.trim())) setStep(i) }}
-                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-widest transition-colors ${i === step ? 'border-empire-gold/50 bg-empire-gold/15 text-empire-gold' : i < step ? 'border-empire-border text-empire-text-muted hover:text-empire-text' : 'border-empire-border/60 text-empire-text-dim'}`}
+                className={`flex w-full min-w-0 items-center justify-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-widest transition-colors ${i === step ? 'border-empire-gold/50 bg-empire-gold/15 text-empire-gold' : i < step ? 'border-empire-border text-empire-text-muted hover:text-empire-text' : 'border-empire-border/60 text-empire-text-dim'}`}
               >
                 <span className={`grid h-4 w-4 place-items-center rounded-full text-[9px] ${i < step ? 'bg-empire-gold/20 text-empire-gold' : 'bg-empire-elevated/60'}`}>
                   {i < step ? <EmpireIcon name="check" size={10} /> : i + 1}
                 </span>
-                {s}
+                <span className="truncate">{s}</span>
               </button>
-              {i < WIZARD_STEPS.length - 1 && <span className="h-px flex-1 bg-empire-border/50" aria-hidden />}
-            </React.Fragment>
+            </div>
           ))}
         </div>
 
         {/* one scroll region for the active step — the rail above and nav below
             stay pinned, so the section header is always in view and no step
             (e.g. Review) can flow outside the box. */}
-        <div className="-mr-1 max-h-[56vh] space-y-4 overflow-y-auto pr-1">
+        <div className="max-h-[58vh] max-w-full space-y-4 overflow-y-auto overflow-x-hidden pr-1">
         {/* ---- Step 1: Identity ---- */}
         {step === 0 && (
           <div className="space-y-3.5 animate-fade-in">
             <p className="text-[11px] text-empire-text-muted">
-              Provisions a fresh tenant with its own roles, ranks and isolated data. All eleven Units appear
-              immediately — you seed the starting team in a moment.
+              Provisions a fresh tenant with its own roles, ranks and isolated data. Core Units are always enabled;
+              optional Units are selected in the structure step before you seed the starting team.
             </p>
             <div><label className={label}>Company name</label><input className={field} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Cregen Ventures" autoFocus /></div>
             <div className="grid grid-cols-2 gap-3">
@@ -447,8 +446,8 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
 
         {/* ---- Step 5: Review ---- */}
         {step === 4 && (
-          <div className="space-y-3 animate-fade-in">
-            <div className="flex items-center gap-3 rounded-xl border border-empire-border bg-empire-surface/40 p-3">
+          <div className="max-w-full space-y-3 overflow-hidden animate-fade-in">
+            <div className="flex min-w-0 items-center gap-3 rounded-xl border border-empire-border bg-empire-surface/40 p-3">
               <span className="medallion grid place-items-center shrink-0" style={{ width: 44, height: 44, background: `radial-gradient(circle at 30% 26%, ${accent} 0%, ${accent}cc 45%, #4a3a0c 100%)` }}>
                 <EmpireIcon name={effectiveIcon} size={20} className="relative z-10 text-empire-void" />
               </span>
@@ -457,7 +456,7 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
                 <p className="truncate text-[10px] uppercase tracking-widest text-empire-text-muted">{shortLabel} · {type} · {industry}</p>
               </div>
             </div>
-            <dl className="grid grid-cols-2 gap-2 text-[11px]">
+            <dl className="grid min-w-0 grid-cols-1 gap-2 text-[11px] sm:grid-cols-2">
               <ReviewItem k="Founded" v={founded} />
               <ReviewItem k="HQ" v={hq || 'Remote'} />
               <ReviewItem k="Emblem" v={`${effectiveIcon}${icon === null ? ' (auto)' : ''}`} />
@@ -467,22 +466,23 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
             </dl>
             <div className="rounded-xl border border-empire-border bg-empire-surface/40 p-2.5">
               <p className={label}>Organizational units</p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex max-w-full flex-wrap gap-1.5 overflow-hidden">
                 {enabledUnits.map(u => (
-                  <span key={u.id} className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] ${isCoreUnit(u) ? 'border-empire-gold/40 text-empire-gold' : 'border-empire-border text-empire-text-muted'}`}>
-                    {isCoreUnit(u) && <EmpireIcon name="lock" size={9} />}{u.name}
+                  <span key={u.id} className={`flex min-w-0 max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] ${isCoreUnit(u) ? 'border-empire-gold/40 text-empire-gold' : 'border-empire-border text-empire-text-muted'}`}>
+                    {isCoreUnit(u) && <EmpireIcon name="lock" size={9} className="shrink-0" />}
+                    <span className="truncate">{u.name}</span>
                   </span>
                 ))}
               </div>
             </div>
             {validHires.length > 0 && (
-              <div className="rounded-xl border border-empire-border bg-empire-surface/40 p-2.5">
+              <div className="max-w-full overflow-hidden rounded-xl border border-empire-border bg-empire-surface/40 p-2.5">
                 <p className={label}>Seeded hires</p>
                 <ul className="space-y-1">
                   {validHires.map((h, i) => (
-                    <li key={i} className="flex items-center justify-between text-[11px] text-empire-text">
-                      <span className="truncate">{h.firstName} {h.lastName} · <span className="text-empire-text-muted">{h.role}</span></span>
-                      <span className="text-[10px] uppercase tracking-widest text-empire-text-dim">{units.find(u => u.id === h.departmentId)?.name}</span>
+                    <li key={i} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-[11px] text-empire-text">
+                      <span className="min-w-0 truncate">{h.firstName} {h.lastName} · <span className="text-empire-text-muted">{h.role}</span></span>
+                      <span className="max-w-32 truncate text-[10px] uppercase tracking-widest text-empire-text-dim">{units.find(u => u.id === h.departmentId)?.name}</span>
                     </li>
                   ))}
                 </ul>
@@ -528,7 +528,7 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
 
 function ReviewItem({ k, v }: { k: string; v: string }) {
   return (
-    <div className="rounded-lg border border-empire-border bg-empire-surface/40 px-2.5 py-1.5">
+    <div className="min-w-0 rounded-lg border border-empire-border bg-empire-surface/40 px-2.5 py-1.5">
       <dt className="text-[9px] uppercase tracking-widest text-empire-text-muted">{k}</dt>
       <dd className="truncate text-empire-text">{v}</dd>
     </div>

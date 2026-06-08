@@ -9,7 +9,8 @@ import { TabBar } from '@/components/templates/TabBar'
 const field = 'w-full rounded-lg border border-empire-border bg-empire-surface/60 px-3 py-2 text-sm text-empire-text outline-none focus:border-empire-gold/50'
 type Meta = { endpoint: string; workerName: string; transport: string; authentication: string; permissions: string[] }
 type Credential = { id: string; name: string; keyPrefix: string; createdAt: string; lastUsedAt: string | null; revokedAt: string | null }
-type Question = { id: string; title: string; prompt: string; responsibilityArea: string | null; frequency: string; enabled: boolean; autoSubmit: boolean }
+type Question = { id: string; title: string; prompt: string; responsibilityArea: string | null; frequency: string; weekday: number; scheduleTime: string; enabled: boolean; autoSubmit: boolean }
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 export default function McpPage() {
   const [tab, setTab] = useState('connect')
@@ -23,12 +24,10 @@ export default function McpPage() {
       <TabBar tabs={[
         { id: 'connect', label: 'Connection', icon: 'link' },
         { id: 'questions', label: 'Weekly questions', icon: 'calendar' },
-        { id: 'documents', label: 'Documents', icon: 'document' },
         { id: 'audit', label: 'Audit', icon: 'shield' },
       ]} active={tab} onChange={setTab} />
       {tab === 'connect' && <Connection />}
       {tab === 'questions' && <Questions />}
-      {tab === 'documents' && <Documents />}
       {tab === 'audit' && <Audit />}
     </main>
   )
@@ -38,13 +37,33 @@ function Connection() {
   const [meta, setMeta] = useState<Meta | null>(null)
   const [rows, setRows] = useState<Credential[]>([])
   const [secret, setSecret] = useState('')
+  const [wizardSource, setWizardSource] = useState('')
   const origin = typeof window === 'undefined' ? '' : window.location.origin
   const load = useCallback(() => Promise.all([fetcher('/api/mcp/meta').then(setMeta), fetcher('/api/mcp/credentials').then(setRows)]), [])
-  useEffect(() => { load().catch(() => {}) }, [load])
+  useEffect(() => {
+    load().catch(() => {})
+    try {
+      const source = new URLSearchParams(window.location.search).get('connect')
+      if (source && ['codex', 'claude'].includes(source.toLowerCase())) setWizardSource(source.toLowerCase())
+    } catch { /* noop */ }
+  }, [load])
   async function create() { const r = await post('/api/mcp/credentials', { name: 'Personal worker key' }); setSecret(r.secret); await load() }
   async function regenerate(id: string) { const r = await post(`/api/mcp/credentials/${id}/regenerate`, {}); setSecret(r.secret); await load() }
   async function revoke(id: string) { await del(`/api/mcp/credentials/${id}`); await load() }
   return <div className="space-y-4">
+    {wizardSource && meta && <GlassPanel variant="gold" className="p-5">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 grid h-9 w-9 place-items-center rounded-lg border border-empire-gold/30 bg-empire-gold/10 text-empire-gold"><EmpireIcon name="link" size={16} /></span>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-empire text-lg text-empire-text">{wizardSource === 'codex' ? 'Codex' : 'Claude'} MCP wizard</h2>
+          <p className="mt-1 text-xs text-empire-text-muted">Confirm the endpoint below, generate a client-id token, then paste the token into your MCP client configuration.</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <Fact label="Endpoint" value={`${origin}${meta.endpoint}`} />
+            <Fact label="Header" value="Authorization: Client-ID emp_mcp_..." />
+          </div>
+        </div>
+      </div>
+    </GlassPanel>}
     {meta && <GlassPanel className="p-5">
       <h2 className="font-empire text-lg text-empire-text">{meta.workerName}</h2>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -75,13 +94,15 @@ function Questions() {
   const [rows, setRows] = useState<Question[]>([])
   const [title, setTitle] = useState('Weekly progress update')
   const [prompt, setPrompt] = useState('What did you complete this week, and what evidence supports it?')
+  const [weekday, setWeekday] = useState(1)
+  const [scheduleTime, setScheduleTime] = useState('09:00')
   const load = useCallback(() => fetcher('/api/mcp/questions').then(setRows), [])
   useEffect(() => { load().catch(() => {}) }, [load])
-  async function add() { await post('/api/mcp/questions', { title, prompt, responsibilityArea: 'Operations', frequency: 'weekly', requiredEvidence: ['links', 'attachments'] }); await load() }
+  async function add() { await post('/api/mcp/questions', { title, prompt, responsibilityArea: 'Operations', frequency: 'weekly', weekday, scheduleTime, requiredEvidence: ['links', 'attachments'] }); await load() }
   async function toggle(row: Question) { await patch(`/api/mcp/questions/${row.id}`, { enabled: !row.enabled }); await load() }
   return <div className="space-y-4">
-    <GlassPanel className="p-5"><h2 className="font-empire text-lg text-empire-text">Configure recurring question</h2><div className="mt-3 grid gap-3"><input className={field} value={title} onChange={e => setTitle(e.target.value)} /><textarea className={field} value={prompt} onChange={e => setPrompt(e.target.value)} /><div><LiquidMetalButton size="sm" onClick={add}>Add question</LiquidMetalButton></div></div></GlassPanel>
-    {rows.map(row => <GlassPanel key={row.id} className="flex items-center gap-3 p-4"><div className="flex-1"><p className="text-sm font-semibold text-empire-text">{row.title}</p><p className="text-xs text-empire-text-muted">{row.prompt}</p></div><button onClick={() => toggle(row)} className={`rounded-full px-2 py-1 text-[10px] uppercase ${row.enabled ? 'rag-green' : 'rag-pending'}`}>{row.enabled ? 'Enabled' : 'Disabled'}</button></GlassPanel>)}
+    <GlassPanel className="p-5"><h2 className="font-empire text-lg text-empire-text">Configure recurring question</h2><div className="mt-3 grid gap-3"><input className={field} value={title} onChange={e => setTitle(e.target.value)} /><textarea className={field} value={prompt} onChange={e => setPrompt(e.target.value)} /><div className="grid gap-3 sm:grid-cols-2"><select className={field} value={weekday} onChange={e => setWeekday(Number(e.target.value))}>{WEEKDAYS.map((day, index) => <option key={day} value={index}>{day}</option>)}</select><input className={field} type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} /></div><div><LiquidMetalButton size="sm" onClick={add}>Add question</LiquidMetalButton></div></div></GlassPanel>
+    {rows.map(row => <GlassPanel key={row.id} className="flex items-center gap-3 p-4"><div className="flex-1"><p className="text-sm font-semibold text-empire-text">{row.title}</p><p className="text-xs text-empire-text-muted">{row.prompt}</p><p className="mt-1 text-[11px] uppercase tracking-widest text-empire-gold">{WEEKDAYS[row.weekday] ?? 'Monday'} · {row.scheduleTime || '09:00'}</p></div><button onClick={() => toggle(row)} className={`rounded-full px-2 py-1 text-[10px] uppercase ${row.enabled ? 'rag-green' : 'rag-pending'}`}>{row.enabled ? 'Enabled' : 'Disabled'}</button></GlassPanel>)}
     <GenerateReport />
   </div>
 }
@@ -89,20 +110,6 @@ function Questions() {
 function GenerateReport() {
   const [result, setResult] = useState<any>(null)
   return <GlassPanel className="p-5"><div className="flex items-center justify-between"><div><h2 className="font-empire text-lg text-empire-text">Weekly report</h2><p className="text-xs text-empire-text-muted">Collects completed tickets and processed documents for review.</p></div><LiquidMetalButton size="sm" onClick={async () => setResult(await post('/api/mcp/reports/generate', {}))}>Generate</LiquidMetalButton></div>{result && <pre className="mt-3 max-h-64 overflow-auto text-[10px] text-empire-text-muted">{JSON.stringify(result.answers, null, 2)}</pre>}</GlassPanel>
-}
-
-function Documents() {
-  const [fileName, setFileName] = useState('')
-  const [content, setContent] = useState('')
-  const [result, setResult] = useState<any>(null)
-  async function process() { setResult(await post('/api/mcp/documents', { fileName, content, targetModule: 'auto', approvalMode: 'review' })) }
-  async function apply() { setResult(await post(`/api/mcp/documents/${result.id}/apply`, {})) }
-  async function selectFile(file?: File) {
-    if (!file) return
-    setFileName(file.name)
-    setContent(await file.text())
-  }
-  return <GlassPanel className="p-5"><h2 className="font-empire text-lg text-empire-text">Document-to-system automation</h2><p className="mt-1 text-xs text-empire-text-muted">Upload a text-based document or paste its text; the worker identifies dates, amounts, emails, and a structured summary before approval.</p><div className="mt-3 space-y-3"><input className={field} type="file" accept=".txt,.md,.csv,.json,text/*,application/json" onChange={e => selectFile(e.target.files?.[0])} /><input className={field} placeholder="File name" value={fileName} onChange={e => setFileName(e.target.value)} /><textarea className={`${field} min-h-40`} placeholder="Document text" value={content} onChange={e => setContent(e.target.value)} /><div className="flex gap-2"><LiquidMetalButton size="sm" onClick={process} disabled={!fileName || !content}>Process document</LiquidMetalButton>{result?.status === 'review' && <LiquidMetalButton size="sm" onClick={apply}>Approve and create ticket</LiquidMetalButton>}</div>{result && <><pre className="overflow-auto text-[11px] text-empire-text-muted">{JSON.stringify(result.extractedData, null, 2)}</pre>{result.targetEntityId && <p className="text-xs text-empire-green">Created ticket {result.targetEntityId}</p>}</>}</div></GlassPanel>
 }
 
 function Audit() {

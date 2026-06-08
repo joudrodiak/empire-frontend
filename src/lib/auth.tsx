@@ -17,7 +17,7 @@ export type AuthUser = {
   id: string; email: string; name: string; isActive: boolean
   role: AuthRole | null
   rank: { id: string; key: string; name: string; order: number } | null
-  employee: { id: string; name: string; role: string } | null
+  employee: { id: string; name: string; role: string; departmentId: string } | null
   contract: { id: string; title: string; status: string } | null
   companyId: string | null
 }

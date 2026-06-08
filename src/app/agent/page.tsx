@@ -28,7 +28,7 @@ type Agent = {
   department: Unit | null; _count?: { messages: number }; createdAt: string
 }
 
-const KINDS = ['bot', 'human']
+const KINDS = ['bot']
 const AGENT_STATUSES = ['active', 'paused', 'archived']
 
 const PAGE_SIZE = 10
@@ -537,7 +537,7 @@ function RosterTab({ canAct }: { canAct: boolean }) {
           <GlassPanel key={a.id} className="p-4">
             <div className="flex items-start gap-3">
               <span className="medallion grid shrink-0 place-items-center" style={{ width: 38, height: 38 }}>
-                <EmpireIcon name={a.kind === 'bot' ? 'sparkle' : 'user'} size={16} className="relative z-10 text-empire-gold" />
+                <EmpireIcon name="sparkle" size={16} className="relative z-10 text-empire-gold" />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -611,7 +611,7 @@ function AgentForm({ agent, units, onClose, onDone }: { agent: Agent | null; uni
             {KINDS.map(k => (
               <button key={k} type="button" onClick={() => setKind(k)}
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs capitalize transition-colors ${kind === k ? 'bg-empire-gold/15 text-empire-gold' : 'text-empire-text-dim hover:text-empire-text'}`}>
-                <EmpireIcon name={k === 'bot' ? 'sparkle' : 'user'} size={13} />{k}
+                <EmpireIcon name="sparkle" size={13} />{k}
               </button>
             ))}
           </div>

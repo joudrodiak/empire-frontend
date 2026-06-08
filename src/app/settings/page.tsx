@@ -69,7 +69,12 @@ function IntegrationsTab() {
   const rows: { name: string; icon: IconName; on: boolean; hint: string; keys: string }[] = [
     { name: 'Slack', icon: 'megaphone', on: !!status?.channels?.slack, hint: 'Approval dispatch + agent broadcasts', keys: 'SLACK_WEBHOOK_URL' },
     { name: 'Telegram', icon: 'megaphone', on: !!status?.channels?.telegram, hint: 'Approval dispatch + agent broadcasts', keys: 'TELEGRAM_BOT_TOKEN · TELEGRAM_CHAT_ID' },
-    { name: 'Instagram / Meta', icon: 'people', on: false, hint: 'Marketing intelligence (awaiting credentials)', keys: 'INSTAGRAM_OAUTH_CLIENT_ID · INSTAGRAM_OAUTH_CLIENT_SECRET · FACEBOOK_OAUTH_*' },
+    { name: 'Instagram', icon: 'people', on: false, hint: 'Marketing intelligence and social metrics', keys: 'INSTAGRAM_OAUTH_CLIENT_ID · INSTAGRAM_OAUTH_CLIENT_SECRET' },
+    { name: 'Facebook', icon: 'people', on: false, hint: 'Meta pages and paid-social context', keys: 'FACEBOOK_OAUTH_CLIENT_ID · FACEBOOK_OAUTH_CLIENT_SECRET' },
+    { name: 'TikTok', icon: 'megaphone', on: false, hint: 'Short-form social account metrics', keys: 'TIKTOK_OAUTH_CLIENT_ID · TIKTOK_OAUTH_CLIENT_SECRET' },
+    { name: 'X', icon: 'megaphone', on: false, hint: 'Public social reach and posting context', keys: 'X_OAUTH_CLIENT_ID · X_OAUTH_CLIENT_SECRET' },
+    { name: 'LinkedIn', icon: 'briefcase', on: false, hint: 'Company-page and professional network metrics', keys: 'LINKEDIN_OAUTH_CLIENT_ID · LINKEDIN_OAUTH_CLIENT_SECRET' },
+    { name: 'YouTube', icon: 'document', on: false, hint: 'Video channel metrics and content context', keys: 'YOUTUBE_OAUTH_CLIENT_ID · YOUTUBE_OAUTH_CLIENT_SECRET' },
     { name: 'Banking (NL / UAE)', icon: 'coins', on: false, hint: 'Open-banking aggregator (awaiting credentials)', keys: 'TINK_* · GOCARDLESS_ACCESS_TOKEN · PLAID_* · LEAN_APP_TOKEN · TARABUT_*' },
   ]
 
@@ -244,10 +249,35 @@ function CompanyTab({ canManage }: { canManage: boolean }) {
 function EnvironmentTab({ canManage }: { canManage: boolean }) {
   const [env, setEnv] = useState<EnvStatus | null>(null)
   const [denied, setDenied] = useState(false)
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [visible, setVisible] = useState<Record<string, boolean>>({})
+  const [busy, setBusy] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const load = useCallback(() => fetcher('/api/settings/env').then(setEnv).catch(() => setDenied(true)), [])
   useEffect(() => {
     if (!canManage) { setDenied(true); return }
-    fetcher('/api/settings/env').then(setEnv).catch(() => setDenied(true))
-  }, [canManage])
+    load()
+  }, [canManage, load])
+
+  async function saveKey(key: string) {
+    const value = drafts[key]?.trim()
+    if (!value) return
+    setBusy(key); setErr(null)
+    try {
+      await patch(`/api/settings/env/${key}`, { value })
+      setDrafts(d => ({ ...d, [key]: '' }))
+      await load()
+    } catch (e: any) { setErr(e?.message || 'Failed to save key') } finally { setBusy(null) }
+  }
+
+  async function deleteKey(key: string) {
+    setBusy(key); setErr(null)
+    try {
+      await del(`/api/settings/env/${key}`)
+      setDrafts(d => ({ ...d, [key]: '' }))
+      await load()
+    } catch (e: any) { setErr(e?.message || 'Failed to delete key') } finally { setBusy(null) }
+  }
 
   if (denied) return <EmptyState icon="lock" title="Owner only" hint="Environment configuration requires company:manage." />
   if (!env) return <div className="py-8 text-sm text-empire-text-muted">Loading environment…</div>
@@ -268,7 +298,8 @@ function EnvironmentTab({ canManage }: { canManage: boolean }) {
         <Panel key={group} title={group} icon="cog">
           <div className="space-y-1.5">
             {items.map(it => (
-              <div key={it.key} className="flex items-center justify-between gap-3 rounded-lg border border-empire-border/60 px-3 py-2">
+              <div key={it.key} className="rounded-lg border border-empire-border/60 px-3 py-2">
+                <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm text-empire-text">{it.label}</p>
                   <p className="truncate font-data text-[10px] text-empire-text-dim">{it.key}{it.doc ? ` — ${it.doc}` : ''}</p>
@@ -276,13 +307,50 @@ function EnvironmentTab({ canManage }: { canManage: boolean }) {
                 <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-widest ${it.set ? 'rag-green' : 'rag-pending'}`}>
                   {it.set ? 'Set' : 'Missing'}
                 </span>
+                </div>
+                {['Integrations', 'Marketing'].includes(group) && (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                    <div className="relative">
+                      <input
+                        className={`${field} pr-9 font-data text-xs`}
+                        type={visible[it.key] ? 'text' : 'password'}
+                        value={drafts[it.key] ?? ''}
+                        onChange={e => setDrafts(d => ({ ...d, [it.key]: e.target.value }))}
+                        placeholder={it.set ? 'Enter replacement value' : 'Enter key value'}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setVisible(v => ({ ...v, [it.key]: !v[it.key] }))}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-empire-text-muted hover:text-empire-gold"
+                        aria-label={visible[it.key] ? 'Hide value' : 'Show value'}
+                      >
+                        <EmpireIcon name="eye" size={15} />
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => saveKey(it.key)}
+                      disabled={busy === it.key || !(drafts[it.key] ?? '').trim()}
+                      className="rounded-lg border border-empire-gold/40 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-empire-gold transition-colors hover:bg-empire-gold/10 disabled:opacity-40"
+                    >
+                      {busy === it.key ? 'Saving…' : it.set ? 'Modify' : 'Add key'}
+                    </button>
+                    <button
+                      onClick={() => deleteKey(it.key)}
+                      disabled={busy === it.key || !it.set}
+                      className="rounded-lg border border-empire-red/40 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-empire-red-bright transition-colors hover:bg-empire-red/10 disabled:opacity-40"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </Panel>
       ))}
+      {err && <p className="rounded-lg border border-empire-red/40 bg-empire-red/10 px-3 py-2 text-xs text-empire-red-bright">{err}</p>}
       <p className="text-[11px] text-empire-text-dim">
-        Set these in the server <span className="font-data">.env</span> (see <span className="font-data">api/.env.example</span>). Secrets never enter the browser.
+        Core, agent, email, banking and deploy keys are server-managed. Integrations and Marketing keys can be added, modified or deleted here for the running API process; existing secret values are never displayed.
       </p>
     </div>
   )

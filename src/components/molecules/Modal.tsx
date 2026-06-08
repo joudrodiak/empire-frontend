@@ -33,11 +33,11 @@ export function Modal({ open, onClose, title, icon, children, width = 'max-w-lg'
 
   if (!open || !mounted) return null
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 p-4 py-[8vh] backdrop-blur-sm animate-fade-in" onMouseDown={onClose}>
-      <div className={`glass-gold w-full ${width} animate-slide-up p-5`} onMouseDown={e => e.stopPropagation()}>
-        <div className="mb-4 flex items-center gap-2.5">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto overflow-x-hidden bg-black/60 p-3 py-[8vh] backdrop-blur-sm animate-fade-in sm:p-4" onMouseDown={onClose}>
+      <div className={`glass-gold w-full max-w-[calc(100vw-1.5rem)] overflow-hidden ${width} animate-slide-up p-4 sm:max-w-[calc(100vw-2rem)] sm:p-5`} onMouseDown={e => e.stopPropagation()}>
+        <div className="mb-4 flex min-w-0 items-center gap-2.5">
           {icon && <span className="text-empire-gold">{icon}</span>}
-          <h3 className="font-empire text-base tracking-wide text-empire-text">{title}</h3>
+          <h3 className="min-w-0 truncate font-empire text-base tracking-wide text-empire-text">{title}</h3>
           <button onClick={onClose} className="ml-auto rounded-md p-1 text-empire-text-muted transition-colors hover:bg-empire-elevated/60 hover:text-empire-text">
             <EmpireIcon name="close" size={18} />
           </button>

@@ -85,7 +85,7 @@ export default function EmpireDashboard() {
   const [events, setEvents] = useState<ActivityEvent[]>([])
   const [deals, setDeals] = useState<Deal[]>([])
   const [approvals, setApprovals] = useState<ApprovalRequest[]>([])
-  const [activeTab, setActiveTab] = useState<'overview' | 'roster' | 'deals' | 'chronicle' | 'approvals'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'network' | 'roster' | 'deals' | 'chronicle' | 'approvals'>('overview')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -150,7 +150,7 @@ export default function EmpireDashboard() {
 
         {/* Nav tabs */}
         <div className="max-w-screen-2xl mx-auto px-6 flex gap-1 pb-0">
-          {(['overview', 'roster', 'deals', 'chronicle', 'approvals'] as const).map(tab => (
+          {(['overview', 'network', 'roster', 'deals', 'chronicle', 'approvals'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -181,11 +181,103 @@ export default function EmpireDashboard() {
             headcount={employees.filter(e => e.contractType !== 'ai_agent').length}
           />
         )}
+        {activeTab === 'network' && <CompanyNetworkTab departments={departments} employees={employees} />}
         {activeTab === 'roster' && <RosterTab employees={employees} />}
         {activeTab === 'deals' && <DealsTab deals={deals} setDeals={setDeals} />}
         {activeTab === 'chronicle' && <ChronicleTab events={events} />}
         {activeTab === 'approvals' && <ApprovalsTab approvals={approvals} setApprovals={setApprovals} />}
       </main>
+    </div>
+  )
+}
+
+function CompanyNetworkTab({ departments, employees }: { departments: Department[]; employees: Employee[] }) {
+  const units = departments.slice(0, 12)
+  const center = { x: 50, y: 50 }
+  const radius = 33
+
+  const unitNodes = units.map((dept, index) => {
+    const angle = (Math.PI * 2 * index) / Math.max(units.length, 1) - Math.PI / 2
+    const x = center.x + Math.cos(angle) * radius
+    const y = center.y + Math.sin(angle) * radius
+    const members = employees.filter(e => e.department.slug === dept.slug && e.contractType !== 'ai_agent').slice(0, 3)
+    return { dept, x, y, angle, members }
+  })
+
+  const edges: Array<{ x1: number; y1: number; x2: number; y2: number; color: string; delay: number }> = []
+  const childNodes: Array<{ id: string; kind: 'members' | 'documents' | 'person'; label: string; x: number; y: number; color: string; href?: string; delay: number }> = []
+
+  unitNodes.forEach((node, index) => {
+    edges.push({ x1: center.x, y1: center.y, x2: node.x, y2: node.y, color: node.dept.color || '#c9a233', delay: index * 70 })
+    const memberHubX = node.x + Math.cos(node.angle) * 10
+    const memberHubY = node.y + Math.sin(node.angle) * 10
+    const docHubX = node.x + Math.cos(node.angle + 0.45) * 12
+    const docHubY = node.y + Math.sin(node.angle + 0.45) * 12
+    edges.push({ x1: node.x, y1: node.y, x2: memberHubX, y2: memberHubY, color: '#8fc7ff', delay: 180 + index * 45 })
+    edges.push({ x1: node.x, y1: node.y, x2: docHubX, y2: docHubY, color: '#d9a441', delay: 240 + index * 45 })
+    childNodes.push({ id: `${node.dept.id}-members`, kind: 'members', label: `${node.dept.name} members`, x: memberHubX, y: memberHubY, color: '#8fc7ff', href: `/departments/${node.dept.slug}`, delay: index * 60 })
+    childNodes.push({ id: `${node.dept.id}-docs`, kind: 'documents', label: `${node.dept.name} documents`, x: docHubX, y: docHubY, color: '#d9a441', href: `/departments/${node.dept.slug}`, delay: index * 60 + 90 })
+    node.members.forEach((member, memberIndex) => {
+      const spread = (memberIndex - (node.members.length - 1) / 2) * 0.28
+      const px = memberHubX + Math.cos(node.angle + spread) * 7
+      const py = memberHubY + Math.sin(node.angle + spread) * 7
+      edges.push({ x1: memberHubX, y1: memberHubY, x2: px, y2: py, color: '#8fc7ff', delay: 320 + index * 35 + memberIndex * 45 })
+      childNodes.push({ id: member.id, kind: 'person', label: `${member.name} · ${member.role}`, x: px, y: py, color: node.dept.color || '#8fc7ff', delay: index * 80 + memberIndex * 60 })
+    })
+  })
+
+  return (
+    <div className="space-y-6 animate-slide-up">
+      <SectionHeader title="Company Network" subtitle="Company intelligence map for MCP agents: units, members and documents as connected context" />
+      <GlassPanel variant="glass" className="relative overflow-hidden rounded-xl p-0">
+        <div className="relative h-[680px] min-h-[560px] bg-[radial-gradient(circle_at_center,rgba(201,162,51,0.13),transparent_34%),linear-gradient(180deg,rgba(16,16,23,0.96),rgba(8,8,13,0.98))]">
+          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            {edges.map((edge, i) => (
+              <line
+                key={i}
+                x1={edge.x1}
+                y1={edge.y1}
+                x2={edge.x2}
+                y2={edge.y2}
+                vectorEffect="non-scaling-stroke"
+                stroke={edge.color}
+                strokeWidth={edge.x1 === center.x && edge.y1 === center.y ? 0.22 : 0.12}
+                strokeLinecap="round"
+                className="network-edge"
+                style={{ animationDelay: `${edge.delay}ms` }}
+              />
+            ))}
+          </svg>
+
+          <div className="network-node network-company" style={{ left: `${center.x}%`, top: `${center.y}%` }}>
+            <span className="font-empire text-lg text-empire-gold">Empire OS</span>
+            <span className="mt-1 text-center text-[10px] uppercase tracking-widest text-empire-text-muted">Company Intelligence App</span>
+            <span className="network-tip">Mother node: active company</span>
+          </div>
+
+          {unitNodes.map((node, index) => (
+            <Link key={node.dept.id} href={`/departments/${node.dept.slug}`} className="network-node network-unit" style={{ left: `${node.x}%`, top: `${node.y}%`, borderColor: `${node.dept.color || '#c9a233'}70`, animationDelay: `${index * 80}ms` }}>
+              <UnitMedallion slug={node.dept.slug} size={38} />
+              <span className="mt-1 max-w-[110px] truncate text-center text-[11px] font-semibold text-empire-text">{node.dept.name}</span>
+              <span className="network-tip">{node.dept.name} · {node.dept._count.employees} members</span>
+            </Link>
+          ))}
+
+          {childNodes.map(node => (
+            node.href ? (
+              <Link key={node.id} href={node.href} className={`network-node network-child network-${node.kind}`} style={{ left: `${node.x}%`, top: `${node.y}%`, borderColor: `${node.color}70`, color: node.color, animationDelay: `${node.delay}ms` }}>
+                <EmpireIcon name={node.kind === 'documents' ? 'document' : 'people'} size={15} />
+                <span className="network-tip">{node.label}</span>
+              </Link>
+            ) : (
+              <button key={node.id} className="network-node network-child network-person" style={{ left: `${node.x}%`, top: `${node.y}%`, borderColor: `${node.color}70`, color: node.color, animationDelay: `${node.delay}ms` }}>
+                <EmpireIcon name="user" size={13} />
+                <span className="network-tip">{node.label}</span>
+              </button>
+            )
+          ))}
+        </div>
+      </GlassPanel>
     </div>
   )
 }
@@ -277,7 +369,6 @@ function TerritoryHealth({ departments }: { departments: Department[] }) {
     { key: 'RED', label: 'At risk', color: '#C9594F' },
   ]
   const tally = (b: string) => departments.filter(d => bandOf(d) === b).length
-  const pending = departments.filter(d => !['GREEN', 'AMBER', 'RED'].includes(bandOf(d))).length
   // Attention order: RED, then AMBER, then PENDING, each by ascending score.
   const rank: Record<string, number> = { RED: 0, AMBER: 1, PENDING: 2, GREEN: 3 }
   const attention = [...departments]
@@ -298,7 +389,7 @@ function TerritoryHealth({ departments }: { departments: Department[] }) {
       <GlassPanel variant="glass" className="rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
           <span className="text-[11px] uppercase tracking-[0.15em] text-empire-text-dim">Needs attention</span>
-          <span className="text-[11px] text-empire-text-dim">{attention.length} of {departments.length}{pending ? ` · ${pending} pending` : ''}</span>
+          <span className="text-[11px] text-empire-text-dim">{attention.length} of {departments.length}</span>
         </div>
         {attention.length === 0 ? (
           <div className="flex items-center gap-2 text-empire-text-muted text-xs py-3">

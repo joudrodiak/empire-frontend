@@ -251,12 +251,16 @@ function CoSellDeals() {
   const [stage, setStage] = useState('')
   const { data, loading, reload } = usePtr<Page<CoSellDeal>>(`deals?pageSize=15&page=${page + 1}${stage ? `&stage=${stage}` : ''}`)
   const [active, setActive] = useState<{ row: CoSellDeal; mode: 'view' | 'edit' } | null>(null)
+  const [creating, setCreating] = useState(false)
   const [members, setMembers] = useState<UnitMember[]>([])
+  const [partners, setPartners] = useState<Partner[]>([])
   useEffect(() => {
     fetcher('/api/employees?department=partnerships').then((rows: UnitMember[]) => setMembers(Array.isArray(rows) ? rows : [])).catch(() => setMembers([]))
+    fetcher('/api/partnerships/partners?pageSize=100').then(r => setPartners(r?.data || [])).catch(() => setPartners([]))
   }, [])
   async function remove(id: string) { await del(`/api/partnerships/deals/${id}`).catch(console.error); reload() }
   async function saveEdit(p: Record<string, any>) { if (!active) return; await patch(`/api/partnerships/deals/${active.row.id}`, p).catch(console.error); setActive(null); reload() }
+  async function saveCreate(p: Record<string, any>) { await post('/api/partnerships/deals', p).catch(console.error); setCreating(false); setPage(0); reload() }
   const dealFields: FieldDef[] = [
     ...BASE_DEAL_FIELDS.slice(0, 6),
     members.length
@@ -264,6 +268,21 @@ function CoSellDeals() {
       : { key: 'ownerName', label: 'Partnerships member' },
     ...BASE_DEAL_FIELDS.slice(6),
   ]
+  const createFields: FieldDef[] = [
+    { key: 'partnerId', label: 'Partner', type: 'select', options: [{ value: '', label: 'Select partner...' }, ...partners.map(p => ({ value: p.id, label: p.name }))] },
+    ...dealFields.filter(f => f.key !== 'partner' && f.key !== 'tier' && f.key !== 'weighted'),
+  ]
+  const blankDeal = {
+    partnerId: partners[0]?.id || '',
+    name: '',
+    customer: '',
+    stage: 'registered',
+    amount: 0,
+    probability: 20,
+    motion: 'partner_sourced',
+    ownerName: members[0]?.name || '',
+    closeDate: '',
+  }
   const rows = data?.data || []
   const cols: Column<CoSellDeal>[] = [
     { key: 'name', label: 'Deal', render: d => <div><div className="font-medium text-empire-text text-sm">{d.name}</div><div className="text-empire-text-dim text-[11px]">{d.customer || '—'} · via {d.partner}</div></div> },
@@ -280,6 +299,7 @@ function CoSellDeals() {
           <option value="">All stages</option>
           {['registered', 'qualified', 'proposal', 'committed', 'closed_won', 'closed_lost'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
         </select>
+        <button onClick={() => setCreating(true)} className="ml-auto inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium text-white" style={{ background: ACCENT }}><EmpireIcon name="plus" size={13} />New deal</button>
       </div>
       <Panel icon="flag" title={`Co-sell deals (${data?.total ?? rows.length})`}>
         {loading ? <Loading /> : <DataTable columns={cols} rows={rows} empty="No co-sell deals." />}
@@ -295,6 +315,17 @@ function CoSellDeals() {
         fields={dealFields}
         onClose={() => setActive(null)}
         onSave={saveEdit}
+      />
+      <EntityFormModal
+        open={creating}
+        mode="edit"
+        title="New co-sell deal"
+        icon="plus"
+        accent={ACCENT}
+        entity={creating ? blankDeal : null}
+        fields={createFields}
+        onClose={() => setCreating(false)}
+        onSave={saveCreate}
       />
     </div>
   )

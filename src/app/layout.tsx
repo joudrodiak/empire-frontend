@@ -5,8 +5,8 @@ import { AuthProvider } from '@/lib/auth'
 import { AuthGate } from '@/components/templates/AuthGate'
 
 export const metadata: Metadata = {
-  title: 'Empire OS — Cregen Inc.',
-  description: 'Command intelligence for the Cregen empire',
+  title: 'Empire OS - Company intelligence app',
+  description: 'Company intelligence app for mapping units, people, documents and agent context.',
 }
 
 // Set the theme class before first paint to avoid a flash. Reads the persisted

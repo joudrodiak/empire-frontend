@@ -44,7 +44,7 @@ export default function LoginPage() {
           </span>
           <div>
             <h1 className="font-empire text-xl tracking-[0.25em] text-empire-text uppercase">Empire OS</h1>
-            <p className="mt-1 text-xs uppercase tracking-widest text-empire-text-muted">Command intelligence · Cregen Inc.</p>
+            <p className="mt-1 text-xs uppercase tracking-widest text-empire-text-muted">Company intelligence app</p>
           </div>
         </div>
 
@@ -52,7 +52,7 @@ export default function LoginPage() {
           <div>
             <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-empire-text-muted">Email</label>
             <input type="email" autoComplete="username" required value={email}
-              onChange={e => setEmail(e.target.value)} placeholder="you@cregen.ai" className={field} />
+              onChange={e => setEmail(e.target.value)} placeholder="you@company.com" className={field} />
           </div>
           <div>
             <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-empire-text-muted">Password</label>

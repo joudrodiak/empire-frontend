@@ -459,6 +459,7 @@ type AgingData = { ar: { bucket: string; amount: number }[]; ap: { bucket: strin
 
 function ARAP() {
   const { data: a, loading } = useFin<AgingData>('aging')
+  const [showInvoice, setShowInvoice] = useState(false)
   if (loading) return <Loading />
   if (!a) return <EmptyState icon="card" title="No AR/AP data" hint="Post receivable / payable entries." />
   const cols: Column<{ bucket: string; amount: number }>[] = [
@@ -473,6 +474,11 @@ function ARAP() {
         <KpiCard label="Overdue AR (90d+)" value={eurK(a.overdueAR)} accent="#c94f4f" icon="alert" />
         <KpiCard label="Net Working Capital" value={eurK(a.netWorkingCapital)} accent={ACCENT} icon="gauge" />
       </Grid>
+      <div className="flex justify-end">
+        <button onClick={() => setShowInvoice(true)} className="inline-flex items-center gap-1.5 rounded border border-empire-gold/40 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-empire-gold transition-colors hover:bg-empire-gold/10">
+          <EmpireIcon name="document" size={14} /> Invoice Generator
+        </button>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Panel title="Accounts Receivable — Aging" icon="arrow-down">
           <BarChart data={a.ar.map(x => x.amount)} labels={a.ar.map(x => x.bucket)} color="#3a9d5c" height={160} />
@@ -483,7 +489,90 @@ function ARAP() {
           <div className="mt-4"><DataTable columns={cols} rows={a.ap} /></div>
         </Panel>
       </div>
+      <InvoiceGenerator open={showInvoice} onClose={() => setShowInvoice(false)} />
     </div>
+  )
+}
+
+function InvoiceGenerator({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [logo, setLogo] = useState('')
+  const [f, setF] = useState({
+    company: 'Empire OS',
+    billTo: '',
+    invoiceNo: `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`,
+    date: new Date().toISOString().slice(0, 10),
+    dueDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+    item: 'Company intelligence services',
+    quantity: '1',
+    unitPrice: '2500',
+    taxRate: '21',
+  })
+  const set = (k: keyof typeof f, v: string) => setF(p => ({ ...p, [k]: v }))
+  const subtotal = (Number(f.quantity) || 0) * (Number(f.unitPrice) || 0)
+  const tax = subtotal * ((Number(f.taxRate) || 0) / 100)
+  const total = subtotal + tax
+
+  function printInvoice() {
+    const el = document.getElementById('empire-invoice-preview')
+    if (!el) return
+    const win = window.open('', '_blank', 'width=900,height=1100')
+    if (!win) return
+    win.document.write(`<!doctype html><html><head><title>${f.invoiceNo}</title><style>body{margin:0;background:#f5f1e7;font-family:Inter,Arial,sans-serif}.wrap{padding:32px}.invoice{background:#fff;color:#151515;border:1px solid #ddd;box-shadow:0 18px 60px rgba(0,0,0,.12)}@media print{.wrap{padding:0}.invoice{box-shadow:none;border:0}}</style></head><body><div class="wrap"><div class="invoice">${el.innerHTML}</div></div></body></html>`)
+    win.document.close()
+    win.focus()
+    win.print()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Invoice generator" icon={<EmpireIcon name="document" size={18} />} width="max-w-5xl">
+      <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
+        <div className="space-y-3">
+          <FileDrop value={logo} onChange={setLogo} label="Company logo for invoice top-left" allowUrl={false} />
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block"><span className="empire-label">Company</span><input className={modalInput} value={f.company} onChange={e => set('company', e.target.value)} /></label>
+            <label className="block"><span className="empire-label">Invoice no.</span><input className={modalInput} value={f.invoiceNo} onChange={e => set('invoiceNo', e.target.value)} /></label>
+            <label className="block"><span className="empire-label">Date</span><input type="date" className={modalInput} value={f.date} onChange={e => set('date', e.target.value)} /></label>
+            <label className="block"><span className="empire-label">Due date</span><input type="date" className={modalInput} value={f.dueDate} onChange={e => set('dueDate', e.target.value)} /></label>
+          </div>
+          <label className="block"><span className="empire-label">Bill to</span><textarea className={modalInput} rows={3} value={f.billTo} onChange={e => set('billTo', e.target.value)} placeholder="Client name&#10;Address&#10;VAT / tax id" /></label>
+          <label className="block"><span className="empire-label">Line item</span><input className={modalInput} value={f.item} onChange={e => set('item', e.target.value)} /></label>
+          <div className="grid grid-cols-3 gap-3">
+            <label className="block"><span className="empire-label">Qty</span><input type="number" className={modalInput} value={f.quantity} onChange={e => set('quantity', e.target.value)} /></label>
+            <label className="block"><span className="empire-label">Unit price</span><input type="number" className={modalInput} value={f.unitPrice} onChange={e => set('unitPrice', e.target.value)} /></label>
+            <label className="block"><span className="empire-label">Tax %</span><input type="number" className={modalInput} value={f.taxRate} onChange={e => set('taxRate', e.target.value)} /></label>
+          </div>
+          <button onClick={printInvoice} className="w-full rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-black" style={{ background: ACCENT }}>Print / save PDF</button>
+        </div>
+
+        <div id="empire-invoice-preview" className="min-h-[620px] bg-white p-8 text-neutral-950">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex items-center gap-4">
+              {logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logo} alt="" className="h-16 w-16 rounded object-contain" />
+              ) : (
+                <div className="grid h-16 w-16 place-items-center rounded border border-neutral-300 text-xs text-neutral-500">Logo</div>
+              )}
+              <div><div className="text-2xl font-bold">{f.company}</div><div className="text-sm text-neutral-500">Company intelligence app</div></div>
+            </div>
+            <div className="text-right"><div className="text-3xl font-bold tracking-wide">INVOICE</div><div className="mt-2 text-sm text-neutral-500">{f.invoiceNo}</div></div>
+          </div>
+          <div className="mt-10 grid grid-cols-2 gap-8">
+            <div><div className="text-xs font-bold uppercase tracking-widest text-neutral-500">Bill to</div><div className="mt-2 whitespace-pre-line text-sm">{f.billTo || 'Client name'}</div></div>
+            <div className="space-y-1 text-right text-sm"><div>Date: {f.date}</div><div>Due: {f.dueDate}</div></div>
+          </div>
+          <table className="mt-10 w-full border-collapse text-sm">
+            <thead><tr className="border-b border-neutral-300 text-left text-xs uppercase tracking-widest text-neutral-500"><th className="py-3">Description</th><th className="py-3 text-right">Qty</th><th className="py-3 text-right">Unit</th><th className="py-3 text-right">Amount</th></tr></thead>
+            <tbody><tr className="border-b border-neutral-200"><td className="py-4">{f.item}</td><td className="py-4 text-right">{f.quantity}</td><td className="py-4 text-right">{eur(Number(f.unitPrice) || 0)}</td><td className="py-4 text-right">{eur(subtotal)}</td></tr></tbody>
+          </table>
+          <div className="mt-8 ml-auto w-72 space-y-2 text-sm">
+            <div className="flex justify-between"><span>Subtotal</span><span>{eur(subtotal)}</span></div>
+            <div className="flex justify-between"><span>Tax</span><span>{eur(tax)}</span></div>
+            <div className="flex justify-between border-t border-neutral-300 pt-3 text-lg font-bold"><span>Total</span><span>{eur(total)}</span></div>
+          </div>
+        </div>
+      </div>
+    </Modal>
   )
 }
 
@@ -1088,7 +1177,7 @@ function Ledger({ departmentSlug }: { departmentSlug: string }) {
                       <div key={a.id} className="bg-empire-surface border border-empire-border rounded-lg p-3 group hover:border-empire-gold/40 transition-colors">
                         <div className="flex items-start justify-between gap-1">
                           <div className="font-data text-empire-text-dim text-[11px]">{a.code}{a.subtype ? ` · ${a.subtype.replace(/_/g, ' ')}` : ''}</div>
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="shrink-0">
                             <RowActions
                               size={13}
                               onView={() => setViewAcct(a)}
@@ -1199,7 +1288,14 @@ function AccountCreate({ open, onClose, onSaved }: { open: boolean; onClose: () 
           <input className={modalInput} value={f.name} onChange={e => setF(p => ({ ...p, name: e.target.value }))} placeholder="Software subscriptions" /></label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Subtype</span>
-            <input className={modalInput} value={f.subtype} onChange={e => setF(p => ({ ...p, subtype: e.target.value }))} placeholder="opex" /></label>
+            {f.type === 'expense' || f.type === 'asset' ? (
+              <div className="grid grid-cols-2 overflow-hidden rounded border border-empire-border">
+                <button type="button" onClick={() => setF(p => ({ ...p, type: 'expense', subtype: 'opex' }))} className={`px-3 py-2 text-xs uppercase tracking-widest ${f.subtype !== 'fixed_asset' ? 'bg-empire-gold/20 text-empire-gold' : 'text-empire-text-muted'}`}>OpEx</button>
+                <button type="button" onClick={() => setF(p => ({ ...p, type: 'asset', subtype: 'fixed_asset' }))} className={`px-3 py-2 text-xs uppercase tracking-widest ${f.subtype === 'fixed_asset' ? 'bg-empire-gold/20 text-empire-gold' : 'text-empire-text-muted'}`}>CapEx</button>
+              </div>
+            ) : (
+              <input className={modalInput} value={f.subtype} onChange={e => setF(p => ({ ...p, subtype: e.target.value }))} placeholder="cash, loan, cogs..." />
+            )}</label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Sort order</span>
             <input type="number" className={modalInput} value={f.sortOrder} onChange={e => setF(p => ({ ...p, sortOrder: e.target.value }))} /></label>
         </div>
@@ -1217,13 +1313,13 @@ function AccountCreate({ open, onClose, onSaved }: { open: boolean; onClose: () 
 
 /* Edit a ledger account (name / subtype / sortOrder — code & type are immutable). */
 function AccountEdit({ account, onClose, onSaved }: { account: Account | null; onClose: () => void; onSaved: () => void }) {
-  const [f, setF] = useState<{ name: string; sortOrder: string }>({ name: '', sortOrder: '0' })
+  const [f, setF] = useState<{ name: string; subtype: string; sortOrder: string }>({ name: '', subtype: '', sortOrder: '0' })
   const [busy, setBusy] = useState(false)
-  useEffect(() => { if (account) setF({ name: account.name, sortOrder: String((account as any).sortOrder ?? 0) }) }, [account])
+  useEffect(() => { if (account) setF({ name: account.name, subtype: account.subtype || '', sortOrder: String((account as any).sortOrder ?? 0) }) }, [account])
   async function save() {
     if (!account) return
     setBusy(true)
-    await patch(`/api/finance/accounts/${account.id}`, { name: f.name, sortOrder: Number(f.sortOrder) || 0 }).catch(console.error)
+    await patch(`/api/finance/accounts/${account.id}`, { name: f.name, subtype: f.subtype || null, sortOrder: Number(f.sortOrder) || 0 }).catch(console.error)
     setBusy(false); onSaved()
   }
   return (
@@ -1231,6 +1327,15 @@ function AccountEdit({ account, onClose, onSaved }: { account: Account | null; o
       <div className="space-y-3">
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Name</span>
           <input className={modalInput} value={f.name} onChange={e => setF(p => ({ ...p, name: e.target.value }))} /></label>
+        <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Subtype</span>
+          {account?.type === 'expense' || account?.type === 'asset' ? (
+            <div className="grid grid-cols-2 overflow-hidden rounded border border-empire-border">
+              <button type="button" onClick={() => setF(p => ({ ...p, subtype: 'opex' }))} className={`px-3 py-2 text-xs uppercase tracking-widest ${f.subtype !== 'fixed_asset' ? 'bg-empire-gold/20 text-empire-gold' : 'text-empire-text-muted'}`}>OpEx</button>
+              <button type="button" onClick={() => setF(p => ({ ...p, subtype: 'fixed_asset' }))} className={`px-3 py-2 text-xs uppercase tracking-widest ${f.subtype === 'fixed_asset' ? 'bg-empire-gold/20 text-empire-gold' : 'text-empire-text-muted'}`}>CapEx</button>
+            </div>
+          ) : (
+            <input className={modalInput} value={f.subtype} onChange={e => setF(p => ({ ...p, subtype: e.target.value }))} />
+          )}</label>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Sort order</span>
           <input type="number" className={modalInput} value={f.sortOrder} onChange={e => setF(p => ({ ...p, sortOrder: e.target.value }))} /></label>
         <div className="flex justify-end gap-2 pt-2">

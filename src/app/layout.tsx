@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import '@aejkatappaja/phantom-ui/ssr.css'
 import { DockNav } from '@/components/templates/DockNav'
 import { AuthProvider } from '@/lib/auth'
 import { AuthGate } from '@/components/templates/AuthGate'

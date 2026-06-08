@@ -10,6 +10,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@aejkatappaja/phantom-ui": "^1.0.0",
     "@paper-design/shaders-react": "^0.0.76",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",

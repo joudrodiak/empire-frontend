@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import '@aejkatappaja/phantom-ui'
 import { fetcher, ragColor, ragLabel, formatCurrency, post, patch, del } from '@/lib/api'
 import { formatDistanceToNow } from 'date-fns'
 import { RowActions } from '@/components/molecules/RowActions'
@@ -931,10 +932,21 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
 function EmpireLoader() {
   return (
     <div className="min-h-screen bg-empire-void flex items-center justify-center">
-      <div className="text-center space-y-4">
-        <div className="flex justify-center text-empire-gold animate-pulse"><EmpireIcon name="crown" size={40} /></div>
-        <div className="text-empire-text-muted text-xs uppercase tracking-widest">Summoning the Empire...</div>
-      </div>
+      <phantom-ui
+        loading
+        animation="shimmer"
+        shimmer-color="rgba(244,212,119,0.55)"
+        background-color="rgba(201,162,51,0.16)"
+        fallback-radius={8}
+        duration={1.6}
+        reveal={0.18}
+        loading-label="Loading company intelligence"
+      >
+        <div className="text-center space-y-4">
+          <div className="flex justify-center text-empire-gold animate-pulse"><EmpireIcon name="crown" size={40} /></div>
+          <div className="text-empire-text-muted text-xs uppercase tracking-widest">Summoning the Empire...</div>
+        </div>
+      </phantom-ui>
     </div>
   )
 }

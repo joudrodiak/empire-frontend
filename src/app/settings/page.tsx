@@ -8,6 +8,7 @@ import { Panel } from '@/components/molecules/Panel'
 import { TabBar } from '@/components/templates/TabBar'
 import { LiquidMetalButton } from '@/components/atoms/LiquidMetalButton'
 import { EmptyState } from '@/components/atoms/EmptyState'
+import { FileDrop } from '@/components/molecules/FileDrop'
 
 /**
  * /settings — the Empire OS configuration surface. Four lanes:
@@ -144,7 +145,10 @@ function AgentTab() {
 }
 
 /* ── Company ──────────────────────────────────────────────────── */
-type Company = { id: string; slug: string; name: string; short: string; tagline: string; type: string; hq: string; founded: string }
+type Company = {
+  id: string; slug: string; name: string; short: string; tagline: string; type: string; hq: string; founded: string
+  stampImageUrl?: string | null; stampEnabled?: boolean; confidentialWatermark?: boolean
+}
 const field = 'w-full rounded-lg border border-empire-border bg-empire-surface/60 px-3 py-2 text-sm text-empire-text placeholder:text-empire-text-dim outline-none transition-colors focus:border-empire-gold/50'
 const label = 'mb-1 block text-[10px] uppercase tracking-widest text-empire-text-muted'
 
@@ -173,6 +177,9 @@ function CompanyTab({ canManage }: { canManage: boolean }) {
     try {
       await patch(`/api/companies/${company.id}`, {
         name: form.name, short: form.short, tagline: form.tagline, type: form.type, hq: form.hq, founded: form.founded,
+        stampImageUrl: form.stampImageUrl || null,
+        stampEnabled: Boolean(form.stampEnabled),
+        confidentialWatermark: Boolean(form.confidentialWatermark),
       })
       setMsg('Company updated.'); await load()
     } catch (e: any) { setErr(e?.message || 'Failed to update company') } finally { setBusy(false) }
@@ -212,6 +219,25 @@ function CompanyTab({ canManage }: { canManage: boolean }) {
           <div><label className={label}>Type</label><input disabled={!canManage} className={field} value={form.type ?? ''} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} /></div>
           <div><label className={label}>HQ</label><input disabled={!canManage} className={field} value={form.hq ?? ''} onChange={e => setForm(f => ({ ...f, hq: e.target.value }))} /></div>
           <div><label className={label}>Founded</label><input disabled={!canManage} className={field} value={form.founded ?? ''} onChange={e => setForm(f => ({ ...f, founded: e.target.value }))} /></div>
+        </div>
+        <div className="rounded-xl border border-empire-border bg-empire-surface/40 p-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-empire-text">Legal document marks</p>
+              <p className="text-[11px] text-empire-text-muted">Use a greyscale-style stamp image and optional confidential page background.</p>
+            </div>
+            <label className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-empire-text-muted">
+              <input disabled={!canManage} type="checkbox" checked={Boolean(form.confidentialWatermark)}
+                onChange={e => setForm(f => ({ ...f, confidentialWatermark: e.target.checked }))} className="accent-empire-gold" />
+              Confidential
+            </label>
+          </div>
+          <FileDrop value={form.stampImageUrl || ''} onChange={v => setForm(f => ({ ...f, stampImageUrl: v, stampEnabled: Boolean(v) }))} label="Company stamp PNG" allowUrl={false} />
+          <label className="mt-2 flex items-center gap-2 text-[11px] uppercase tracking-widest text-empire-text-muted">
+            <input disabled={!canManage || !form.stampImageUrl} type="checkbox" checked={Boolean(form.stampEnabled)}
+              onChange={e => setForm(f => ({ ...f, stampEnabled: e.target.checked }))} className="accent-empire-gold" />
+            Add stamp to legal PDFs
+          </label>
         </div>
         <div className="font-data text-[10px] text-empire-text-dim">slug: {company.slug} · id: {company.id}</div>
         {err && <div className="flex items-center gap-2 rounded-lg border border-empire-red/40 bg-empire-red/10 px-3 py-2 text-xs text-empire-red-bright"><EmpireIcon name="alert" size={14} /> {err}</div>}

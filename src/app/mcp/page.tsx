@@ -47,8 +47,12 @@ function Connection() {
       if (source && ['codex', 'claude'].includes(source.toLowerCase())) setWizardSource(source.toLowerCase())
     } catch { /* noop */ }
   }, [load])
-  async function create() { const r = await post('/api/mcp/credentials', { name: 'Personal worker key' }); setSecret(r.secret); await load() }
-  async function regenerate(id: string) { const r = await post(`/api/mcp/credentials/${id}/regenerate`, {}); setSecret(r.secret); await load() }
+  async function create() {
+    const name = wizardSource ? `${wizardSource === 'claude' ? 'Claude' : 'Codex'} wizard key` : 'Wizard key'
+    const r = await post('/api/mcp/credentials', { name })
+    setSecret(r.secret)
+    await load()
+  }
   async function revoke(id: string) { await del(`/api/mcp/credentials/${id}`); await load() }
   return <div className="space-y-4">
     {wizardSource && meta && <GlassPanel variant="gold" className="p-5">
@@ -81,10 +85,10 @@ function Connection() {
       <code className="mt-2 block break-all text-xs text-empire-gold">{secret}</code>
     </GlassPanel>}
     <GlassPanel className="p-5">
-      <div className="mb-3 flex items-center justify-between"><h2 className="font-empire text-lg text-empire-text">Credentials</h2><LiquidMetalButton size="sm" onClick={create}>Generate key</LiquidMetalButton></div>
+      <div className="mb-3 flex items-center justify-between"><h2 className="font-empire text-lg text-empire-text">Credentials</h2><LiquidMetalButton size="sm" onClick={create}>Generate wizard key</LiquidMetalButton></div>
       <div className="space-y-2">{rows.map(r => <div key={r.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-empire-border px-3 py-2">
         <div className="min-w-0 flex-1"><p className="text-sm text-empire-text">{r.name}</p><p className="font-data text-[10px] text-empire-text-dim">{r.keyPrefix}... · {r.revokedAt ? 'revoked' : 'active'}</p></div>
-        {!r.revokedAt && <><button className="text-xs text-empire-gold" onClick={() => regenerate(r.id)}>Regenerate</button><button className="text-xs text-empire-red-bright" onClick={() => revoke(r.id)}>Revoke</button></>}
+        {!r.revokedAt && <button className="text-xs text-empire-red-bright" onClick={() => revoke(r.id)}>Revoke</button>}
       </div>)}</div>
     </GlassPanel>
   </div>

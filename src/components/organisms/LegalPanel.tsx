@@ -19,6 +19,7 @@ import { deptIcon } from '@/lib/dept-icons'
 // PDF is the document the counterparty actually executes.
 
 const ACCENT = '#9d6bff'   // legal purple, lifted for contrast on dark
+const ACTIVE_COMPANY_KEY = 'empire-os-active-profile'
 const eur = (n: number | null | undefined) =>
   n == null ? '—' : `${n < 0 ? '-' : ''}€${Math.abs(Math.round(n)).toLocaleString()}`
 
@@ -38,13 +39,14 @@ type Page<T> = { data: T[]; page: number; pageSize: number; total: number; total
 type Variable = { key: string; label: string; type: 'text' | 'number' | 'date' | 'textarea'; default?: string | number; help?: string }
 type Template = { id: string; key: string; name: string; category: string; description?: string; bodyMarkdown: string; variables: Variable[]; jurisdiction: string; _count?: { documents: number } }
 type Pricing = { numDevs: number; ratePerDev: number; markupPct: number; baseCost: number; clientPrice: number; margin: number; marginPct: number; annualClientPrice: number }
-type Signature = { party: 'provider' | 'counterparty'; role: string; name: string; signedName: string | null; signedAt: string | null; email: string | null }
+type Signature = { party: string; role: string; name: string; signedName: string | null; signedAt: string | null; email: string | null }
 type Doc = {
   id: string; templateKey: string; title: string; counterparty: string | null; status: string
   params?: Record<string, any>; renderedMarkdown?: string; pricing: Pricing | null; signatures?: Signature[] | null
   createdBy: string; createdAt: string; template?: Template & { name: string; category: string }
 }
 type Summary = { templates: number; documents: number; signed: number; draft: number; sent: number; byStatus: { status: string; count: number }[] }
+type CompanyMarks = { slug?: string; name: string; stampImageUrl?: string | null; stampEnabled?: boolean; confidentialWatermark?: boolean }
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -131,11 +133,15 @@ function downloadBlob(content: string, filename: string, type: string) {
 }
 // Print / Save-as-PDF: open a clean letterhead window and invoke the browser's
 // print engine. This is the actual signable, shareable document.
-function printContract(d: Doc) {
+function printContract(d: Doc, marks?: CompanyMarks | null) {
   const w = window.open('', '_blank', 'width=860,height=1000')
   if (!w) return
   const body = mdToHtml(d.renderedMarkdown || '')
   const acv = d.pricing ? eur(d.pricing.annualClientPrice) : null
+  const stamp = marks?.stampEnabled && marks.stampImageUrl
+    ? `<img class="stamp" src="${escapeHtml(marks.stampImageUrl)}" alt="Company stamp" />`
+    : ''
+  const watermark = marks?.confidentialWatermark ? '<div class="wm">CONFIDENTIAL</div>' : ''
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(d.title)}</title>
     <style>
       @page{margin:22mm 20mm}
@@ -144,9 +150,12 @@ function printContract(d: Doc) {
       .lh{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1a1a1a;padding-bottom:8px;margin-bottom:22px;font-family:Georgia,serif}
       .lh .co{font-size:18px;font-weight:700;letter-spacing:.02em}
       .lh .meta{font-size:10px;color:#777;text-align:right}
+      .stamp{position:fixed;right:26px;bottom:24px;max-width:116px;max-height:116px;filter:grayscale(1);opacity:.34;z-index:2}
+      .wm{position:fixed;inset:0;display:grid;place-items:center;transform:rotate(-34deg);font:700 72px Arial,sans-serif;letter-spacing:.18em;color:rgba(0,0,0,.055);z-index:0;pointer-events:none}
+      .wrap{position:relative;z-index:1}
       ${CONTRACT_CSS}
-    </style></head><body><div class="wrap">
-      <div class="lh"><div class="co">Cregen AI Ltd</div><div class="meta">${escapeHtml(d.template?.name || d.templateKey)}${acv ? ' · ACV ' + acv : ''}<br/>Status: ${escapeHtml(d.status)}</div></div>
+    </style></head><body>${watermark}${stamp}<div class="wrap">
+      <div class="lh"><div class="co">${escapeHtml(marks?.name || 'Cregen AI Ltd')}</div><div class="meta">${escapeHtml(d.template?.name || d.templateKey)}${acv ? ' · ACV ' + acv : ''}<br/>Status: ${escapeHtml(d.status)}</div></div>
       <div class="lg-prose">${body}</div>
       ${signaturesHtml(d.signatures)}
     </div>
@@ -456,7 +465,14 @@ function TemplateEditModal({ tpl, mode, open, onClose, onSaved }: { tpl: Templat
       key: tpl.key || '', name: tpl.name || '', category: tpl.category || '', jurisdiction: tpl.jurisdiction || '',
       description: tpl.description || '', bodyMarkdown: tpl.bodyMarkdown || '',
     })
-    else setF({ key: '', name: '', category: 'commercial', jurisdiction: 'EU', description: '', bodyMarkdown: '# {{clientName}} Agreement\n\nThis agreement is between Cregen AI Ltd and {{clientName}}.' })
+    else setF({
+      key: '',
+      name: '',
+      category: 'commercial',
+      jurisdiction: 'EU',
+      description: '',
+      bodyMarkdown: '# {{clientName}} Agreement\n\nThis agreement is between Cregen AI Ltd and {{clientName}}.\n\n## Signatures\n\n{{signature.(Cregen AI Ltd)}}\n\n{{signature.(Counterparty)}}',
+    })
   }, [tpl, open])
   const save = async () => {
     if (!f.name || !f.category || !f.bodyMarkdown || (mode === 'create' && !f.key)) return
@@ -487,6 +503,9 @@ function TemplateEditModal({ tpl, mode, open, onClose, onSaved }: { tpl: Templat
           <input className="empire-input w-full mt-1" value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>
         <label className="block"><span className="empire-label">Body (markdown)</span>
           <textarea className="empire-input w-full mt-1 font-mono text-xs" rows={10} value={f.bodyMarkdown} onChange={e => setF({ ...f, bodyMarkdown: e.target.value })} /></label>
+        <p className="text-[11px] text-empire-text-muted">
+          Fields are generated from tokens like <span className="font-data text-empire-gold">{'{{good}}'}</span>. Add at least two signature slots with <span className="font-data text-empire-gold">{'{{signature.(Name)}}'}</span>.
+        </p>
         <div className="flex justify-end gap-2 pt-1">
           <button onClick={onClose} className="px-4 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
           <button onClick={save} disabled={saving || !f.name || !f.category || !f.bodyMarkdown || (mode === 'create' && !f.key)} className="empire-btn-primary disabled:opacity-50">{saving ? 'Saving…' : mode === 'create' ? 'Create template' : 'Save changes'}</button>
@@ -579,12 +598,20 @@ function DocumentViewer({ id, onClose, onChanged }: { id: string; onClose: () =>
   const [editing, setEditing] = useState(false)
   const [signParty, setSignParty] = useState<string | null>(null)
   const [signName, setSignName] = useState('')
+  const [companyMarks, setCompanyMarks] = useState<CompanyMarks | null>(null)
 
   const load = useCallback(() => {
     setLoading(true)
     fetcher(`/api/legal/documents/${id}`).then(setDoc).catch(console.error).finally(() => setLoading(false))
   }, [id])
   useEffect(() => { load() }, [load])
+  useEffect(() => {
+    fetcher('/api/companies').then((rows: CompanyMarks[]) => {
+      let slug: string | null = null
+      try { slug = localStorage.getItem(ACTIVE_COMPANY_KEY) } catch { /* noop */ }
+      setCompanyMarks((rows || []).find((c: any) => c.slug === slug) || rows?.[0] || null)
+    }).catch(() => setCompanyMarks(null))
+  }, [])
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h)
@@ -627,7 +654,7 @@ function DocumentViewer({ id, onClose, onChanged }: { id: string; onClose: () =>
                 <button onClick={onClose} aria-label="Close" className="text-empire-text-dim hover:text-empire-text leading-none shrink-0"><EmpireIcon name="close" size={18} /></button>
               </div>
               <div className="flex flex-wrap items-center gap-2 mt-3">
-                <button onClick={() => printContract(doc)} className="inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium text-black" style={{ background: ACCENT }}><EmpireIcon name="document" size={13} />Print / Save PDF</button>
+                <button onClick={() => printContract(doc, companyMarks)} className="inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium text-black" style={{ background: ACCENT }}><EmpireIcon name="document" size={13} />Print / Save PDF</button>
                 <button onClick={() => downloadBlob(doc.renderedMarkdown || '', exportFilename(doc, 'md'), 'text/markdown')} className="inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs border border-empire-border text-empire-text hover:border-empire-gold/60"><EmpireIcon name="arrow-down" size={13} />Download .md</button>
                 <button onClick={copy} className="inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs border border-empire-border text-empire-text hover:border-empire-gold/60"><EmpireIcon name={copied ? 'check' : 'document'} size={13} />{copied ? 'Copied' : 'Copy'}</button>
                 <button onClick={() => setEditing(e => !e)} className="inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs border border-empire-border text-empire-text hover:border-empire-gold/60"><EmpireIcon name="pen-nib" size={13} />{editing ? 'Close editor' : 'Edit & Regenerate'}</button>

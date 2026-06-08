@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 
 // Routes reachable without a session.
-const PUBLIC = ['/login']
+const PUBLIC = ['/login', '/authorize']
 
 /**
  * AuthGate — wraps the whole app. While the session resolves it shows an empire

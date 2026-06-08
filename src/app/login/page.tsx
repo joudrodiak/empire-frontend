@@ -1,6 +1,6 @@
 'use client'
 import React, { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { LiquidMetalButton } from '@/components/atoms/LiquidMetalButton'
@@ -14,20 +14,23 @@ import { PasswordInput } from '@/components/molecules/PasswordInput'
 export default function LoginPage() {
   const { user, loading, login } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const requestedNext = searchParams.get('next') || '/'
+  const next = requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : '/'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Already authenticated → leave the portal.
-  useEffect(() => { if (!loading && user) router.replace('/') }, [loading, user, router])
+  useEffect(() => { if (!loading && user) router.replace(next) }, [loading, user, router, next])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError(null); setBusy(true)
     try {
       await login(email.trim(), password)
-      router.replace('/')
+      router.replace(next)
     } catch (err: any) {
       setError(err?.message || 'Login failed')
     } finally { setBusy(false) }

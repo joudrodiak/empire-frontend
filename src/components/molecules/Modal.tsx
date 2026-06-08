@@ -34,7 +34,7 @@ export function Modal({ open, onClose, title, icon, children, width = 'max-w-lg'
   if (!open || !mounted) return null
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto overflow-x-hidden bg-black/60 p-3 py-[8vh] backdrop-blur-sm animate-fade-in sm:p-4" onMouseDown={onClose}>
-      <div className={`glass-gold w-full max-w-[calc(100vw-1.5rem)] overflow-hidden ${width} animate-slide-up p-4 sm:max-w-[calc(100vw-2rem)] sm:p-5`} onMouseDown={e => e.stopPropagation()}>
+      <div className={`glass-gold w-full max-h-[calc(100vh-1.5rem)] max-w-[calc(100vw-1.5rem)] overflow-hidden ${width} animate-slide-up p-4 sm:max-h-[calc(100vh-2rem)] sm:max-w-[calc(100vw-2rem)] sm:p-5`} onMouseDown={e => e.stopPropagation()}>
         <div className="mb-4 flex min-w-0 items-center gap-2.5">
           {icon && <span className="text-empire-gold">{icon}</span>}
           <h3 className="min-w-0 truncate font-empire text-base tracking-wide text-empire-text">{title}</h3>

@@ -264,7 +264,7 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
 
   return (
     <Modal open onClose={onClose} title="Onboard a company" icon={<EmpireIcon name="crown" size={18} />} width="max-w-3xl">
-      <div className="max-w-full overflow-hidden space-y-4">
+      <div className="flex max-h-[calc(100vh-7rem)] max-w-full flex-col gap-4 overflow-hidden sm:max-h-[calc(100vh-8rem)]">
         {/* step rail */}
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
           {WIZARD_STEPS.map((s, i) => (
@@ -286,7 +286,7 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
         {/* one scroll region for the active step — the rail above and nav below
             stay pinned, so the section header is always in view and no step
             (e.g. Review) can flow outside the box. */}
-        <div className="max-h-[58vh] max-w-full space-y-4 overflow-y-auto overflow-x-hidden pr-1">
+        <div className="min-h-0 max-w-full flex-1 space-y-4 overflow-y-auto overflow-x-hidden pr-1">
         {/* ---- Step 1: Identity ---- */}
         {step === 0 && (
           <div className="space-y-3.5 animate-fade-in">
@@ -506,7 +506,7 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
         </div>
 
         {/* nav */}
-        <div className="flex items-center justify-between gap-2 pt-1">
+        <div className="flex shrink-0 items-center justify-between gap-2 pt-1">
           <button onClick={step === 0 ? onClose : () => setStep(s => s - 1)} disabled={busy}
             className="rounded-lg px-3.5 py-2 text-xs text-empire-text-muted transition-colors hover:text-empire-text disabled:opacity-50">
             {step === 0 ? 'Cancel' : 'Back'}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import '@aejkatappaja/phantom-ui'
 import { fetcher, ragColor, ragLabel, formatCurrency, post, patch, del } from '@/lib/api'
@@ -19,6 +19,7 @@ import { GlassPanel } from '@/components/atoms/GlassPanel'
 import { UnitMedallion } from '@/components/atoms/UnitMedallion'
 import { ProfileSwitcher } from '@/components/molecules/ProfileSwitcher'
 import { TERMS } from '@/lib/terms'
+import { empireColor, empireTint } from '@/lib/theme'
 
 type Department = {
   id: string
@@ -140,7 +141,7 @@ export default function EmpireDashboard() {
                 <span className="w-5 h-5 rounded-full bg-empire-amber/20 flex items-center justify-center text-xs">
                   {pendingApprovals}
                 </span>
-                Lukas Beckers awaits decision
+                Decision pending
               </button>
             )}
             <div className="text-empire-text-muted text-xs">
@@ -193,9 +194,17 @@ export default function EmpireDashboard() {
 }
 
 function CompanyNetworkTab({ departments, employees }: { departments: Department[]; employees: Employee[] }) {
+  const [scale, setScale] = useState(1)
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const dragRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
   const units = departments.slice(0, 12)
   const center = { x: 50, y: 50 }
   const radius = 33
+  const zoomBy = (delta: number) => setScale(value => Math.min(1.8, Math.max(0.68, Number((value + delta).toFixed(2)))))
+  const centerMap = () => {
+    setScale(1)
+    setOffset({ x: 0, y: 0 })
+  }
 
   const unitNodes = units.map((dept, index) => {
     const angle = (Math.PI * 2 * index) / Math.max(units.length, 1) - Math.PI / 2
@@ -209,21 +218,22 @@ function CompanyNetworkTab({ departments, employees }: { departments: Department
   const childNodes: Array<{ id: string; kind: 'members' | 'documents' | 'person'; label: string; x: number; y: number; color: string; href?: string; delay: number }> = []
 
   unitNodes.forEach((node, index) => {
-    edges.push({ x1: center.x, y1: center.y, x2: node.x, y2: node.y, color: node.dept.color || '#c9a233', delay: index * 70 })
+    const accent = empireColor(node.dept.color)
+    edges.push({ x1: center.x, y1: center.y, x2: node.x, y2: node.y, color: accent, delay: index * 70 })
     const memberHubX = node.x + Math.cos(node.angle) * 10
     const memberHubY = node.y + Math.sin(node.angle) * 10
     const docHubX = node.x + Math.cos(node.angle + 0.45) * 12
     const docHubY = node.y + Math.sin(node.angle + 0.45) * 12
-    edges.push({ x1: node.x, y1: node.y, x2: memberHubX, y2: memberHubY, color: '#8fc7ff', delay: 180 + index * 45 })
-    edges.push({ x1: node.x, y1: node.y, x2: docHubX, y2: docHubY, color: '#d9a441', delay: 240 + index * 45 })
-    childNodes.push({ id: `${node.dept.id}-members`, kind: 'members', label: `${node.dept.name} members`, x: memberHubX, y: memberHubY, color: '#8fc7ff', href: `/departments/${node.dept.slug}`, delay: index * 60 })
-    childNodes.push({ id: `${node.dept.id}-docs`, kind: 'documents', label: `${node.dept.name} documents`, x: docHubX, y: docHubY, color: '#d9a441', href: `/departments/${node.dept.slug}`, delay: index * 60 + 90 })
+    edges.push({ x1: node.x, y1: node.y, x2: memberHubX, y2: memberHubY, color: '#F4EFE3', delay: 180 + index * 45 })
+    edges.push({ x1: node.x, y1: node.y, x2: docHubX, y2: docHubY, color: '#C9A233', delay: 240 + index * 45 })
+    childNodes.push({ id: `${node.dept.id}-members`, kind: 'members', label: `${node.dept.name} members`, x: memberHubX, y: memberHubY, color: '#F4EFE3', href: `/departments/${node.dept.slug}`, delay: index * 60 })
+    childNodes.push({ id: `${node.dept.id}-docs`, kind: 'documents', label: `${node.dept.name} documents`, x: docHubX, y: docHubY, color: '#C9A233', href: `/departments/${node.dept.slug}`, delay: index * 60 + 90 })
     node.members.forEach((member, memberIndex) => {
       const spread = (memberIndex - (node.members.length - 1) / 2) * 0.28
       const px = memberHubX + Math.cos(node.angle + spread) * 7
       const py = memberHubY + Math.sin(node.angle + spread) * 7
-      edges.push({ x1: memberHubX, y1: memberHubY, x2: px, y2: py, color: '#8fc7ff', delay: 320 + index * 35 + memberIndex * 45 })
-      childNodes.push({ id: member.id, kind: 'person', label: `${member.name} · ${member.role}`, x: px, y: py, color: node.dept.color || '#8fc7ff', delay: index * 80 + memberIndex * 60 })
+      edges.push({ x1: memberHubX, y1: memberHubY, x2: px, y2: py, color: '#F4EFE3', delay: 320 + index * 35 + memberIndex * 45 })
+      childNodes.push({ id: member.id, kind: 'person', label: `${member.name} · ${member.role}`, x: px, y: py, color: accent, delay: index * 80 + memberIndex * 60 })
     })
   })
 
@@ -231,52 +241,87 @@ function CompanyNetworkTab({ departments, employees }: { departments: Department
     <div className="space-y-6 animate-slide-up">
       <SectionHeader title="Company Network" subtitle="Company intelligence map for MCP agents: units, members and documents as connected context" />
       <GlassPanel variant="glass" className="relative overflow-hidden rounded-xl p-0">
-        <div className="relative h-[680px] min-h-[560px] bg-[radial-gradient(circle_at_center,rgba(201,162,51,0.13),transparent_34%),linear-gradient(180deg,rgba(16,16,23,0.96),rgba(8,8,13,0.98))]">
-          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            {edges.map((edge, i) => (
-              <line
-                key={i}
-                x1={edge.x1}
-                y1={edge.y1}
-                x2={edge.x2}
-                y2={edge.y2}
-                vectorEffect="non-scaling-stroke"
-                stroke={edge.color}
-                strokeWidth={edge.x1 === center.x && edge.y1 === center.y ? 0.22 : 0.12}
-                strokeLinecap="round"
-                className="network-edge"
-                style={{ animationDelay: `${edge.delay}ms` }}
-              />
-            ))}
-          </svg>
-
-          <div className="network-node network-company" style={{ left: `${center.x}%`, top: `${center.y}%` }}>
-            <span className="font-empire text-lg text-empire-gold">Empire OS</span>
-            <span className="mt-1 text-center text-[10px] uppercase tracking-widest text-empire-text-muted">Company Intelligence App</span>
-            <span className="network-tip">Mother node: active company</span>
+        <div
+          className="relative h-[680px] min-h-[560px] touch-none cursor-grab overflow-hidden bg-[radial-gradient(circle_at_center,rgba(201,162,51,0.13),transparent_34%),linear-gradient(180deg,rgba(16,16,23,0.96),rgba(8,8,13,0.98))] active:cursor-grabbing"
+          onWheel={event => {
+            event.preventDefault()
+            zoomBy(event.deltaY > 0 ? -0.08 : 0.08)
+          }}
+          onPointerDown={event => {
+            if ((event.target as HTMLElement).closest('a,button')) return
+            event.currentTarget.setPointerCapture(event.pointerId)
+            dragRef.current = { x: event.clientX, y: event.clientY, ox: offset.x, oy: offset.y }
+          }}
+          onPointerMove={event => {
+            const drag = dragRef.current
+            if (!drag) return
+            setOffset({ x: drag.ox + event.clientX - drag.x, y: drag.oy + event.clientY - drag.y })
+          }}
+          onPointerUp={() => { dragRef.current = null }}
+          onPointerCancel={() => { dragRef.current = null }}
+        >
+          <div className="absolute right-4 top-4 z-20 flex items-center gap-1 rounded-full border border-empire-border/70 bg-empire-deep/80 p-1 backdrop-blur">
+            <button type="button" onClick={() => zoomBy(-0.12)} aria-label="Zoom network out" className="grid h-8 w-8 place-items-center rounded-full text-empire-text-muted transition-colors hover:bg-empire-elevated hover:text-empire-gold">
+              <EmpireIcon name="close" size={13} />
+            </button>
+            <span className="min-w-12 text-center font-data text-[11px] text-empire-text-dim">{Math.round(scale * 100)}%</span>
+            <button type="button" onClick={() => zoomBy(0.12)} aria-label="Zoom network in" className="grid h-8 w-8 place-items-center rounded-full text-empire-text-muted transition-colors hover:bg-empire-elevated hover:text-empire-gold">
+              <EmpireIcon name="plus" size={14} />
+            </button>
+            <button type="button" onClick={centerMap} aria-label="Center network" className="grid h-8 w-8 place-items-center rounded-full text-empire-text-muted transition-colors hover:bg-empire-elevated hover:text-empire-gold">
+              <EmpireIcon name="compass" size={14} />
+            </button>
           </div>
+          <div
+            className="absolute inset-0 will-change-transform"
+            style={{ transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})`, transformOrigin: '50% 50%' }}
+          >
+            <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              {edges.map((edge, i) => (
+                <line
+                  key={i}
+                  x1={edge.x1}
+                  y1={edge.y1}
+                  x2={edge.x2}
+                  y2={edge.y2}
+                  vectorEffect="non-scaling-stroke"
+                  stroke={edge.color}
+                  strokeWidth={edge.x1 === center.x && edge.y1 === center.y ? 0.22 : 0.12}
+                  strokeLinecap="round"
+                  className="network-edge"
+                  style={{ animationDelay: `${edge.delay}ms` }}
+                />
+              ))}
+            </svg>
 
-          {unitNodes.map((node, index) => (
-            <Link key={node.dept.id} href={`/departments/${node.dept.slug}`} className="network-node network-unit" style={{ left: `${node.x}%`, top: `${node.y}%`, borderColor: `${node.dept.color || '#c9a233'}70`, animationDelay: `${index * 80}ms` }}>
-              <UnitMedallion slug={node.dept.slug} size={38} />
-              <span className="mt-1 max-w-[110px] truncate text-center text-[11px] font-semibold text-empire-text">{node.dept.name}</span>
-              <span className="network-tip">{node.dept.name} · {node.dept._count.employees} members</span>
-            </Link>
-          ))}
+            <div className="network-node network-company" style={{ left: `${center.x}%`, top: `${center.y}%` }}>
+              <span className="font-empire text-lg text-empire-gold">Empire OS</span>
+              <span className="mt-1 text-center text-[10px] uppercase tracking-widest text-empire-text-muted">Company Intelligence App</span>
+              <span className="network-tip">Mother node: active company</span>
+            </div>
 
-          {childNodes.map(node => (
-            node.href ? (
-              <Link key={node.id} href={node.href} className={`network-node network-child network-${node.kind}`} style={{ left: `${node.x}%`, top: `${node.y}%`, borderColor: `${node.color}70`, color: node.color, animationDelay: `${node.delay}ms` }}>
-                <EmpireIcon name={node.kind === 'documents' ? 'document' : 'people'} size={15} />
-                <span className="network-tip">{node.label}</span>
+            {unitNodes.map((node, index) => (
+              <Link key={node.dept.id} href={`/departments/${node.dept.slug}`} className="network-node network-unit" style={{ left: `${node.x}%`, top: `${node.y}%`, borderColor: `${empireColor(node.dept.color)}70`, animationDelay: `${index * 80}ms` }}>
+                <UnitMedallion slug={node.dept.slug} size={38} />
+                <span className="mt-1 max-w-[110px] truncate text-center text-[11px] font-semibold text-empire-text">{node.dept.name}</span>
+                <span className="network-tip">{node.dept.name} · {node.dept._count.employees} members</span>
               </Link>
-            ) : (
-              <button key={node.id} className="network-node network-child network-person" style={{ left: `${node.x}%`, top: `${node.y}%`, borderColor: `${node.color}70`, color: node.color, animationDelay: `${node.delay}ms` }}>
-                <EmpireIcon name="user" size={13} />
-                <span className="network-tip">{node.label}</span>
-              </button>
-            )
-          ))}
+            ))}
+
+            {childNodes.map(node => (
+              node.href ? (
+                <Link key={node.id} href={node.href} className={`network-node network-child network-${node.kind}`} style={{ left: `${node.x}%`, top: `${node.y}%`, borderColor: `${node.color}70`, color: node.color, animationDelay: `${node.delay}ms` }}>
+                  <EmpireIcon name={node.kind === 'documents' ? 'document' : 'people'} size={15} />
+                  <span className="network-tip">{node.label}</span>
+                </Link>
+              ) : (
+                <button key={node.id} className="network-node network-child network-person" style={{ left: `${node.x}%`, top: `${node.y}%`, borderColor: `${node.color}70`, color: node.color, animationDelay: `${node.delay}ms` }}>
+                  <EmpireIcon name="user" size={13} />
+                  <span className="network-tip">{node.label}</span>
+                </button>
+              )
+            ))}
+          </div>
         </div>
       </GlassPanel>
     </div>
@@ -365,9 +410,9 @@ function TerritoryHealth({ departments }: { departments: Department[] }) {
   const bandOf = (d: Department) => (d.compositeScores?.[0]?.ragStatus || 'PENDING').toUpperCase()
   const scoreOf = (d: Department) => d.compositeScores?.[0]?.score ?? null
   const BANDS = [
-    { key: 'GREEN', label: 'Healthy', color: '#3DAF75' },
-    { key: 'AMBER', label: 'Watch', color: '#D9A441' },
-    { key: 'RED', label: 'At risk', color: '#C9594F' },
+    { key: 'GREEN', label: 'Healthy', color: '#C9A233' },
+    { key: 'AMBER', label: 'Watch', color: '#C9A233' },
+    { key: 'RED', label: 'At risk', color: '#F4EFE3' },
   ]
   const tally = (b: string) => departments.filter(d => bandOf(d) === b).length
   // Attention order: RED, then AMBER, then PENDING, each by ascending score.
@@ -401,7 +446,7 @@ function TerritoryHealth({ departments }: { departments: Department[] }) {
             {attention.map(dept => {
               const band = bandOf(dept)
               const score = scoreOf(dept)
-              const color = band === 'RED' ? '#C9594F' : band === 'AMBER' ? '#D9A441' : '#7A7A8C'
+              const color = band === 'RED' ? '#F4EFE3' : band === 'AMBER' ? '#C9A233' : '#7A7468'
               return (
                 <Link key={dept.id} href={`/departments/${dept.slug}`}
                   className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-empire-elevated/40 transition-colors group">
@@ -425,6 +470,7 @@ function DepartmentCard({ dept }: { dept: Department }) {
   const latest = dept.compositeScores?.[0]
   const rag = latest?.ragStatus || 'PENDING'
   const score = latest?.score
+  const accent = empireColor(dept.color)
 
   return (
     <Link href={`/departments/${dept.slug}`}>
@@ -432,7 +478,7 @@ function DepartmentCard({ dept }: { dept: Department }) {
         {/* color accent bar */}
         <div
           className="absolute top-0 left-0 right-0 h-0.5 rounded-t-lg opacity-60"
-          style={{ background: dept.color || '#C9A233' }}
+          style={{ background: accent }}
         />
 
         <div className="flex items-start justify-between mb-3">
@@ -453,13 +499,7 @@ function DepartmentCard({ dept }: { dept: Department }) {
 
         <div className="flex items-center justify-between text-xs text-empire-text-dim pt-3 border-t border-empire-border">
           <span>{dept.kpiFramework}</span>
-          <span>
-            {dept.managedByAI ? (
-              <span className="inline-flex items-center gap-1"><EmpireIcon name="cog" size={12} /> {dept.aiManagerName}</span>
-            ) : (
-              `${dept._count.employees} member${dept._count.employees !== 1 ? 's' : ''}`
-            )}
-          </span>
+          <span>{dept._count.employees} member{dept._count.employees !== 1 ? 's' : ''}</span>
         </div>
       </GlassPanel>
     </Link>
@@ -498,6 +538,7 @@ function RosterTab({ employees }: { employees: Employee[] }) {
 }
 
 function EmployeeCard({ emp, onOpen }: { emp: Employee; onOpen: () => void }) {
+  const accent = empireColor(emp.department.color)
   return (
     <button
       onClick={onOpen}
@@ -505,7 +546,7 @@ function EmployeeCard({ emp, onOpen }: { emp: Employee; onOpen: () => void }) {
     >
       <div
         className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-empire font-bold flex-shrink-0"
-        style={{ background: emp.department.color + '30', color: emp.department.color }}
+        style={{ background: empireTint(emp.department.color, '30'), color: accent }}
       >
         {emp.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
       </div>
@@ -523,7 +564,7 @@ function EmployeeCard({ emp, onOpen }: { emp: Employee; onOpen: () => void }) {
             <span className="text-empire-amber-bright">{emp.commissionRate}% commission</span>
           )}
           {emp.contractType === 'ai_agent' && (
-            <span className="text-purple-400">AI Agent</span>
+            <span className="text-empire-gold">AI Agent</span>
           )}
           {emp.contractType === 'advisory' && (
             <span className="text-empire-text-muted">Advisory</span>
@@ -828,7 +869,7 @@ function ApprovalsTab({ approvals, setApprovals }: { approvals: ApprovalRequest[
 
   return (
     <div className="space-y-8 animate-slide-up">
-      <SectionHeader title="The Throne" subtitle="Lukas Beckers awaits your royal decisions" />
+      <SectionHeader title="The Throne" subtitle="Awaiting your royal decisions" />
 
       {pending.length === 0 && (
         <div className="bg-empire-green-bg border border-empire-green/30 rounded-lg p-6 text-center">

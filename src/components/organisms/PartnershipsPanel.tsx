@@ -16,17 +16,17 @@ type Page<T> = { data: T[]; page: number; pageSize: number; total: number; total
 // co-sell pipeline (/api/partnerships/*). Sourced/influenced ARR, weighted
 // forecast, win-rate, tier economics and fee liability all derive server-side.
 
-const ACCENT = '#8b5cf6'
+const ACCENT = '#C9A233'
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'partners', label: 'Partners' },
   { id: 'pipeline', label: 'Co-Sell' },
   { id: 'tiers', label: 'Tiers' },
 ]
-const TIER_COLOR: Record<string, string> = { platinum: '#a855f7', gold: '#d4a72c', silver: '#94a3b8', bronze: '#b87333' }
-const TYPE_COLOR: Record<string, string> = { reseller: '#8b5cf6', technology: '#06b6d4', agency: '#ec4899', referral: '#10b981', oem: '#f59e0b' }
-const STATUS_COLOR: Record<string, string> = { active: '#10b981', onboarding: '#4f8ff7', dormant: '#f59e0b', terminated: '#c94f4f' }
-const STAGE_COLOR: Record<string, string> = { registered: '#6b7280', qualified: '#4f8ff7', proposal: '#06b6d4', committed: '#8b5cf6', closed_won: '#10b981', closed_lost: '#c94f4f' }
+const TIER_COLOR: Record<string, string> = { platinum: '#C9A233', gold: '#C9A233', silver: '#C9A233', bronze: '#C9A233' }
+const TYPE_COLOR: Record<string, string> = { reseller: '#C9A233', technology: '#C9A233', agency: '#C9A233', referral: '#C9A233', oem: '#C9A233' }
+const STATUS_COLOR: Record<string, string> = { active: '#C9A233', onboarding: '#C9A233', dormant: '#C9A233', terminated: '#F4EFE3' }
+const STAGE_COLOR: Record<string, string> = { registered: '#7A7468', qualified: '#C9A233', proposal: '#C9A233', committed: '#C9A233', closed_won: '#C9A233', closed_lost: '#F4EFE3' }
 const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(Math.round(n))
 const eur = (n: number) => `€${fmt(n)}`
 
@@ -84,18 +84,18 @@ function Overview() {
       <Grid cols={6}>
         <KpiCard icon="coins" label="Partner-Sourced ARR" value={eur(s.sourcedArr)} sub={`+${eur(s.influencedArr)} influenced`} accent={ACCENT} />
         <KpiCard icon="chart-line" label="Total Channel ARR" value={eur(s.totalChannelArr)} accent={ACCENT} />
-        <KpiCard icon="handshake" label="Active Partners" value={String(s.activePartners)} sub={`${s.totalPartners} total`} accent="#10b981" />
-        <KpiCard icon="flag" label="Co-Sell Pipeline" value={eur(s.pipelineValue)} sub={`${s.openDeals} open`} accent="#4f8ff7" />
-        <KpiCard icon="gauge" label="Weighted Forecast" value={eur(s.weightedPipeline)} accent="#06b6d4" />
-        <KpiCard icon="trophy" label="Channel Win Rate" value={`${s.winRate}%`} sub={`${s.wonDeals} won`} accent={s.winRate >= 50 ? '#10b981' : '#f59e0b'} />
+        <KpiCard icon="handshake" label="Active Partners" value={String(s.activePartners)} sub={`${s.totalPartners} total`} accent="#C9A233" />
+        <KpiCard icon="flag" label="Co-Sell Pipeline" value={eur(s.pipelineValue)} sub={`${s.openDeals} open`} accent="#C9A233" />
+        <KpiCard icon="gauge" label="Weighted Forecast" value={eur(s.weightedPipeline)} accent="#C9A233" />
+        <KpiCard icon="trophy" label="Channel Win Rate" value={`${s.winRate}%`} sub={`${s.wonDeals} won`} accent={s.winRate >= 50 ? '#C9A233' : '#C9A233'} />
       </Grid>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Panel icon="trophy" title="Closed-won (channel)">
-          <div className="text-4xl font-empire leading-none tabular-nums" style={{ color: '#10b981' }}>{eur(s.wonValue)}</div>
+          <div className="text-4xl font-empire leading-none tabular-nums" style={{ color: '#C9A233' }}>{eur(s.wonValue)}</div>
           <div className="text-empire-text-muted text-xs mt-2">{s.wonDeals} deals closed via partners</div>
         </Panel>
         <Panel icon="coins" title="Referral-fee liability">
-          <div className="text-4xl font-empire leading-none tabular-nums" style={{ color: '#f59e0b' }}>{eur(s.feeLiability)}</div>
+          <div className="text-4xl font-empire leading-none tabular-nums" style={{ color: '#C9A233' }}>{eur(s.feeLiability)}</div>
           <div className="text-empire-text-muted text-xs mt-2">accrued on partner-sourced closed-won</div>
         </Panel>
         <Panel icon="medal" title="Certified reps">
@@ -142,11 +142,11 @@ function Partners() {
   const rows = data?.data || []
   const cols: Column<Partner>[] = [
     { key: 'name', label: 'Partner', render: p => <div><div className="font-medium text-empire-text">{p.name}</div><div className="text-empire-text-dim text-[11px]">{p.region}{p.managerName ? ` · ${p.managerName}` : ''}</div></div> },
-    { key: 'type', label: 'Type', render: p => <Pill text={p.type} color={TYPE_COLOR[p.type] || '#6b7280'} /> },
-    { key: 'tier', label: 'Tier', render: p => <Pill text={p.tier} color={TIER_COLOR[p.tier] || '#6b7280'} /> },
-    { key: 'status', label: 'Status', render: p => <Pill text={p.status} color={STATUS_COLOR[p.status] || '#6b7280'} /> },
+    { key: 'type', label: 'Type', render: p => <Pill text={p.type} color={TYPE_COLOR[p.type] || '#7A7468'} /> },
+    { key: 'tier', label: 'Tier', render: p => <Pill text={p.tier} color={TIER_COLOR[p.tier] || '#7A7468'} /> },
+    { key: 'status', label: 'Status', render: p => <Pill text={p.status} color={STATUS_COLOR[p.status] || '#7A7468'} /> },
     { key: 'sourcedArr', label: 'Sourced', align: 'right', render: p => <span className="text-empire-text">{eur(p.sourcedArr)}</span> },
-    { key: 'feeAccrued', label: 'Fee', align: 'right', render: p => <span style={{ color: '#f59e0b' }}>{eur(p.feeAccrued)}</span> },
+    { key: 'feeAccrued', label: 'Fee', align: 'right', render: p => <span style={{ color: '#C9A233' }}>{eur(p.feeAccrued)}</span> },
     { key: 'certifiedReps', label: 'Reps', align: 'right', render: p => <span className="text-empire-text-muted">{p.certifiedReps}</span> },
     { key: 'id', label: '', align: 'right', render: p => <div className="flex justify-end"><RowActions onView={() => setActive({ row: p, mode: 'view' })} onEdit={() => setActive({ row: p, mode: 'edit' })} onDelete={() => remove(p.id)} deleteLabel={p.name} /></div> },
   ]
@@ -217,7 +217,7 @@ function PipelineTab() {
   const totalOpen = data.funnel.reduce((s, f) => s + f.value, 0)
   const cols: Column<TopDeal>[] = [
     { key: 'name', label: 'Deal', render: d => <div><div className="font-medium text-empire-text text-sm">{d.customer}</div><div className="text-empire-text-dim text-[11px]">via {d.partner}</div></div> },
-    { key: 'stage', label: 'Stage', render: d => <Pill text={d.stage.replace('_', ' ')} color={STAGE_COLOR[d.stage] || '#6b7280'} /> },
+    { key: 'stage', label: 'Stage', render: d => <Pill text={d.stage.replace('_', ' ')} color={STAGE_COLOR[d.stage] || '#7A7468'} /> },
     { key: 'motion', label: 'Motion', render: d => <span className="text-empire-text-muted text-xs">{d.motion.replace('_', ' ')}</span> },
     { key: 'amount', label: 'Amount', align: 'right', render: d => <span className="text-empire-text">{eur(d.amount)}</span> },
     { key: 'probability', label: 'P', align: 'right', render: d => <span className="text-empire-text-muted">{d.probability}%</span> },
@@ -286,7 +286,7 @@ function CoSellDeals() {
   const rows = data?.data || []
   const cols: Column<CoSellDeal>[] = [
     { key: 'name', label: 'Deal', render: d => <div><div className="font-medium text-empire-text text-sm">{d.name}</div><div className="text-empire-text-dim text-[11px]">{d.customer || '—'} · via {d.partner}</div></div> },
-    { key: 'stage', label: 'Stage', render: d => <Pill text={d.stage.replace('_', ' ')} color={STAGE_COLOR[d.stage] || '#6b7280'} /> },
+    { key: 'stage', label: 'Stage', render: d => <Pill text={d.stage.replace('_', ' ')} color={STAGE_COLOR[d.stage] || '#7A7468'} /> },
     { key: 'amount', label: 'Amount', align: 'right', render: d => <span className="text-empire-text">{eur(d.amount)}</span> },
     { key: 'probability', label: 'P', align: 'right', render: d => <span className="text-empire-text-muted">{d.probability}%</span> },
     { key: 'weighted', label: 'Weighted', align: 'right', render: d => <span style={{ color: ACCENT }}>{eur(d.weighted)}</span> },
@@ -340,7 +340,7 @@ function Tiers() {
   if (loading) return <Loading />
   if (!data) return <EmptyState icon="medal" title="No tier data" />
   const tierCols: Column<TierRow>[] = [
-    { key: 'tier', label: 'Tier', render: t => <Pill text={t.tier} color={TIER_COLOR[t.tier] || '#6b7280'} /> },
+    { key: 'tier', label: 'Tier', render: t => <Pill text={t.tier} color={TIER_COLOR[t.tier] || '#7A7468'} /> },
     { key: 'partners', label: 'Partners', align: 'right', render: t => <span className="text-empire-text">{t.partners}</span> },
     { key: 'sourcedArr', label: 'Sourced ARR', align: 'right', render: t => <span className="text-empire-text">{eur(t.sourcedArr)}</span> },
     { key: 'avgSourced', label: 'Avg/Partner', align: 'right', render: t => <span className="text-empire-text-muted">{eur(t.avgSourced)}</span> },
@@ -356,7 +356,7 @@ function Tiers() {
         <div className="space-y-1.5 mt-3">
           {data.byType.map(t => (
             <div key={t.type} className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: TYPE_COLOR[t.type] || '#6b7280' }} /><span className="text-empire-text-muted capitalize">{t.type}</span></div>
+              <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: TYPE_COLOR[t.type] || '#7A7468' }} /><span className="text-empire-text-muted capitalize">{t.type}</span></div>
               <span className="text-empire-text">{t.partners} · {eur(t.sourcedArr)}</span>
             </div>
           ))}

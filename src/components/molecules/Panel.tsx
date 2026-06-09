@@ -10,12 +10,12 @@ export function Panel({ title, actions, children, className, pad = true, icon }:
   icon?: IconName
 }) {
   return (
-    <div className={cn('glass overflow-hidden', className)}>
+    <div className={cn('glass overflow-hidden shadow-gold-border', className)}>
       {title && (
         <div className="relative flex items-center justify-between gap-3 px-4 py-3">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-empire-text min-w-0">
             {icon && <EmpireIcon name={icon} size={15} className="text-empire-gold/80 shrink-0" />}
-            <span className="truncate">{title}</span>
+            <span className="truncate tracking-[0.01em]">{title}</span>
           </h3>
           {actions}
           {/* gold hairline divider under the header */}

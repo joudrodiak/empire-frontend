@@ -21,9 +21,9 @@ const TABS = [
   { id: 'objectives', label: 'Objectives', icon: 'crown' as const },
 ]
 
-const OKR_STATUS: Record<string, string> = { on_track: '#10b981', at_risk: '#f59e0b', off_track: '#c94f4f', done: '#C9A233' }
-const CAT_COLOR: Record<string, string> = { growth: '#10b981', product: '#8b5cf6', financial: '#C9A233', people: '#ec4899', operational: '#06b6d4' }
-const BCAT_COLOR: Record<string, string> = { revenue: '#C9A233', efficiency: '#06b6d4', growth: '#10b981', risk: '#c94f4f' }
+const OKR_STATUS: Record<string, string> = { on_track: '#C9A233', at_risk: '#C9A233', off_track: '#F4EFE3', done: '#C9A233' }
+const CAT_COLOR: Record<string, string> = { growth: '#C9A233', product: '#C9A233', financial: '#C9A233', people: '#C9A233', operational: '#C9A233' }
+const BCAT_COLOR: Record<string, string> = { revenue: '#C9A233', efficiency: '#C9A233', growth: '#C9A233', risk: '#F4EFE3' }
 const TREND_ICON: Record<string, IconName | null> = { up: 'arrow-up', down: 'arrow-down', flat: null }
 
 function Pill({ text, color }: { text: string; color: string }) {
@@ -82,15 +82,15 @@ function Overview() {
   return (
     <div className="space-y-6">
       <Grid cols={5}>
-        <KpiCard icon="clock" label="Runway" value={`${s.runwayMonths} mo`} sub={formatCurrency(s.cash) + ' cash'} accent={s.runwayMonths >= 12 ? '#10b981' : s.runwayMonths >= 6 ? '#f59e0b' : '#c94f4f'} />
+        <KpiCard icon="clock" label="Runway" value={`${s.runwayMonths} mo`} sub={formatCurrency(s.cash) + ' cash'} accent={s.runwayMonths >= 12 ? '#C9A233' : s.runwayMonths >= 6 ? '#C9A233' : '#F4EFE3'} />
         <KpiCard icon="coins" label="MRR" value={formatCurrency(s.mrr)} sub={`${s.boardMetrics} board KPIs`} accent={ACCENT} />
-        <KpiCard icon="chart-line" label="MRR Growth" value={`${s.mrrGrowthPct >= 0 ? '+' : ''}${s.mrrGrowthPct}%`} sub="first → last" accent={s.mrrGrowthPct >= 0 ? '#10b981' : '#c94f4f'} />
-        <KpiCard icon="flame" label="Net Burn / mo" value={formatCurrency(s.netBurn)} accent="#8b5cf6" />
-        <KpiCard icon="flag" label="OKR Attainment" value={`${s.okrAttainment}%`} sub={`${s.atRiskCount} at risk · ${s.avgConfidence}% conf`} accent={s.okrAttainment >= 70 ? '#10b981' : '#f59e0b'} />
+        <KpiCard icon="chart-line" label="MRR Growth" value={`${s.mrrGrowthPct >= 0 ? '+' : ''}${s.mrrGrowthPct}%`} sub="first → last" accent={s.mrrGrowthPct >= 0 ? '#C9A233' : '#F4EFE3'} />
+        <KpiCard icon="flame" label="Net Burn / mo" value={formatCurrency(s.netBurn)} accent="#C9A233" />
+        <KpiCard icon="flag" label="OKR Attainment" value={`${s.okrAttainment}%`} sub={`${s.atRiskCount} at risk · ${s.avgConfidence}% conf`} accent={s.okrAttainment >= 70 ? '#C9A233' : '#C9A233'} />
       </Grid>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Panel icon="coins" title="Cash trend">
-          <AreaChart series={s.cashTrend} color="#c94f4f" height={150} />
+          <AreaChart series={s.cashTrend} color="#F4EFE3" height={150} />
           <div className="flex justify-between mt-2 text-[11px] text-empire-text-dim">{s.trendLabels.map(l => <span key={l}>{l}</span>)}</div>
         </Panel>
         <Panel icon="chart-line" title="MRR trend">
@@ -99,9 +99,9 @@ function Overview() {
         </Panel>
       </div>
       <Grid cols={3}>
-        <KpiCard icon="check" label="KR Hit-Rate" value={`${s.krHitRate}%`} sub={`${s.krHit}/${s.krTotal} hit`} accent={s.krHitRate >= 60 ? '#10b981' : '#f59e0b'} />
+        <KpiCard icon="check" label="KR Hit-Rate" value={`${s.krHitRate}%`} sub={`${s.krHit}/${s.krTotal} hit`} accent={s.krHitRate >= 60 ? '#C9A233' : '#C9A233'} />
         <KpiCard icon="crown" label="Objectives" value={String(s.objectives)} sub={`${s.atRiskCount} at risk`} accent={ACCENT} />
-        <KpiCard icon="flag" label="Board On-Target" value={`${s.onTarget}/${s.boardMetrics}`} accent={s.onTarget >= s.boardMetrics / 2 ? '#10b981' : '#f59e0b'} />
+        <KpiCard icon="flag" label="Board On-Target" value={`${s.onTarget}/${s.boardMetrics}`} accent={s.onTarget >= s.boardMetrics / 2 ? '#C9A233' : '#C9A233'} />
       </Grid>
     </div>
   )
@@ -122,16 +122,16 @@ function Okrs() {
   return (
     <div className="space-y-4">
       <Panel icon="chart-bar" title="Attainment by category">
-        <DonutChart segments={data.byCategory.map(c => ({ label: c.category, value: c.objectives, color: CAT_COLOR[c.category] || '#6b7280' }))} size={150} />
+        <DonutChart segments={data.byCategory.map(c => ({ label: c.category, value: c.objectives, color: CAT_COLOR[c.category] || '#7A7468' }))} size={150} />
       </Panel>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {data.list.map(o => (
           <Panel key={o.id} title={
             <div className="flex items-center gap-2">
-              <Pill text={o.category} color={CAT_COLOR[o.category] || '#6b7280'} />
+              <Pill text={o.category} color={CAT_COLOR[o.category] || '#7A7468'} />
               <span className="text-empire-text">{o.objective}</span>
             </div>
-          } actions={<Pill text={o.status.replace('_', ' ')} color={OKR_STATUS[o.status] || '#6b7280'} />}>
+          } actions={<Pill text={o.status.replace('_', ' ')} color={OKR_STATUS[o.status] || '#7A7468'} />}>
             <div className="space-y-3">
               <div className="flex items-center justify-between text-[11px] text-empire-text-dim">
                 <span>{o.owner || '—'} · {o.quarter}</span>
@@ -146,9 +146,9 @@ function Okrs() {
                   <div key={k.id} className="border border-empire-border/60 rounded px-2.5 py-2">
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-empire-text-muted">{k.title}</span>
-                      <span style={{ color: k.hit ? '#10b981' : '#f59e0b' }} className="tabular-nums">{k.current}{k.unit || ''} / {k.target}{k.unit || ''}</span>
+                      <span style={{ color: k.hit ? '#C9A233' : '#C9A233' }} className="tabular-nums">{k.current}{k.unit || ''} / {k.target}{k.unit || ''}</span>
                     </div>
-                    <div className="mt-1.5"><ProgressBar value={k.attainment} max={100} color={k.hit ? '#10b981' : OKR_STATUS[k.status] || '#f59e0b'} /></div>
+                    <div className="mt-1.5"><ProgressBar value={k.attainment} max={100} color={k.hit ? '#C9A233' : OKR_STATUS[k.status] || '#C9A233'} /></div>
                   </div>
                 ))}
               </div>
@@ -171,18 +171,18 @@ function Board() {
   const fmtVal = (r: BoardMetric) => r.unit === '€' ? formatCurrency(r.value) : `${r.value}${r.unit ? (r.unit === '%' || r.unit === 'x' ? r.unit : ' ' + r.unit) : ''}`
   const cols: Column<BoardMetric>[] = [
     { key: 'name', label: 'Metric', render: r => <div><div className="font-medium text-empire-text">{r.name}</div><div className="text-empire-text-dim text-[11px]">{r.period}</div></div> },
-    { key: 'category', label: 'Category', render: r => <Pill text={r.category} color={BCAT_COLOR[r.category] || '#6b7280'} /> },
+    { key: 'category', label: 'Category', render: r => <Pill text={r.category} color={BCAT_COLOR[r.category] || '#7A7468'} /> },
     { key: 'value', label: 'Value', align: 'right', render: r => <span className="text-empire-text tabular-nums">{fmtVal(r)}</span> },
     { key: 'target', label: 'Target', align: 'right', render: r => <span className="text-empire-text-muted tabular-nums">{r.target != null ? (r.unit === '€' ? formatCurrency(r.target) : `${r.target}${r.unit && r.unit !== '€' ? (r.unit === '%' || r.unit === 'x' ? r.unit : ' ' + r.unit) : ''}`) : '—'}</span> },
-    { key: 'deltaPct', label: 'Δ', align: 'right', render: r => <span style={{ color: r.trend === 'down' ? '#c94f4f' : '#10b981' }} className="inline-flex items-center justify-end gap-1 tabular-nums">{TREND_ICON[r.trend] && <EmpireIcon name={TREND_ICON[r.trend]!} size={12} />}{r.deltaPct > 0 ? '+' : ''}{r.deltaPct}%</span> },
-    { key: 'onTarget', label: 'On Target', align: 'right', render: r => r.onTarget == null ? <span className="text-empire-text-dim">—</span> : <Pill text={r.onTarget ? 'on target' : 'off target'} color={r.onTarget ? '#10b981' : '#c94f4f'} /> },
+    { key: 'deltaPct', label: 'Δ', align: 'right', render: r => <span style={{ color: r.trend === 'down' ? '#F4EFE3' : '#C9A233' }} className="inline-flex items-center justify-end gap-1 tabular-nums">{TREND_ICON[r.trend] && <EmpireIcon name={TREND_ICON[r.trend]!} size={12} />}{r.deltaPct > 0 ? '+' : ''}{r.deltaPct}%</span> },
+    { key: 'onTarget', label: 'On Target', align: 'right', render: r => r.onTarget == null ? <span className="text-empire-text-dim">—</span> : <Pill text={r.onTarget ? 'on target' : 'off target'} color={r.onTarget ? '#C9A233' : '#F4EFE3'} /> },
   ]
   return (
     <div className="space-y-4">
       <Grid cols={3}>
         <KpiCard icon="chart-line" label="Board KPIs" value={String(rows.length)} accent={ACCENT} />
-        <KpiCard icon="check" label="On Target" value={`${onTarget}/${rows.length}`} accent={onTarget >= rows.length / 2 ? '#10b981' : '#f59e0b'} />
-        <KpiCard icon="arrow-up" label="Improving" value={String(rows.filter(r => (r.trend === 'up' && r.category !== 'risk') || (r.trend === 'down' && r.category === 'risk')).length)} accent="#06b6d4" />
+        <KpiCard icon="check" label="On Target" value={`${onTarget}/${rows.length}`} accent={onTarget >= rows.length / 2 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="arrow-up" label="Improving" value={String(rows.filter(r => (r.trend === 'up' && r.category !== 'risk') || (r.trend === 'down' && r.category === 'risk')).length)} accent="#C9A233" />
       </Grid>
       <Panel icon="chart-bar" title="Board deck (value vs target)">
         <DataTable columns={cols} rows={rows} empty="No board metrics." />
@@ -215,10 +215,10 @@ function Objectives() {
   const rows = data?.data || []
   const cols: Column<ObjRow>[] = [
     { key: 'objective', label: 'Objective', render: o => <div><div className="font-medium text-empire-text">{o.objective}</div><div className="text-empire-text-dim text-[11px]">{o.owner || '—'} · {o.quarter} · {o.keyResults} KRs</div></div> },
-    { key: 'category', label: 'Category', render: o => <Pill text={o.category} color={CAT_COLOR[o.category] || '#6b7280'} /> },
+    { key: 'category', label: 'Category', render: o => <Pill text={o.category} color={CAT_COLOR[o.category] || '#7A7468'} /> },
     { key: 'progressPct', label: 'Progress', render: o => <div className="w-28"><ProgressBar value={o.progressPct} max={100} color={OKR_STATUS[o.status] || ACCENT} /></div> },
     { key: 'confidence', label: 'Conf', align: 'right', render: o => <span className="text-empire-text-muted tabular-nums">{o.confidence}%</span> },
-    { key: 'status', label: 'Status', render: o => <Pill text={o.status.replace('_', ' ')} color={OKR_STATUS[o.status] || '#6b7280'} /> },
+    { key: 'status', label: 'Status', render: o => <Pill text={o.status.replace('_', ' ')} color={OKR_STATUS[o.status] || '#7A7468'} /> },
     { key: 'id', label: '', align: 'right', render: o => (
       <RowActions
         onView={() => setViewing(o)}
@@ -261,8 +261,8 @@ function Objectives() {
             <div className="grid grid-cols-2 gap-3 text-sm">
               <Detail label="Owner">{viewing.owner || '—'}</Detail>
               <Detail label="Quarter">{viewing.quarter}</Detail>
-              <Detail label="Category"><Pill text={viewing.category} color={CAT_COLOR[viewing.category] || '#6b7280'} /></Detail>
-              <Detail label="Status"><Pill text={viewing.status.replace('_', ' ')} color={OKR_STATUS[viewing.status] || '#6b7280'} /></Detail>
+              <Detail label="Category"><Pill text={viewing.category} color={CAT_COLOR[viewing.category] || '#7A7468'} /></Detail>
+              <Detail label="Status"><Pill text={viewing.status.replace('_', ' ')} color={OKR_STATUS[viewing.status] || '#7A7468'} /></Detail>
               <Detail label="Progress">{viewing.progressPct}%</Detail>
               <Detail label="Confidence">{viewing.confidence}%</Detail>
               <Detail label="Key Results">{viewing.keyResults}</Detail>

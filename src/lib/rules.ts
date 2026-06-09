@@ -123,7 +123,7 @@ export const RULE_SECTIONS: RuleSection[] = [
     title: 'AI-Managed Departments',
     icon: 'cog',
     body: [
-      'Some departments are run by an AI manager (Operations is managed by Lukas Beckers). These track interaction metrics — volume, response time, resolution rate, escalations to a human — on top of the normal KPIs.',
+      'Some departments are automated units. These track interaction metrics — volume, response time, resolution rate, escalations to a human — on top of the normal KPIs.',
       'The same XP, ranks and team-score rules apply: the AI manager and its human collaborators earn and level exactly like everyone else.',
     ],
   },

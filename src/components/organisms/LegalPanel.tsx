@@ -18,13 +18,13 @@ import { deptIcon } from '@/lib/dept-icons'
 // print-to-PDF), edited & regenerated, and signed by both parties — the signed
 // PDF is the document the counterparty actually executes.
 
-const ACCENT = '#9d6bff'   // legal purple, lifted for contrast on dark
+const ACCENT = '#C9A233'   // legal purple, lifted for contrast on dark
 const ACTIVE_COMPANY_KEY = 'empire-os-active-profile'
 const eur = (n: number | null | undefined) =>
   n == null ? '—' : `${n < 0 ? '-' : ''}€${Math.abs(Math.round(n)).toLocaleString()}`
 
 const CATEGORY_COLOR: Record<string, string> = {
-  whitelabel: '#9d6bff', software: '#4f8ff7', nda: '#c94f8f', mou: '#3a9d5c', msa: '#c9a233', sow: '#5ac9c0',
+  whitelabel: '#C9A233', software: '#C9A233', nda: '#C9A233', mou: '#C9A233', msa: '#c9a233', sow: '#C9A233',
 }
 function Pill({ text, color }: { text: string; color: string }) {
   return (
@@ -98,7 +98,7 @@ const CONTRACT_CSS = `
   .lg-prose li{margin:0 0 3px}
   .lg-prose hr{border:0;border-top:1px solid #ddd;margin:16px 0}
   .lg-prose strong{font-weight:700}
-  .lg-gap{background:#fff3cd;color:#9a6700;padding:0 3px;border-radius:2px;font-style:italic}
+  .lg-gap{background:#fff3cd;color:#7A7468;padding:0 3px;border-radius:2px;font-style:italic}
 `
 
 // Signature block rendered into the printable/exportable contract.
@@ -210,14 +210,14 @@ function Overview() {
   if (!s) return <EmptyState icon="scales" title="No legal data" hint="Generate a contract to begin." />
   const segs = s.byStatus.map(b => ({
     label: b.status, value: b.count,
-    color: b.status === 'signed' ? '#3a9d5c' : b.status === 'sent' ? '#c9a233' : b.status === 'void' ? '#c94f4f' : ACCENT,
+    color: b.status === 'signed' ? '#C9A233' : b.status === 'sent' ? '#c9a233' : b.status === 'void' ? '#F4EFE3' : ACCENT,
   }))
   return (
     <div className="space-y-6">
       <Grid cols={5}>
         <KpiCard label="Active Templates" value={String(s.templates)} accent={ACCENT} icon="book" />
-        <KpiCard label="Documents" value={String(s.documents)} accent="#4f8ff7" icon="document" />
-        <KpiCard label="Signed" value={String(s.signed)} accent="#3a9d5c" icon="check" />
+        <KpiCard label="Documents" value={String(s.documents)} accent="#C9A233" icon="document" />
+        <KpiCard label="Signed" value={String(s.signed)} accent="#C9A233" icon="check" />
         <KpiCard label="Sent" value={String(s.sent)} accent="#c9a233" icon="external" />
         <KpiCard label="Drafts" value={String(s.draft)} accent={ACCENT} icon="pen-nib" />
       </Grid>
@@ -352,9 +352,9 @@ function Generate({ onSaved }: { onSaved: (id?: string) => void }) {
         {pricing && (
           <Panel title="Deal Economics (derived)" icon="coins">
             <Grid cols={2}>
-              <KpiCard label="Base Cost / mo" value={eur(pricing.baseCost)} sub={`${pricing.numDevs} devs × ${eur(pricing.ratePerDev)}`} accent="#4f8ff7" icon="card" />
+              <KpiCard label="Base Cost / mo" value={eur(pricing.baseCost)} sub={`${pricing.numDevs} devs × ${eur(pricing.ratePerDev)}`} accent="#C9A233" icon="card" />
               <KpiCard label="Client Price / mo" value={eur(pricing.clientPrice)} sub={`+${pricing.markupPct}% markup`} accent={ACCENT} icon="coins" />
-              <KpiCard label="Margin / mo" value={eur(pricing.margin)} sub={`${pricing.marginPct}% margin`} accent="#3a9d5c" icon="chart-line" />
+              <KpiCard label="Margin / mo" value={eur(pricing.margin)} sub={`${pricing.marginPct}% margin`} accent="#C9A233" icon="chart-line" />
               <KpiCard label="Annual Contract Value" value={eur(pricing.annualClientPrice)} accent="#c9a233" icon="trophy" />
             </Grid>
           </Panel>
@@ -516,7 +516,7 @@ function TemplateEditModal({ tpl, mode, open, onClose, onSaved }: { tpl: Templat
 }
 
 /* ---------------- Documents ---------------- */
-const STATUS_COLOR: Record<string, string> = { draft: ACCENT, sent: '#c9a233', signed: '#3a9d5c', void: '#c94f4f' }
+const STATUS_COLOR: Record<string, string> = { draft: ACCENT, sent: '#c9a233', signed: '#C9A233', void: '#F4EFE3' }
 const STATUS_FLOW = ['draft', 'sent', 'signed', 'void']
 
 function sigSummary(sigs: Signature[] | null | undefined) {
@@ -550,7 +550,7 @@ function Documents({ onView }: { onView: (id: string) => void }) {
     { key: 'sigs', label: 'Signed', align: 'center', render: r => {
       const { signed, total } = sigSummary(r.signatures)
       const done = total > 0 && signed === total
-      return <span className="tabular-nums text-xs" style={{ color: done ? '#3a9d5c' : signed > 0 ? '#c9a233' : '#8a8a8a' }}>{signed}/{total || 2}</span>
+      return <span className="tabular-nums text-xs" style={{ color: done ? '#C9A233' : signed > 0 ? '#c9a233' : '#7A7468' }}>{signed}/{total || 2}</span>
     } },
     { key: 'status', label: 'Status', render: r => (
       <select value={r.status} onChange={e => setStatus(r.id, e.target.value)}
@@ -573,7 +573,7 @@ function Documents({ onView }: { onView: (id: string) => void }) {
         {['', ...STATUS_FLOW].map(s => (
           <button key={s || 'all'} onClick={() => { setStatusFilter(s); setPage(0) }}
             className="px-2.5 py-1 rounded text-xs capitalize transition-colors"
-            style={{ background: statusFilter === s ? ACCENT + '22' : 'transparent', color: statusFilter === s ? ACCENT : '#8a8a8a', border: `1px solid ${statusFilter === s ? ACCENT + '60' : '#ffffff14'}` }}>
+            style={{ background: statusFilter === s ? ACCENT + '22' : 'transparent', color: statusFilter === s ? ACCENT : '#7A7468', border: `1px solid ${statusFilter === s ? ACCENT + '60' : '#ffffff14'}` }}>
             {s || 'all'}
           </button>
         ))}
@@ -680,14 +680,14 @@ function DocumentViewer({ id, onClose, onChanged }: { id: string; onClose: () =>
                       <div className="text-[10px] uppercase tracking-wide text-empire-text-dim">{s.role}</div>
                       <div className="text-empire-text text-sm font-medium">{s.name}</div>
                       {s.signedAt ? (
-                        <div className="mt-1 inline-flex items-center gap-1 text-xs" style={{ color: '#3a9d5c' }}>
+                        <div className="mt-1 inline-flex items-center gap-1 text-xs" style={{ color: '#C9A233' }}>
                           <EmpireIcon name="check" size={12} />Signed by {s.signedName} · {new Date(s.signedAt).toLocaleDateString()}
                         </div>
                       ) : signParty === s.party ? (
                         <div className="mt-2 flex items-center gap-2">
                           <input autoFocus value={signName} onChange={e => setSignName(e.target.value)} placeholder="Full legal name"
                             className="flex-1 bg-empire-bg border border-empire-border rounded px-2 py-1 text-xs text-empire-text focus:outline-none focus:border-empire-gold/60" />
-                          <button onClick={() => sign(s.party)} disabled={busy === 'sign' || !signName.trim()} className="rounded px-2 py-1 text-xs font-medium text-black disabled:opacity-50" style={{ background: '#3a9d5c' }}>Sign</button>
+                          <button onClick={() => sign(s.party)} disabled={busy === 'sign' || !signName.trim()} className="rounded px-2 py-1 text-xs font-medium text-black disabled:opacity-50" style={{ background: '#C9A233' }}>Sign</button>
                           <button onClick={() => { setSignParty(null); setSignName('') }} aria-label="Cancel" className="text-empire-text-dim"><EmpireIcon name="close" size={14} /></button>
                         </div>
                       ) : (

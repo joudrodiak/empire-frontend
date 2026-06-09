@@ -34,7 +34,7 @@ function Pill({ text, color }: { text: string; color: string }) {
 // (/api/engineering/*). Nothing is hard-coded. Log a deploy or incident and
 // every metric recomputes.
 
-const ACCENT = '#4f8ff7'
+const ACCENT = '#C9A233'
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'dora', label: 'DORA' },
@@ -44,9 +44,9 @@ const TABS = [
   { id: 'sprints', label: 'Sprints' },
 ]
 
-const PERF_COLOR: Record<string, string> = { elite: '#3a9d5c', high: '#4f8ff7', medium: '#c9a233', low: '#c94f4f' }
-const SEV_COLOR: Record<string, string> = { sev1: '#c94f4f', sev2: '#e08a3c', sev3: '#c9a233', sev4: '#6b7280' }
-const TIER_COLOR: Record<string, string> = { critical: '#c94f4f', standard: '#4f8ff7', internal: '#6b7280' }
+const PERF_COLOR: Record<string, string> = { elite: '#C9A233', high: '#C9A233', medium: '#c9a233', low: '#F4EFE3' }
+const SEV_COLOR: Record<string, string> = { sev1: '#F4EFE3', sev2: '#C9A233', sev3: '#c9a233', sev4: '#7A7468' }
+const TIER_COLOR: Record<string, string> = { critical: '#F4EFE3', standard: '#C9A233', internal: '#7A7468' }
 const ago = (d: string) => {
   const h = (Date.now() - new Date(d).getTime()) / 3600000
   if (h < 1) return `${Math.round(h * 60)}m ago`
@@ -88,7 +88,7 @@ function useEng<T>(path: string): { data: T | null; loading: boolean; reload: ()
 }
 
 function Loading() { return <div className="py-16 text-center text-empire-text-dim text-sm animate-pulse">Computing from delivery events…</div> }
-function Rating({ r }: { r: string }) { return <Pill text={r.toUpperCase()} color={PERF_COLOR[r] || '#6b7280'} /> }
+function Rating({ r }: { r: string }) { return <Pill text={r.toUpperCase()} color={PERF_COLOR[r] || '#7A7468'} /> }
 
 /* ---------------- Overview ---------------- */
 type Summary = { services: number; deploysLast30: number; openIncidents: number; activeSprint: { name: string; goal: string | null; committedPoints: number; completedPoints: number; velocityPct: number } | null; deployTrend: number[] }
@@ -104,7 +104,7 @@ function Overview() {
       <Grid cols={6}>
         <KpiCard label="Active Services" value={String(s.services)} accent={ACCENT} icon="cog" />
         <KpiCard label="Deploys (30d)" value={String(s.deploysLast30)} spark={s.deployTrend} accent={ACCENT} icon="rocket" />
-        <KpiCard label="Open Incidents" value={String(s.openIncidents)} accent={s.openIncidents > 0 ? '#c94f4f' : '#3a9d5c'} icon={s.openIncidents > 0 ? 'alert' : 'check'} />
+        <KpiCard label="Open Incidents" value={String(s.openIncidents)} accent={s.openIncidents > 0 ? '#F4EFE3' : '#C9A233'} icon={s.openIncidents > 0 ? 'alert' : 'check'} />
         <KpiCard label="DORA Band" value={d ? d.overall.toUpperCase() : '—'} accent={d ? PERF_COLOR[d.overall] : ACCENT} icon="gauge" />
         <KpiCard label="Lead Time" value={d ? `${d.leadTime.medianHours}h` : '—'} sub="commit → prod" accent={ACCENT} icon="clock" />
         <KpiCard label="Sprint Velocity" value={s.activeSprint ? `${s.activeSprint.velocityPct}%` : '—'} sub={s.activeSprint?.name} accent={ACCENT} icon="chart-line" />
@@ -172,11 +172,11 @@ function Services() {
   const rows = data || []
   const cols: Column<Svc>[] = [
     { key: 'name', label: 'Service', render: (s) => <span className="font-medium text-empire-text">{s.name}</span> },
-    { key: 'tier', label: 'Tier', render: (s) => <Pill text={s.tier} color={TIER_COLOR[s.tier] || '#6b7280'} /> },
+    { key: 'tier', label: 'Tier', render: (s) => <Pill text={s.tier} color={TIER_COLOR[s.tier] || '#7A7468'} /> },
     { key: 'language', label: 'Stack', render: (s) => <span className="text-empire-text-muted">{s.language || '—'}</span> },
     { key: 'ownerName', label: 'Owner', render: (s) => <span className="text-empire-text-muted">{s.ownerName || '—'}</span> },
     { key: 'deployCount', label: 'Deploys', align: 'right' },
-    { key: 'openIncidents', label: 'Open Inc.', align: 'right', render: (s) => <span style={{ color: s.openIncidents > 0 ? '#c94f4f' : undefined }}>{s.openIncidents}</span> },
+    { key: 'openIncidents', label: 'Open Inc.', align: 'right', render: (s) => <span style={{ color: s.openIncidents > 0 ? '#F4EFE3' : undefined }}>{s.openIncidents}</span> },
     { key: 'actions', label: '', align: 'right', render: (s) => (
       <RowActions onView={() => setViewing(s)} onEdit={() => setEditing(s)} onDelete={() => remove(s.id)} deleteLabel={`the “${s.name}” service`} />
     ) },
@@ -190,7 +190,7 @@ function Services() {
           <div className="space-y-0.5">
             <Field label="Name">{viewing.name}</Field>
             <Field label="Slug"><span className="font-mono text-xs">{viewing.slug}</span></Field>
-            <Field label="Tier"><Pill text={viewing.tier} color={TIER_COLOR[viewing.tier] || '#6b7280'} /></Field>
+            <Field label="Tier"><Pill text={viewing.tier} color={TIER_COLOR[viewing.tier] || '#7A7468'} /></Field>
             <Field label="Stack">{viewing.language || '—'}</Field>
             <Field label="Repo">{viewing.repo || '—'}</Field>
             <Field label="Owner">{viewing.ownerName || '—'}</Field>
@@ -268,7 +268,7 @@ function Deploys() {
   const cols: Column<Dep>[] = [
     { key: 'service', label: 'Service', render: (d) => <span className="font-medium text-empire-text">{d.service}</span> },
     { key: 'version', label: 'Version', render: (d) => <span className="font-mono text-xs text-empire-text-muted">{d.version}</span> },
-    { key: 'status', label: 'Status', render: (d) => <Pill text={d.status} color={d.status === 'success' ? '#3a9d5c' : '#c94f4f'} /> },
+    { key: 'status', label: 'Status', render: (d) => <Pill text={d.status} color={d.status === 'success' ? '#C9A233' : '#F4EFE3'} /> },
     { key: 'author', label: 'Author', render: (d) => <span className="text-empire-text-muted">{d.author || '—'}</span> },
     { key: 'leadTimeHours', label: 'Lead', align: 'right', render: (d) => <span className="text-empire-text-muted">{d.leadTimeHours != null ? `${d.leadTimeHours}h` : '—'}</span> },
     { key: 'deployedAt', label: 'When', align: 'right', render: (d) => <span className="text-empire-text-dim text-xs">{ago(d.deployedAt)}</span> },
@@ -306,7 +306,7 @@ function Deploys() {
             <Field label="Service">{viewing.service}</Field>
             <Field label="Version"><span className="font-mono text-xs">{viewing.version}</span></Field>
             <Field label="Environment">{viewing.environment}</Field>
-            <Field label="Status"><Pill text={viewing.status} color={viewing.status === 'success' ? '#3a9d5c' : '#c94f4f'} /></Field>
+            <Field label="Status"><Pill text={viewing.status} color={viewing.status === 'success' ? '#C9A233' : '#F4EFE3'} /></Field>
             <Field label="Author">{viewing.author || '—'}</Field>
             <Field label="Lead Time">{viewing.leadTimeHours != null ? `${viewing.leadTimeHours}h` : '—'}</Field>
             <Field label="Caused Incidents">{viewing.causedIncidents}</Field>
@@ -346,13 +346,13 @@ function Incidents() {
   if (loading) return <Loading />
   const rows = data?.data || []
   const cols: Column<Inc>[] = [
-    { key: 'severity', label: 'Sev', render: (i) => <Pill text={i.severity} color={SEV_COLOR[i.severity] || '#6b7280'} /> },
+    { key: 'severity', label: 'Sev', render: (i) => <Pill text={i.severity} color={SEV_COLOR[i.severity] || '#7A7468'} /> },
     { key: 'title', label: 'Incident', render: (i) => <span className="font-medium text-empire-text">{i.title}</span> },
     { key: 'service', label: 'Service', render: (i) => <span className="text-empire-text-muted">{i.service}</span> },
     { key: 'cause', label: 'Cause', render: (i) => <span className="text-empire-text-muted">{i.cause || '—'}</span> },
     { key: 'ttrHours', label: 'MTTR', align: 'right', render: (i) => <span className="text-empire-text-muted">{i.ttrHours != null ? `${i.ttrHours}h` : '—'}</span> },
     { key: 'status', label: 'Status', align: 'right', render: (i) => i.status === 'resolved'
-        ? <Pill text="resolved" color="#3a9d5c" />
+        ? <Pill text="resolved" color="#C9A233" />
         : <button onClick={() => resolve(i.id)} className="text-xs px-2 py-1 rounded border border-empire-border text-empire-text-muted hover:text-empire-text">Resolve</button> },
     { key: 'actions', label: '', align: 'right', render: (i) => (
       <RowActions onView={() => setViewing(i)} onDelete={() => remove(i.id)} deleteLabel={`incident “${i.title}”`} />
@@ -373,7 +373,7 @@ function Incidents() {
           <select className="bg-empire-bg-soft border border-empire-border rounded px-2 py-1.5 text-sm text-empire-text" value={form.cause} onChange={(e) => setForm({ ...form, cause: e.target.value })}>
             <option value="deploy">deploy</option><option value="infra">infra</option><option value="dependency">dependency</option><option value="human">human</option><option value="unknown">unknown</option>
           </select>
-          <button disabled={busy || !form.serviceId || !form.title} onClick={submit} className="px-3 py-1.5 rounded text-sm font-medium text-white disabled:opacity-40" style={{ background: '#c94f4f' }}>{busy ? 'Declaring…' : 'Declare'}</button>
+          <button disabled={busy || !form.serviceId || !form.title} onClick={submit} className="px-3 py-1.5 rounded text-sm font-medium text-white disabled:opacity-40" style={{ background: '#F4EFE3' }}>{busy ? 'Declaring…' : 'Declare'}</button>
         </div>
       </Panel>
       <Panel title={`Incidents (${data?.total ?? rows.length})`} icon="alert">
@@ -386,7 +386,7 @@ function Incidents() {
           <div className="space-y-0.5">
             <Field label="Title">{viewing.title}</Field>
             <Field label="Service">{viewing.service}</Field>
-            <Field label="Severity"><Pill text={viewing.severity} color={SEV_COLOR[viewing.severity] || '#6b7280'} /></Field>
+            <Field label="Severity"><Pill text={viewing.severity} color={SEV_COLOR[viewing.severity] || '#7A7468'} /></Field>
             <Field label="Status"><span className="capitalize">{viewing.status}</span></Field>
             <Field label="Cause">{viewing.cause || '—'}</Field>
             <Field label="MTTR">{viewing.ttrHours != null ? `${viewing.ttrHours}h` : '—'}</Field>
@@ -424,7 +424,7 @@ function Sprints() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-empire-text">{s.name}</span>
-                  <Pill text={s.status} color={s.status === 'active' ? ACCENT : s.status === 'completed' ? '#3a9d5c' : '#6b7280'} />
+                  <Pill text={s.status} color={s.status === 'active' ? ACCENT : s.status === 'completed' ? '#C9A233' : '#7A7468'} />
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-empire-text-muted text-xs">{s.completedPoints} / {s.committedPoints} pts · {s.velocityPct}%</span>
@@ -432,7 +432,7 @@ function Sprints() {
                 </div>
               </div>
               {s.goal && <div className="text-empire-text-muted text-xs mb-2">{s.goal}</div>}
-              <ProgressBar value={s.completedPoints} max={s.committedPoints} color={s.velocityPct >= 90 ? '#3a9d5c' : s.velocityPct >= 70 ? ACCENT : '#c9a233'} />
+              <ProgressBar value={s.completedPoints} max={s.committedPoints} color={s.velocityPct >= 90 ? '#C9A233' : s.velocityPct >= 70 ? ACCENT : '#c9a233'} />
             </div>
           ))}
           {!rows.length && <EmptyState icon="flag" title="No sprints yet" />}

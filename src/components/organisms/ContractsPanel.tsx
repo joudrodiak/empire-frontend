@@ -286,7 +286,7 @@ function Segmented({ label, value, options, onChange, accent }: {
             className="px-2.5 py-1 text-xs capitalize transition-colors"
             style={value === o
               ? { background: accent, color: '#0a0a0a' }
-              : { color: 'var(--empire-text-muted, #8a8a8a)' }}
+              : { color: 'var(--empire-text-muted, #7A7468)' }}
           >
             {o}
           </button>
@@ -667,7 +667,7 @@ function ContractForm({ departmentSlug, contract, prefillEmployeeId, onCreated, 
             {(['upload', 'legal'] as const).map(s => (
               <button key={s} type="button" onClick={() => setDocSource(s)}
                 className="px-3 py-1 capitalize transition-colors"
-                style={docSource === s ? { background: '#c9a233', color: '#0a0a0a' } : { color: 'var(--empire-text-muted, #8a8a8a)' }}>
+                style={docSource === s ? { background: '#c9a233', color: '#0a0a0a' } : { color: 'var(--empire-text-muted, #7A7468)' }}>
                 {s === 'upload' ? 'Upload file' : 'From Legal'}
               </button>
             ))}

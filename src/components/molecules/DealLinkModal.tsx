@@ -29,7 +29,7 @@ export type DealLink = {
 
 const inputCls = 'w-full bg-empire-bg-soft border border-empire-border rounded px-2.5 py-2 text-sm text-empire-text placeholder:text-empire-text-dim focus:outline-none focus:border-empire-gold/60'
 
-export function DealLinkModal({ open, deal, label, accent = '#8b5cf6', onClose, onLinked }: {
+export function DealLinkModal({ open, deal, label, accent = '#C9A233', onClose, onLinked }: {
   open: boolean
   deal: DealLink | null
   label?: string

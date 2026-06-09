@@ -5,9 +5,10 @@ import { fetcher } from '@/lib/api'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
 import { rankIcon } from '@/lib/rank-icons'
+import { empireColor, empireTint } from '@/lib/theme'
 
 // Podium tint for the top-3 trophy glyph: gold / silver / bronze.
-const MEDAL_CLASS = ['text-empire-gold', 'text-[#b8b8c4]', 'text-[#a9743a]']
+const MEDAL_CLASS = ['text-empire-gold', 'text-[#F4EFE3]', 'text-[#C9A233]']
 
 type Person = {
   rank: number
@@ -121,6 +122,9 @@ export default function StandingsBoard() {
           ))}
         </div>
         <select
+          id="standings-quarter"
+          name="standingsQuarter"
+          aria-label="Select standings quarter"
           value={quarter}
           onChange={e => setQuarter(e.target.value)}
           className="bg-empire-surface border border-empire-border rounded px-3 py-1.5 text-xs text-empire-text focus:outline-none focus:border-empire-gold/40 cursor-pointer"
@@ -145,6 +149,7 @@ export default function StandingsBoard() {
             {board.people.map((p, i) => {
               const open = openId === p.employeeId
               const rows = awards[p.employeeId]
+              const accent = empireColor(p.deptColor)
               return (
                 <li
                   key={p.employeeId}
@@ -161,7 +166,7 @@ export default function StandingsBoard() {
                     </span>
                     <span
                       className="w-8 h-8 rounded-lg grid place-items-center shrink-0 border"
-                      style={{ borderColor: `${p.deptColor}55`, background: `${p.deptColor}12`, color: p.deptColor }}
+                      style={{ borderColor: `${accent}55`, background: empireTint(accent, '12'), color: accent }}
                     >
                       <EmpireIcon name={deptIcon(p.deptSlug)} size={16} />
                     </span>
@@ -178,7 +183,7 @@ export default function StandingsBoard() {
                         <EmpireIcon name={deptIcon(p.deptSlug)} size={11} /> {p.deptName} · <EmpireIcon name={rankIcon(p.rankName)} size={11} /> {p.rankName} · Lv {p.level}
                       </div>
                     </div>
-                    <span className="text-sm font-semibold tabular-nums shrink-0" style={{ color: p.deptColor }}>
+                    <span className="text-sm font-semibold tabular-nums shrink-0" style={{ color: accent }}>
                       {p.xp.toLocaleString()} XP
                     </span>
                     <EmpireIcon name="chevron-down" size={14} className={`shrink-0 text-empire-text-dim transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -219,29 +224,32 @@ export default function StandingsBoard() {
           <EmptyState />
         ) : (
           <ol className="space-y-1.5">
-            {board.depts.map((d, i) => (
-              <li
-                key={d.deptSlug + i}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-empire-border bg-empire-surface hover:border-empire-gold/30 transition-colors"
-              >
-                <span className="w-7 grid place-items-center text-sm font-bold tabular-nums shrink-0">
-                  {i < 3 ? <EmpireIcon name="trophy" size={16} className={MEDAL_CLASS[i]} /> : <span className="font-data text-empire-text-muted">{i + 1}</span>}
-                </span>
-                <span
-                  className="w-8 h-8 rounded-lg grid place-items-center shrink-0 border"
-                  style={{ borderColor: `${d.deptColor}55`, background: `${d.deptColor}12`, color: d.deptColor }}
+            {board.depts.map((d, i) => {
+              const accent = empireColor(d.deptColor)
+              return (
+                <li
+                  key={d.deptSlug + i}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-empire-border bg-empire-surface hover:border-empire-gold/30 transition-colors"
                 >
-                  <EmpireIcon name={deptIcon(d.deptSlug)} size={16} />
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-empire-text truncate">{d.deptName}</div>
-                  <div className="text-[11px] text-empire-text-muted">{d.awards} award{d.awards !== 1 ? 's' : ''}</div>
-                </div>
-                <span className="text-sm font-semibold tabular-nums shrink-0" style={{ color: d.deptColor }}>
-                  {d.xp.toLocaleString()} XP
-                </span>
-              </li>
-            ))}
+                  <span className="w-7 grid place-items-center text-sm font-bold tabular-nums shrink-0">
+                    {i < 3 ? <EmpireIcon name="trophy" size={16} className={MEDAL_CLASS[i]} /> : <span className="font-data text-empire-text-muted">{i + 1}</span>}
+                  </span>
+                  <span
+                    className="w-8 h-8 rounded-lg grid place-items-center shrink-0 border"
+                    style={{ borderColor: `${accent}55`, background: empireTint(accent, '12'), color: accent }}
+                  >
+                    <EmpireIcon name={deptIcon(d.deptSlug)} size={16} />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-empire-text truncate">{d.deptName}</div>
+                    <div className="text-[11px] text-empire-text-muted">{d.awards} award{d.awards !== 1 ? 's' : ''}</div>
+                  </div>
+                  <span className="text-sm font-semibold tabular-nums shrink-0" style={{ color: accent }}>
+                    {d.xp.toLocaleString()} XP
+                  </span>
+                </li>
+              )
+            })}
           </ol>
         )
       )}

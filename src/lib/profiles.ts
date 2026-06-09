@@ -46,7 +46,7 @@ export const COMPANIES: Company[] = [
     hq: 'Munich, DE',
     lead: 'Maximilian Vogel',
     icon: 'pen-nib',
-    accent: '#e8b4b8',
+    accent: '#C9A233',
   },
   {
     id: 'labs',
@@ -58,7 +58,7 @@ export const COMPANIES: Company[] = [
     hq: 'Brussels, BE',
     lead: 'Lukas Beckers',
     icon: 'cog',
-    accent: '#3DAF75',
+    accent: '#C9A233',
   },
   {
     id: 'advisory',
@@ -70,7 +70,7 @@ export const COMPANIES: Company[] = [
     hq: 'Kuwait City, KW',
     lead: 'Dr. Eyad Al-Shammari',
     icon: 'scales',
-    accent: '#4A1A8B',
+    accent: '#2A2A44',
   },
 ]
 

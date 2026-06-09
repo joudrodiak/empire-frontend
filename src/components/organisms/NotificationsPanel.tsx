@@ -17,7 +17,7 @@ type Notif = {
 }
 type Feed = { counts: { total: number; critical: number; warning: number; info: number }; notifications: Notif[] }
 
-const SEV_COLOR: Record<Severity, string> = { critical: '#C9594F', warning: '#D9A441', info: '#4f8ff7' }
+const SEV_COLOR: Record<Severity, string> = { critical: '#F4EFE3', warning: '#C9A233', info: '#C9A233' }
 
 export function NotificationsPanel({ departmentSlug, limit = 8, compact = false }: {
   departmentSlug?: string; limit?: number; compact?: boolean

@@ -1,5 +1,6 @@
 // Deterministic demo-data engine — seeded so server & client render identically (no hydration drift).
 // Real API data overrides these where available; this keeps every enterprise module populated.
+import { DEPARTMENT_ACCENT } from '@/lib/theme'
 
 export function mulberry32(seed: number) {
   let a = seed >>> 0
@@ -62,7 +63,15 @@ export function eurK(n: number) {
 export function num(n: number) { return new Intl.NumberFormat('en-US').format(Math.round(n || 0)) }
 
 export const ACCENTS: Record<string, string> = {
-  finance: '#c9a233', engineering: '#3b82f6', marketing: '#22c55e', partnerships: '#06b6d4',
-  'client-success': '#10b981', creative: '#e8b4b8', hr: '#a78bfa', legal: '#94a3b8',
-  operations: '#8b5cf6', executive: '#e8c14f', advisory: '#f59e0b',
+  finance: DEPARTMENT_ACCENT,
+  engineering: DEPARTMENT_ACCENT,
+  marketing: DEPARTMENT_ACCENT,
+  partnerships: DEPARTMENT_ACCENT,
+  'client-success': DEPARTMENT_ACCENT,
+  creative: DEPARTMENT_ACCENT,
+  hr: DEPARTMENT_ACCENT,
+  legal: DEPARTMENT_ACCENT,
+  operations: DEPARTMENT_ACCENT,
+  executive: DEPARTMENT_ACCENT,
+  advisory: DEPARTMENT_ACCENT,
 }

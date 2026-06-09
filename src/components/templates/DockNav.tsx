@@ -25,6 +25,7 @@ const MAIN: DockItem[] = [
   { label: 'Approvals', icon: 'scales', href: '/approvals' },
   { label: 'Operator', icon: 'sparkle', href: '/agent' },
   { label: 'MCP', icon: 'link', href: '/mcp' },
+  { label: 'Education', icon: 'book', href: '/education' },
   { label: 'Settings', icon: 'cog', href: '/settings' },
 ]
 

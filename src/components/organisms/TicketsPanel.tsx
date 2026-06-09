@@ -62,7 +62,7 @@ export type Metrics = {
 }
 
 const HEALTH_COLOR: Record<Metrics['healthBand'], string> = {
-  none: '#6b6b6b', low: '#d4574e', medium: '#d8a13a', high: '#7bb86f', elite: '#5fae8c',
+  none: '#6b6b6b', low: '#F4EFE3', medium: '#C9A233', high: '#C9A233', elite: '#C9A233',
 }
 const HEALTH_LABEL: Record<Metrics['healthBand'], string> = {
   none: 'No data', low: 'At risk', medium: 'Fair', high: 'Healthy', elite: 'Elite',
@@ -224,7 +224,7 @@ export function TicketsPanel({ departmentSlug, accent = '#c9a233' }: {
           <div className="flex border border-empire-border rounded overflow-hidden">
             {(['board', 'list', 'dashboard'] as const).map(v => (
               <button key={v} onClick={() => setView(v)} className="px-3 py-1.5 text-xs uppercase tracking-wider capitalize transition-colors"
-                style={view === v ? { background: accent, color: '#0a0a0a' } : { color: 'var(--empire-text-muted, #8a8a8a)' }}>
+                style={view === v ? { background: accent, color: '#0a0a0a' } : { color: 'var(--empire-text-muted, #7A7468)' }}>
                 {v}
               </button>
             ))}
@@ -414,7 +414,7 @@ function Segmented({ label, value, options, onChange, accent }: {
       <div className="flex border border-empire-border rounded overflow-hidden">
         {options.map(o => (
           <button key={o} onClick={() => onChange(o)} className="px-2.5 py-1 text-xs capitalize transition-colors"
-            style={value === o ? { background: accent, color: '#0a0a0a' } : { color: 'var(--empire-text-muted, #8a8a8a)' }}>
+            style={value === o ? { background: accent, color: '#0a0a0a' } : { color: 'var(--empire-text-muted, #7A7468)' }}>
             {o.replace('_', ' ')}
           </button>
         ))}
@@ -453,7 +453,7 @@ function Burndown({ sprintId, accent }: { sprintId: string; accent: string }) {
       </div>
       <AreaChart
         series={remaining} compare={ideal} labels={labels}
-        color={accent} compareColor="#6b7280"
+        color={accent} compareColor="#7A7468"
         seriesLabel="Remaining" compareLabel="Ideal"
         valueFormat={(v) => `${Math.round(v)} pts`}
       />
@@ -504,7 +504,7 @@ function Dashboard({ m, accent, scopeLabel, sprintId }: { m: Metrics; accent: st
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
           <Kpi label="Completion" value={`${m.doneRatio}%`} sub={`${m.doneCount}/${m.total} done`} accent={accent} />
           <Kpi label="Avg velocity" value={`${m.avgVelocity}%`} sub={`${m.sprintsTracked} sprint${m.sprintsTracked === 1 ? '' : 's'}`} accent={accent} />
-          <Kpi label="In flight" value={String(m.wip)} sub={`${m.overdue} overdue`} accent={m.overdue > 0 ? '#d4574e' : accent} />
+          <Kpi label="In flight" value={String(m.wip)} sub={`${m.overdue} overdue`} accent={m.overdue > 0 ? '#F4EFE3' : accent} />
           <Kpi label="Median cycle" value={m.medianCycleHours == null ? '—' : fmtHours(m.medianCycleHours)} sub="start → done" accent={accent} />
         </div>
       </div>

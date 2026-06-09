@@ -17,7 +17,7 @@ type Page<T> = { data: T[]; page: number; pageSize: number; total: number; total
 // events and headcount snapshots (/api/hr/*). Headcount trend, time-to-fill,
 // hiring funnel, rating distribution and attrition all derive server-side.
 
-const ACCENT = '#f59e0b'
+const ACCENT = '#C9A233'
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'peopleops', label: 'People Ops' },
@@ -29,15 +29,15 @@ const TABS = [
   { id: 'contracts', label: 'Contracts' },
 ]
 // Employee lifecycle (People Operations) — type & status palettes.
-const LIFE_TYPE_COLOR: Record<string, string> = { onboarding: '#10b981', offboarding: '#c94f4f', promotion: '#8b5cf6', transfer: '#06b6d4', performance: '#f59e0b' }
-const LIFE_STATUS_COLOR: Record<string, string> = { planned: '#6b7280', in_progress: '#4f8ff7', completed: '#10b981', cancelled: '#c94f4f' }
+const LIFE_TYPE_COLOR: Record<string, string> = { onboarding: '#C9A233', offboarding: '#F4EFE3', promotion: '#C9A233', transfer: '#C9A233', performance: '#C9A233' }
+const LIFE_STATUS_COLOR: Record<string, string> = { planned: '#7A7468', in_progress: '#C9A233', completed: '#C9A233', cancelled: '#F4EFE3' }
 const LIFE_TYPES = ['onboarding', 'offboarding', 'promotion', 'transfer', 'performance'] as const
 const LIFE_STATUSES = ['planned', 'in_progress', 'completed', 'cancelled'] as const
 // Donut palette for the XP-by-source breakdown (gold-led, distinct hues).
-const SOURCE_COLORS = ['#C9A233', '#8b5cf6', '#06b6d4', '#10b981', '#4f8ff7', '#6b7280']
-const STATUS_COLOR: Record<string, string> = { open: '#4f8ff7', interviewing: '#8b5cf6', offer: '#06b6d4', filled: '#10b981', on_hold: '#6b7280' }
-const STAGE_COLOR: Record<string, string> = { applied: '#6b7280', screen: '#4f8ff7', onsite: '#06b6d4', offer: '#8b5cf6', hired: '#10b981', rejected: '#c94f4f' }
-const TYPE_COLOR: Record<string, string> = { voluntary: '#f59e0b', involuntary: '#c94f4f', retirement: '#6b7280' }
+const SOURCE_COLORS = ['#C9A233', '#C9A233', '#C9A233', '#C9A233', '#C9A233', '#7A7468']
+const STATUS_COLOR: Record<string, string> = { open: '#C9A233', interviewing: '#C9A233', offer: '#C9A233', filled: '#C9A233', on_hold: '#7A7468' }
+const STAGE_COLOR: Record<string, string> = { applied: '#7A7468', screen: '#C9A233', onsite: '#C9A233', offer: '#C9A233', hired: '#C9A233', rejected: '#F4EFE3' }
+const TYPE_COLOR: Record<string, string> = { voluntary: '#C9A233', involuntary: '#F4EFE3', retirement: '#7A7468' }
 const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(Math.round(n))
 const eur = (n: number) => `€${fmt(n)}`
 
@@ -46,11 +46,11 @@ function Pill({ text, color }: { text: string; color: string }) {
 }
 function Stars({ n }: { n: number | null }) {
   if (n == null) return <span className="text-empire-text-dim">—</span>
-  const c = n >= 4 ? '#10b981' : n >= 3 ? '#f59e0b' : '#c94f4f'
+  const c = n >= 4 ? '#C9A233' : n >= 3 ? '#C9A233' : '#F4EFE3'
   return (
     <span className="inline-flex items-center gap-0.5" aria-label={`${n} of 5`}>
       {Array.from({ length: 5 }).map((_, i) => (
-        <EmpireIcon key={i} name="star" size={12} style={{ color: i < n ? c : 'var(--empire-text-dim, #4A4540)' }} />
+        <EmpireIcon key={i} name="star" size={12} style={{ color: i < n ? c : 'var(--empire-text-dim, #7A7468)' }} />
       ))}
     </span>
   )
@@ -111,11 +111,11 @@ function Overview() {
     <div className="space-y-6">
       <Grid cols={6}>
         <KpiCard icon="people" label="Headcount" value={String(s.headcount)} sub={`${s.ytdHires} hires YTD`} accent={ACCENT} />
-        <KpiCard icon="briefcase" label="Open Reqs" value={String(s.openReqs)} sub={`${s.inPipeline} in pipeline`} accent="#4f8ff7" />
-        <KpiCard icon="clock" label="Time to Fill" value={`${s.timeToFill}d`} accent={s.timeToFill <= 45 ? '#10b981' : '#f59e0b'} />
-        <KpiCard icon="check" label="Offer Accept" value={`${s.offerAccept}%`} accent={s.offerAccept >= 70 ? '#10b981' : '#f59e0b'} />
-        <KpiCard icon="arrow-down" label="Attrition (12mo)" value={`${s.attritionRate}%`} sub={`${s.regrettableRate}% regrettable`} accent={s.attritionRate <= 12 ? '#10b981' : '#c94f4f'} />
-        <KpiCard icon="medal" label="Avg Review" value={`${s.avgRating}/5`} sub={`${s.promoRate}% promoted`} accent={s.avgRating >= 3.5 ? '#10b981' : '#f59e0b'} />
+        <KpiCard icon="briefcase" label="Open Reqs" value={String(s.openReqs)} sub={`${s.inPipeline} in pipeline`} accent="#C9A233" />
+        <KpiCard icon="clock" label="Time to Fill" value={`${s.timeToFill}d`} accent={s.timeToFill <= 45 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="check" label="Offer Accept" value={`${s.offerAccept}%`} accent={s.offerAccept >= 70 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="arrow-down" label="Attrition (12mo)" value={`${s.attritionRate}%`} sub={`${s.regrettableRate}% regrettable`} accent={s.attritionRate <= 12 ? '#C9A233' : '#F4EFE3'} />
+        <KpiCard icon="medal" label="Avg Review" value={`${s.avgRating}/5`} sub={`${s.promoRate}% promoted`} accent={s.avgRating >= 3.5 ? '#C9A233' : '#C9A233'} />
       </Grid>
       <Panel icon="chart-line" title="Headcount trend">
         <AreaChart series={s.trendHeadcount} color={ACCENT} height={140} />
@@ -150,7 +150,7 @@ function Hiring() {
           </div>
         </Panel>
         <Panel icon="compass" title="Candidate source mix">
-          <BarChart data={data.bySource.map(s => s.count)} labels={data.bySource.map(s => s.source)} color="#8b5cf6" height={140} />
+          <BarChart data={data.bySource.map(s => s.count)} labels={data.bySource.map(s => s.source)} color="#C9A233" height={140} />
         </Panel>
       </div>
       <CandidateBoard />
@@ -174,7 +174,7 @@ function CandidateBoard() {
   const rows = data?.data || []
   const cols: Column<Candidate>[] = [
     { key: 'name', label: 'Candidate', render: c => <div><div className="font-medium text-empire-text">{c.name}</div><div className="text-empire-text-dim text-[11px]">{c.role} · {c.team}</div></div> },
-    { key: 'stage', label: 'Stage', render: c => <Pill text={c.stage} color={STAGE_COLOR[c.stage] || '#6b7280'} /> },
+    { key: 'stage', label: 'Stage', render: c => <Pill text={c.stage} color={STAGE_COLOR[c.stage] || '#7A7468'} /> },
     { key: 'source', label: 'Source', render: c => <span className="text-empire-text-muted text-xs">{c.source}</span> },
     { key: 'rating', label: 'Rating', align: 'right', render: c => <Stars n={c.rating} /> },
     { key: 'ageDays', label: 'Age', align: 'right', render: c => <span className="text-empire-text-muted text-xs">{c.ageDays}d</span> },
@@ -255,15 +255,15 @@ function Reviews() {
   const cols: Column<{ team: string; reviews: number; avgRating: number; promoted: number }>[] = [
     { key: 'team', label: 'Team', render: t => <span className="text-empire-text">{t.team}</span> },
     { key: 'reviews', label: 'Reviews', align: 'right', render: t => <span className="text-empire-text-muted">{t.reviews}</span> },
-    { key: 'avgRating', label: 'Avg', align: 'right', render: t => <span style={{ color: t.avgRating >= 3.5 ? '#10b981' : '#f59e0b' }}>{t.avgRating}</span> },
+    { key: 'avgRating', label: 'Avg', align: 'right', render: t => <span style={{ color: t.avgRating >= 3.5 ? '#C9A233' : '#C9A233' }}>{t.avgRating}</span> },
     { key: 'promoted', label: 'Promoted', align: 'right', render: t => <span className="text-empire-text">{t.promoted}</span> },
   ]
   return (
     <div className="space-y-4">
       <Grid cols={3}>
         <KpiCard icon="document" label="Reviews (H1-2026)" value={String(data.total)} accent={ACCENT} />
-        <KpiCard icon="arrow-up" label="Promotions" value={String(data.promoted)} accent="#10b981" />
-        <KpiCard icon="medal" label="Promo Rate" value={`${data.total ? Math.round((data.promoted / data.total) * 100) : 0}%`} accent="#8b5cf6" />
+        <KpiCard icon="arrow-up" label="Promotions" value={String(data.promoted)} accent="#C9A233" />
+        <KpiCard icon="medal" label="Promo Rate" value={`${data.total ? Math.round((data.promoted / data.total) * 100) : 0}%`} accent="#C9A233" />
       </Grid>
       <Panel icon="star" title="Rating distribution">
         <BarChart data={data.distribution.map(d => d.count)} labels={data.distribution.map(d => `${d.rating}/5`)} color={ACCENT} height={140} />
@@ -284,24 +284,24 @@ function Attrition() {
   if (!data) return <EmptyState icon="arrow-down" title="No attrition data" />
   const cols: Column<AttrEvent>[] = [
     { key: 'employeeName', label: 'Employee', render: e => <div><div className="font-medium text-empire-text">{e.employeeName}</div><div className="text-empire-text-dim text-[11px]">{e.team}</div></div> },
-    { key: 'type', label: 'Type', render: e => <Pill text={e.type} color={TYPE_COLOR[e.type] || '#6b7280'} /> },
+    { key: 'type', label: 'Type', render: e => <Pill text={e.type} color={TYPE_COLOR[e.type] || '#7A7468'} /> },
     { key: 'reason', label: 'Reason', render: e => <span className="text-empire-text-muted text-xs">{e.reason || '—'}</span> },
     { key: 'tenureMonths', label: 'Tenure', align: 'right', render: e => <span className="text-empire-text-muted">{e.tenureMonths}mo</span> },
-    { key: 'regrettable', label: 'Regret', align: 'right', render: e => e.regrettable ? <Pill text="regrettable" color="#c94f4f" /> : <span className="text-empire-text-dim text-xs">no</span> },
+    { key: 'regrettable', label: 'Regret', align: 'right', render: e => e.regrettable ? <Pill text="regrettable" color="#F4EFE3" /> : <span className="text-empire-text-dim text-xs">no</span> },
   ]
   return (
     <div className="space-y-4">
       <Grid cols={3}>
         <KpiCard icon="arrow-down" label="Exits (total)" value={String(data.total)} accent={ACCENT} />
-        <KpiCard icon="clock" label="Avg Tenure" value={`${data.avgTenure}mo`} accent="#4f8ff7" />
-        <KpiCard icon="alert" label="Voluntary" value={String(data.byType.find(t => t.type === 'voluntary')?.count ?? 0)} accent="#f59e0b" />
+        <KpiCard icon="clock" label="Avg Tenure" value={`${data.avgTenure}mo`} accent="#C9A233" />
+        <KpiCard icon="alert" label="Voluntary" value={String(data.byType.find(t => t.type === 'voluntary')?.count ?? 0)} accent="#C9A233" />
       </Grid>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Panel icon="chart-bar" title="By type">
-          <BarChart data={data.byType.map(t => t.count)} labels={data.byType.map(t => t.type)} color="#c94f4f" height={140} />
+          <BarChart data={data.byType.map(t => t.count)} labels={data.byType.map(t => t.type)} color="#F4EFE3" height={140} />
         </Panel>
         <Panel icon="chart-line" title="Monthly exits trend">
-          <AreaChart series={data.trend} color="#c94f4f" height={120} />
+          <AreaChart series={data.trend} color="#F4EFE3" height={120} />
           <div className="flex justify-between mt-2 text-[11px] text-empire-text-dim">{data.trendLabels.map(l => <span key={l}>{l}</span>)}</div>
         </Panel>
       </div>
@@ -328,11 +328,11 @@ function Reqs() {
   const rows = data?.data || []
   const cols: Column<Req>[] = [
     { key: 'title', label: 'Role', render: r => <div><div className="font-medium text-empire-text">{r.title}</div><div className="text-empire-text-dim text-[11px]">{r.team} · {r.level} · {r.location}</div></div> },
-    { key: 'status', label: 'Status', render: r => <Pill text={r.status.replace('_', ' ')} color={STATUS_COLOR[r.status] || '#6b7280'} /> },
+    { key: 'status', label: 'Status', render: r => <Pill text={r.status.replace('_', ' ')} color={STATUS_COLOR[r.status] || '#7A7468'} /> },
     { key: 'type', label: 'Type', render: r => <span className="text-empire-text-muted text-xs">{r.type}</span> },
     { key: 'salaryMin', label: 'Band', align: 'right', render: r => <span className="text-empire-text-muted text-xs">{eur(r.salaryMin)}–{eur(r.salaryMax)}</span> },
     { key: 'candidates', label: 'Cands', align: 'right', render: r => <span className="text-empire-text">{r.candidates}</span> },
-    { key: 'ageDays', label: 'Age', align: 'right', render: r => <span style={{ color: r.ageDays > 60 ? '#c94f4f' : r.ageDays > 30 ? '#f59e0b' : '#7A7468' }}>{r.ageDays}d</span> },
+    { key: 'ageDays', label: 'Age', align: 'right', render: r => <span style={{ color: r.ageDays > 60 ? '#F4EFE3' : r.ageDays > 30 ? '#C9A233' : '#7A7468' }}>{r.ageDays}d</span> },
     { key: 'id', label: '', align: 'right', render: r => <RowActions onView={() => setViewing(r)} onEdit={() => setEditing(r)} onDelete={() => remove(r.id)} deleteLabel={`the “${r.title}” requisition`} /> },
   ]
   return (
@@ -353,9 +353,9 @@ function Reqs() {
         {viewing && (
           <div className="space-y-3 text-sm">
             <div className="flex flex-wrap gap-2">
-              <Pill text={viewing.status.replace('_', ' ')} color={STATUS_COLOR[viewing.status] || '#6b7280'} />
-              <Pill text={viewing.type} color="#6b7280" />
-              <Pill text={viewing.level} color="#8b5cf6" />
+              <Pill text={viewing.status.replace('_', ' ')} color={STATUS_COLOR[viewing.status] || '#7A7468'} />
+              <Pill text={viewing.type} color="#7A7468" />
+              <Pill text={viewing.level} color="#C9A233" />
             </div>
             <Field label="Team" value={viewing.team} />
             <Field label="Location" value={viewing.location} />
@@ -476,9 +476,9 @@ function PeopleOps() {
   const rows = data?.data || []
   const cols: Column<Lifecycle>[] = [
     { key: 'employee', label: 'Person', render: e => <div><div className="font-medium text-empire-text">{e.employee?.name || '—'}</div><div className="text-empire-text-dim text-[11px]">{e.employee?.role || ''}</div></div> },
-    { key: 'type', label: 'Type', render: e => <Pill text={e.type} color={LIFE_TYPE_COLOR[e.type] || '#6b7280'} /> },
+    { key: 'type', label: 'Type', render: e => <Pill text={e.type} color={LIFE_TYPE_COLOR[e.type] || '#7A7468'} /> },
     { key: 'title', label: 'Detail', render: e => <span className="text-empire-text-muted text-xs">{e.title || (e.toRole ? `→ ${e.toRole}` : e.cycle || '—')}</span> },
-    { key: 'status', label: 'Status', render: e => <Pill text={e.status.replace('_', ' ')} color={LIFE_STATUS_COLOR[e.status] || '#6b7280'} /> },
+    { key: 'status', label: 'Status', render: e => <Pill text={e.status.replace('_', ' ')} color={LIFE_STATUS_COLOR[e.status] || '#7A7468'} /> },
     { key: 'effectiveAt', label: 'Effective', align: 'right', render: e => <span className="text-empire-text-muted text-xs">{dateLabel(e.effectiveAt)}</span> },
     { key: 'id', label: '', align: 'right', render: e => <RowActions onView={() => setViewing(e)} onEdit={() => setEditing(e)} onDelete={() => remove(e.id)} deleteLabel={`this ${e.type} event`} /> },
   ]
@@ -505,8 +505,8 @@ function PeopleOps() {
         {viewing && (
           <div className="space-y-3 text-sm">
             <div className="flex flex-wrap gap-2">
-              <Pill text={viewing.type} color={LIFE_TYPE_COLOR[viewing.type] || '#6b7280'} />
-              <Pill text={viewing.status.replace('_', ' ')} color={LIFE_STATUS_COLOR[viewing.status] || '#6b7280'} />
+              <Pill text={viewing.type} color={LIFE_TYPE_COLOR[viewing.type] || '#7A7468'} />
+              <Pill text={viewing.status.replace('_', ' ')} color={LIFE_STATUS_COLOR[viewing.status] || '#7A7468'} />
               {viewing.xpAwarded && <Pill text="XP awarded" color="#C9A233" />}
             </div>
             <Field label="Person" value={viewing.employee?.name || '—'} />
@@ -654,8 +654,8 @@ function Points() {
       <Grid cols={4}>
         <KpiCard icon="people" label="People scored" value={String(s.totals.people)} accent={ACCENT} />
         <KpiCard icon="medal" label="Total XP" value={s.totals.totalXp.toLocaleString()} sub={`${s.totals.totalAwardedXp.toLocaleString()} awarded`} accent="#C9A233" />
-        <KpiCard icon="arrow-up" label="Avg level" value={String(s.totals.avgLevel)} accent="#8b5cf6" />
-        <KpiCard icon="flag" label="Lifecycle events" value={String(s.totals.lifecycleEvents)} accent="#06b6d4" />
+        <KpiCard icon="arrow-up" label="Avg level" value={String(s.totals.avgLevel)} accent="#C9A233" />
+        <KpiCard icon="flag" label="Lifecycle events" value={String(s.totals.lifecycleEvents)} accent="#C9A233" />
       </Grid>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

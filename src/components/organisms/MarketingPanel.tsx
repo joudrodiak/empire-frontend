@@ -27,7 +27,7 @@ type Page<T> = { data: T[]; page: number; pageSize: number; total: number; total
 // and the lead pipeline (/api/marketing/*). CAC, ROAS, CPL, channel ROI and
 // stage conversion are all derived server-side — nothing is hard-coded.
 
-const ACCENT = '#10b981'
+const ACCENT = '#C9A233'
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'funnel', label: 'AARRR Funnel' },
@@ -40,13 +40,13 @@ const TABS = [
 ]
 
 const CHANNEL_COLOR: Record<string, string> = {
-  paid_search: '#4f8ff7', seo: '#10b981', paid_social: '#a855f7', content: '#f59e0b',
-  email: '#ec4899', events: '#06b6d4', referral: '#3DAF75', pr: '#6b7280',
+  paid_search: '#C9A233', seo: '#C9A233', paid_social: '#C9A233', content: '#C9A233',
+  email: '#C9A233', events: '#C9A233', referral: '#C9A233', pr: '#7A7468',
 }
 const STAGE_COLOR: Record<string, string> = {
-  new: '#6b7280', mql: '#4f8ff7', sql: '#06b6d4', opportunity: '#f59e0b', won: '#10b981', lost: '#c94f4f',
+  new: '#7A7468', mql: '#C9A233', sql: '#C9A233', opportunity: '#C9A233', won: '#C9A233', lost: '#F4EFE3',
 }
-const STATUS_COLOR: Record<string, string> = { active: '#10b981', planned: '#4f8ff7', paused: '#f59e0b', completed: '#6b7280' }
+const STATUS_COLOR: Record<string, string> = { active: '#C9A233', planned: '#C9A233', paused: '#C9A233', completed: '#7A7468' }
 const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(Math.round(n))
 const eur = (n: number) => `€${fmt(n)}`
 
@@ -107,15 +107,15 @@ function Overview() {
     <div className="space-y-6">
       <Grid cols={6}>
         <KpiCard icon="coins" label="Attributed Revenue" value={eur(s.revenue)} accent={ACCENT} />
-        <KpiCard icon="gauge" label="Blended ROAS" value={`${s.roas}×`} sub={`€${fmt(s.spend)} spend`} accent={s.roas >= 4 ? '#10b981' : s.roas >= 2 ? '#f59e0b' : '#c94f4f'} />
+        <KpiCard icon="gauge" label="Blended ROAS" value={`${s.roas}×`} sub={`€${fmt(s.spend)} spend`} accent={s.roas >= 4 ? '#C9A233' : s.roas >= 2 ? '#C9A233' : '#F4EFE3'} />
         <KpiCard icon="megaphone" label="Blended CAC" value={eur(s.blendedCAC)} sub={`${s.conversions} customers`} accent={ACCENT} />
         <KpiCard icon="user" label="Cost / Lead" value={eur(s.cpl)} sub={`${s.leadCount} leads`} accent={ACCENT} />
         <KpiCard icon="chart-line" label="Pipeline Value" value={eur(s.pipelineValue)} sub={`${s.openLeads} open`} accent={ACCENT} />
-        <KpiCard icon="trophy" label="Win Rate" value={`${s.winRate}%`} sub="closed leads" accent={s.winRate >= 40 ? '#10b981' : '#f59e0b'} />
+        <KpiCard icon="trophy" label="Win Rate" value={`${s.winRate}%`} sub="closed leads" accent={s.winRate >= 40 ? '#C9A233' : '#C9A233'} />
       </Grid>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Panel icon="chart-line" title="Visitors (6 mo)"><AreaChart series={s.trendVisitors} color={ACCENT} height={200} /></Panel>
-        <Panel icon="chart-line" title="Paying Customers (6 mo)"><AreaChart series={s.trendPaying} color="#4f8ff7" height={200} /></Panel>
+        <Panel icon="chart-line" title="Paying Customers (6 mo)"><AreaChart series={s.trendPaying} color="#C9A233" height={200} /></Panel>
       </div>
     </div>
   )
@@ -137,7 +137,7 @@ function Funnel() {
   if (loading) return <Loading />
   if (!data || !data.stages.length) return <EmptyState icon="chart-bar" title="No funnel snapshots" hint="Add a period below." />
   const maxV = Math.max(...data.stages.map(s => s.value))
-  const STAGE_HUE: Record<string, string> = { Acquisition: '#4f8ff7', Activation: '#10b981', Retention: '#06b6d4', Revenue: '#f59e0b', Referral: '#a855f7' }
+  const STAGE_HUE: Record<string, string> = { Acquisition: '#C9A233', Activation: '#C9A233', Retention: '#C9A233', Revenue: '#C9A233', Referral: '#C9A233' }
   return (
     <div className="space-y-4">
       <Panel icon="gauge" title={`AARRR Funnel — ${data.latest?.periodLabel ?? 'latest'}`}>
@@ -194,11 +194,11 @@ function Campaigns() {
   const rows = data?.data || []
   const cols: Column<Camp>[] = [
     { key: 'name', label: 'Campaign', render: c => <div><div className="font-medium text-empire-text">{c.name}</div>{c.ownerName && <div className="text-empire-text-dim text-[11px]">{c.ownerName}</div>}</div> },
-    { key: 'channel', label: 'Channel', render: c => <Pill text={c.channel.replace('_', ' ')} color={CHANNEL_COLOR[c.channel] || '#6b7280'} /> },
-    { key: 'status', label: 'Status', render: c => <Pill text={c.status} color={STATUS_COLOR[c.status] || '#6b7280'} /> },
+    { key: 'channel', label: 'Channel', render: c => <Pill text={c.channel.replace('_', ' ')} color={CHANNEL_COLOR[c.channel] || '#7A7468'} /> },
+    { key: 'status', label: 'Status', render: c => <Pill text={c.status} color={STATUS_COLOR[c.status] || '#7A7468'} /> },
     { key: 'spend', label: 'Spend', align: 'right', render: c => <span className="text-empire-text-muted">{eur(c.spend)}</span> },
     { key: 'revenue', label: 'Revenue', align: 'right', render: c => <span className="text-empire-text">{eur(c.revenue)}</span> },
-    { key: 'roas', label: 'ROAS', align: 'right', render: c => <span style={{ color: c.roas >= 4 ? '#10b981' : c.roas >= 2 ? '#f59e0b' : '#c94f4f' }}>{c.roas}×</span> },
+    { key: 'roas', label: 'ROAS', align: 'right', render: c => <span style={{ color: c.roas >= 4 ? '#C9A233' : c.roas >= 2 ? '#C9A233' : '#F4EFE3' }}>{c.roas}×</span> },
     { key: 'cac', label: 'CAC', align: 'right', render: c => <span className="text-empire-text-muted">{c.cac ? eur(c.cac) : '—'}</span> },
     { key: 'actions', label: '', align: 'right', render: c => (
       <RowActions
@@ -237,8 +237,8 @@ function Campaigns() {
       <Modal open={!!viewing} onClose={() => setViewing(null)} title={viewing?.name || 'Campaign'} icon={<EmpireIcon name="megaphone" size={18} />}>
         {viewing && (
           <div className="space-y-0.5">
-            <Field label="Channel"><Pill text={viewing.channel.replace('_', ' ')} color={CHANNEL_COLOR[viewing.channel] || '#6b7280'} /></Field>
-            <Field label="Status"><Pill text={viewing.status} color={STATUS_COLOR[viewing.status] || '#6b7280'} /></Field>
+            <Field label="Channel"><Pill text={viewing.channel.replace('_', ' ')} color={CHANNEL_COLOR[viewing.channel] || '#7A7468'} /></Field>
+            <Field label="Status"><Pill text={viewing.status} color={STATUS_COLOR[viewing.status] || '#7A7468'} /></Field>
             <Field label="Objective">{viewing.objective || '—'}</Field>
             <Field label="Owner">{viewing.ownerName || '—'}</Field>
             <Field label="Budget">{eur(viewing.budget)}</Field>
@@ -310,13 +310,13 @@ function Channels() {
   if (loading) return <Loading />
   const rows = data || []
   const cols: Column<Chan>[] = [
-    { key: 'channel', label: 'Channel', render: c => <Pill text={c.channel.replace('_', ' ')} color={CHANNEL_COLOR[c.channel] || '#6b7280'} /> },
+    { key: 'channel', label: 'Channel', render: c => <Pill text={c.channel.replace('_', ' ')} color={CHANNEL_COLOR[c.channel] || '#7A7468'} /> },
     { key: 'campaigns', label: 'Camps', align: 'right' },
     { key: 'spend', label: 'Spend', align: 'right', render: c => <span className="text-empire-text-muted">{eur(c.spend)}</span> },
     { key: 'revenue', label: 'Revenue', align: 'right', render: c => <span className="text-empire-text">{eur(c.revenue)}</span> },
     { key: 'leads', label: 'Leads', align: 'right' },
     { key: 'cac', label: 'CAC', align: 'right', render: c => <span className="text-empire-text-muted">{c.cac ? eur(c.cac) : '—'}</span> },
-    { key: 'roas', label: 'ROAS', align: 'right', render: c => <span style={{ color: c.roas >= 4 ? '#10b981' : c.roas >= 2 ? '#f59e0b' : '#c94f4f' }}>{c.roas}×</span> },
+    { key: 'roas', label: 'ROAS', align: 'right', render: c => <span style={{ color: c.roas >= 4 ? '#C9A233' : c.roas >= 2 ? '#C9A233' : '#F4EFE3' }}>{c.roas}×</span> },
   ]
   return (
     <div className="space-y-4">
@@ -346,8 +346,8 @@ function Leads() {
   const rows = data?.data || []
   const cols: Column<Lead>[] = [
     { key: 'name', label: 'Lead', render: l => <div><div className="font-medium text-empire-text">{l.name}</div><div className="text-empire-text-dim text-[11px]">{l.company || '—'}</div></div> },
-    { key: 'source', label: 'Source', render: l => <Pill text={l.source.replace('_', ' ')} color={CHANNEL_COLOR[l.source] || '#6b7280'} /> },
-    { key: 'score', label: 'Score', align: 'right', render: l => <span style={{ color: l.score >= 70 ? '#10b981' : l.score >= 40 ? '#f59e0b' : '#6b7280' }}>{l.score}</span> },
+    { key: 'source', label: 'Source', render: l => <Pill text={l.source.replace('_', ' ')} color={CHANNEL_COLOR[l.source] || '#7A7468'} /> },
+    { key: 'score', label: 'Score', align: 'right', render: l => <span style={{ color: l.score >= 70 ? '#C9A233' : l.score >= 40 ? '#C9A233' : '#7A7468' }}>{l.score}</span> },
     { key: 'value', label: 'ACV', align: 'right', render: l => <span className="text-empire-text-muted">{l.value ? eur(l.value) : '—'}</span> },
     { key: 'stage', label: 'Stage', align: 'right', render: l => (
       <select value={l.stage} onChange={e => move(l.id, e.target.value)} className="bg-empire-bg-soft border rounded px-1.5 py-1 text-xs" style={{ color: STAGE_COLOR[l.stage], borderColor: `${STAGE_COLOR[l.stage]}55` }}>
@@ -380,8 +380,8 @@ function Leads() {
           <div className="space-y-0.5">
             <Field label="Name">{viewing.name}</Field>
             <Field label="Company">{viewing.company || '—'}</Field>
-            <Field label="Source"><Pill text={viewing.source.replace('_', ' ')} color={CHANNEL_COLOR[viewing.source] || '#6b7280'} /></Field>
-            <Field label="Stage"><Pill text={viewing.stage} color={STAGE_COLOR[viewing.stage] || '#6b7280'} /></Field>
+            <Field label="Source"><Pill text={viewing.source.replace('_', ' ')} color={CHANNEL_COLOR[viewing.source] || '#7A7468'} /></Field>
+            <Field label="Stage"><Pill text={viewing.stage} color={STAGE_COLOR[viewing.stage] || '#7A7468'} /></Field>
             <Field label="Score">{viewing.score}</Field>
             <Field label="ACV">{viewing.value ? eur(viewing.value) : '—'}</Field>
             <Field label="Owner">{viewing.ownerName || '—'}</Field>
@@ -446,10 +446,10 @@ type Influencer = {
 }
 const INF_PLATFORMS = ['instagram', 'tiktok', 'youtube', 'x', 'linkedin', 'twitch', 'newsletter', 'podcast']
 const INF_TIERS = ['nano', 'micro', 'mid', 'macro', 'mega']
-const INF_STATUS_COLOR: Record<string, string> = { prospect: '#6b7280', negotiating: '#4f8ff7', active: '#10b981', paused: '#f59e0b', ended: '#c94f4f' }
+const INF_STATUS_COLOR: Record<string, string> = { prospect: '#7A7468', negotiating: '#C9A233', active: '#C9A233', paused: '#C9A233', ended: '#F4EFE3' }
 const PLATFORM_COLOR: Record<string, string> = {
-  instagram: '#e1306c', tiktok: '#06b6d4', youtube: '#c94f4f', x: '#6b7280',
-  linkedin: '#4f8ff7', twitch: '#a855f7', newsletter: '#f59e0b', podcast: '#10b981',
+  instagram: '#C9A233', tiktok: '#C9A233', youtube: '#F4EFE3', x: '#7A7468',
+  linkedin: '#C9A233', twitch: '#C9A233', newsletter: '#C9A233', podcast: '#C9A233',
 }
 const INF_PAGE_SIZE = 8
 
@@ -528,7 +528,7 @@ function Influencers() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-empire-text text-sm font-medium truncate">{inf.title}</span>
-                      <Pill text={inf.status} color={INF_STATUS_COLOR[inf.status] || '#6b7280'} />
+                      <Pill text={inf.status} color={INF_STATUS_COLOR[inf.status] || '#7A7468'} />
                     </div>
                     <div className="text-empire-text-dim text-[11px] mt-0.5 truncate">
                       {m.handle ? `${m.handle} · ` : ''}{platforms.length ? platforms.join(', ') : '—'}{m.tier ? ` · ${m.tier}` : ''}
@@ -556,10 +556,10 @@ function Influencers() {
       <Modal open={!!viewing} onClose={() => setViewing(null)} title={viewing?.title || 'Influencer'} icon={<EmpireIcon name="megaphone" size={18} />}>
         {viewing && (() => { const m = viewing.metadata || {}; return (
           <div className="space-y-0.5">
-            <Field label="Status"><Pill text={viewing.status} color={INF_STATUS_COLOR[viewing.status] || '#6b7280'} /></Field>
+            <Field label="Status"><Pill text={viewing.status} color={INF_STATUS_COLOR[viewing.status] || '#7A7468'} /></Field>
             <Field label="Handle">{m.handle || '—'}</Field>
             <Field label="Platforms">{(m.platforms?.length ? m.platforms : m.platform ? [m.platform] : []).length
-              ? <span className="inline-flex flex-wrap justify-end gap-1">{(m.platforms?.length ? m.platforms : [m.platform!]).map(p => <Pill key={p} text={p} color={PLATFORM_COLOR[p] || '#6b7280'} />)}</span>
+              ? <span className="inline-flex flex-wrap justify-end gap-1">{(m.platforms?.length ? m.platforms : [m.platform!]).map(p => <Pill key={p} text={p} color={PLATFORM_COLOR[p] || '#7A7468'} />)}</span>
               : '—'}</Field>
             <Field label="Tier">{m.tier || '—'}</Field>
             <Field label="Followers">{m.followers != null ? Number(m.followers).toLocaleString() : '—'}</Field>
@@ -682,8 +682,8 @@ const SOCIAL_CONNECTIONS = [
   { id: 'api_key', label: 'API key' },
   { id: 'manual', label: 'Manual entry' },
 ]
-const ACC_STATUS_COLOR: Record<string, string> = { connected: '#10b981', pending: '#f59e0b', disconnected: '#6b7280', error: '#c94f4f' }
-const SEV_COLOR: Record<string, string> = { high: '#c94f4f', medium: '#f59e0b', low: '#6b7280' }
+const ACC_STATUS_COLOR: Record<string, string> = { connected: '#C9A233', pending: '#C9A233', disconnected: '#7A7468', error: '#F4EFE3' }
+const SEV_COLOR: Record<string, string> = { high: '#F4EFE3', medium: '#C9A233', low: '#7A7468' }
 
 type Fix = { area: string; severity: 'high' | 'medium' | 'low'; message: string; metric: string; handle?: string; platform?: string }
 type SocialAcc = {
@@ -702,7 +702,7 @@ type SocialOverview = {
 }
 
 function Delta({ v, pct = true }: { v: number; pct?: boolean }) {
-  const color = v > 0 ? '#10b981' : v < 0 ? '#c94f4f' : '#6b7280'
+  const color = v > 0 ? '#C9A233' : v < 0 ? '#F4EFE3' : '#7A7468'
   const sign = v > 0 ? '+' : ''
   return <span className="font-data text-[11px]" style={{ color }}>{sign}{v}{pct ? '%' : ''}</span>
 }
@@ -782,7 +782,7 @@ function SocialAccounts() {
         </select>
         {selectedAcc && (
           <>
-            <Pill text={selectedAcc.status} color={ACC_STATUS_COLOR[selectedAcc.status] || '#6b7280'} />
+            <Pill text={selectedAcc.status} color={ACC_STATUS_COLOR[selectedAcc.status] || '#7A7468'} />
             <button onClick={() => sync(selectedAcc.id)} className="rounded px-3 py-1.5 text-xs uppercase tracking-widest border border-empire-border text-empire-text-muted hover:text-empire-text hover:border-empire-gold/40 inline-flex items-center gap-1.5">
               <EmpireIcon name="rocket" size={12} /> Sync now
             </button>
@@ -802,7 +802,7 @@ function SocialAccounts() {
         <div className="space-y-6">
           <Grid cols={5}>
             <KpiCard icon="people" label="Total Followers" value={fmt(overview?.totals.followers || 0)} sub={`${overview?.accountsTracked || 0} accounts`} accent={ACCENT} />
-            <KpiCard icon="gauge" label="Avg Engagement" value={`${overview?.avgEngagementRate || 0}%`} accent={(overview?.avgEngagementRate || 0) >= 3 ? '#10b981' : (overview?.avgEngagementRate || 0) >= 1 ? '#f59e0b' : '#c94f4f'} />
+            <KpiCard icon="gauge" label="Avg Engagement" value={`${overview?.avgEngagementRate || 0}%`} accent={(overview?.avgEngagementRate || 0) >= 3 ? '#C9A233' : (overview?.avgEngagementRate || 0) >= 1 ? '#C9A233' : '#F4EFE3'} />
             <KpiCard icon="chart-line" label="Reach" value={fmt(overview?.totals.reach || 0)} accent={ACCENT} />
             <KpiCard icon="megaphone" label="Impressions" value={fmt(overview?.totals.impressions || 0)} accent={ACCENT} />
             <KpiCard icon="check" label="Connected" value={`${overview?.connected || 0}/${overview?.accountsTracked || 0}`} accent={ACCENT} />
@@ -817,14 +817,14 @@ function SocialAccounts() {
                     <div className="flex items-center gap-2.5">
                       <span className="grid place-items-center w-8 h-8 rounded-full text-[11px] font-semibold" style={{ background: `${c}22`, color: c }}>{a.platform.slice(0, 2).toUpperCase()}</span>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2"><span className="text-empire-text text-sm truncate">{a.handle}</span><Pill text={a.status} color={ACC_STATUS_COLOR[a.status] || '#6b7280'} /></div>
+                        <div className="flex items-center gap-2"><span className="text-empire-text text-sm truncate">{a.handle}</span><Pill text={a.status} color={ACC_STATUS_COLOR[a.status] || '#7A7468'} /></div>
                         <div className="text-[11px] text-empire-text-dim">{a.platform}</div>
                       </div>
                     </div>
                     <div className="flex items-center justify-between mt-2.5 text-[11px] text-empire-text-muted font-data">
                       <span>{fmt(a.followers)} followers <Delta v={a.deltas.followers} pct={false} /></span>
                       <span>{a.engagementRate}% eng</span>
-                      {a.fixCount > 0 && <span style={{ color: '#f59e0b' }}>{a.fixCount} fix{a.fixCount > 1 ? 'es' : ''}</span>}
+                      {a.fixCount > 0 && <span style={{ color: '#C9A233' }}>{a.fixCount} fix{a.fixCount > 1 ? 'es' : ''}</span>}
                     </div>
                   </button>
                 )
@@ -846,7 +846,7 @@ function SocialAccounts() {
         <div className="space-y-6">
           <Grid cols={5}>
             <KpiCard icon="people" label="Followers" value={fmt(detail.followers)} sub={`${detail.deltas.followers >= 0 ? '+' : ''}${detail.deltas.followers} vs prev`} accent={ACCENT} />
-            <KpiCard icon="gauge" label="Engagement Rate" value={`${detail.engagementRate}%`} accent={detail.engagementRate >= 3 ? '#10b981' : detail.engagementRate >= 1 ? '#f59e0b' : '#c94f4f'} />
+            <KpiCard icon="gauge" label="Engagement Rate" value={`${detail.engagementRate}%`} accent={detail.engagementRate >= 3 ? '#C9A233' : detail.engagementRate >= 1 ? '#C9A233' : '#F4EFE3'} />
             <KpiCard icon="chart-line" label="Reach" value={fmt(detail.reach)} accent={ACCENT} />
             <KpiCard icon="megaphone" label="Impressions" value={fmt(detail.impressions)} accent={ACCENT} />
             <KpiCard icon="sparkle" label="Posts / period" value={String(detail.posts)} accent={ACCENT} />
@@ -855,7 +855,7 @@ function SocialAccounts() {
           {detail.series.labels.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Panel icon="chart-line" title={`Followers — ${detail.series.labels.join(' → ')}`}><AreaChart series={detail.series.followers} color={ACCENT} height={200} /></Panel>
-              <Panel icon="chart-line" title="Engagements"><AreaChart series={detail.series.engagements} color="#a855f7" height={200} /></Panel>
+              <Panel icon="chart-line" title="Engagements"><AreaChart series={detail.series.engagements} color="#C9A233" height={200} /></Panel>
             </div>
           ) : (
             <EmptyState icon="chart-line" title="No period data yet" hint="Add a reporting period (or sync once keys are configured) to chart growth." />
@@ -906,7 +906,7 @@ function Intelligence() {
       <Grid cols={3}>
         <KpiCard icon="people" label="Accounts analysed" value={String(data.accountsAnalyzed)} sub={`${data.withData} with period data`} accent={ACCENT} />
         <KpiCard icon="sparkle" label="Recommendations" value={String(totalRecs)} sub="across 4 lenses" accent={ACCENT} />
-        <KpiCard icon="alert" label="High priority" value={String(high)} accent={high > 0 ? '#c94f4f' : '#10b981'} />
+        <KpiCard icon="alert" label="High priority" value={String(high)} accent={high > 0 ? '#F4EFE3' : '#C9A233'} />
       </Grid>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1003,7 +1003,7 @@ function SocialAccountEdit({ account, open, onClose, onSaved }: { account: Socia
               </button>
             </div>
             <p className="text-[11px] text-empire-text-dim leading-relaxed">Starts the provider authorization-code flow. With live keys in env you are sent to the provider&apos;s consent screen; without keys it records a simulated connection so the flow is demoable.</p>
-            {oauthNote && <p className="text-[11px]" style={{ color: '#10b981' }}>{oauthNote}</p>}
+            {oauthNote && <p className="text-[11px]" style={{ color: '#C9A233' }}>{oauthNote}</p>}
           </div>
         )}
         <p className="text-[11px] text-empire-text-dim leading-relaxed">Auth keys/tokens are added in env later — connecting now records the account so metrics light up on first sync.</p>

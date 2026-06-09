@@ -8,7 +8,7 @@ import React, { useEffect, useState } from 'react'
  * legend. Pure SVG, no chart library. Public props unchanged.
  */
 export function AreaChart({
-  series, height = 200, color = '#c9a233', labels, compare, compareColor = '#c94f4f',
+  series, height = 200, color = '#c9a233', labels, compare, compareColor = '#F4EFE3',
   valueFormat, seriesLabel = 'Value', compareLabel = 'Compare',
 }: {
   series: number[]; height?: number; color?: string; labels?: string[]

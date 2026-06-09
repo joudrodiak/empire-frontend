@@ -16,7 +16,7 @@ import { deptIcon } from '@/lib/dept-icons'
 
 type Page<T> = { data: T[]; page: number; pageSize: number; total: number; totalPages: number }
 
-const ACCENT = '#ec4899'
+const ACCENT = '#C9A233'
 const TABS = [
   { id: 'overview', label: 'Overview', icon: 'overview' as const },
   { id: 'pipeline', label: 'Pipeline', icon: 'sparkle' as const },
@@ -24,11 +24,11 @@ const TABS = [
   { id: 'briefs', label: 'Briefs', icon: 'pen-nib' as const },
 ]
 
-const TYPE_COLOR: Record<string, string> = { campaign: '#ec4899', brand: '#8b5cf6', product: '#0ea5e9', social: '#f59e0b', web: '#10b981', video: '#f43f5e' }
-const STAGE_COLOR: Record<string, string> = { concept: '#6b7280', draft: '#f59e0b', review: '#0ea5e9', revision: '#e08a3c', final: '#10b981' }
-const PRIORITY_COLOR: Record<string, string> = { urgent: '#c94f4f', high: '#f59e0b', normal: '#4f8ff7', low: '#6b7280' }
-const BSTATUS_COLOR: Record<string, string> = { intake: '#6b7280', in_progress: '#0ea5e9', in_review: '#f59e0b', approved: '#8b5cf6', delivered: '#10b981', archived: '#4b5563' }
-const DECISION_COLOR: Record<string, string> = { approved: '#10b981', changes_requested: '#f59e0b', rejected: '#c94f4f', pending: '#6b7280' }
+const TYPE_COLOR: Record<string, string> = { campaign: '#C9A233', brand: '#C9A233', product: '#C9A233', social: '#C9A233', web: '#C9A233', video: '#F4EFE3' }
+const STAGE_COLOR: Record<string, string> = { concept: '#7A7468', draft: '#C9A233', review: '#C9A233', revision: '#C9A233', final: '#C9A233' }
+const PRIORITY_COLOR: Record<string, string> = { urgent: '#F4EFE3', high: '#C9A233', normal: '#C9A233', low: '#7A7468' }
+const BSTATUS_COLOR: Record<string, string> = { intake: '#7A7468', in_progress: '#C9A233', in_review: '#C9A233', approved: '#C9A233', delivered: '#C9A233', archived: '#7A7468' }
+const DECISION_COLOR: Record<string, string> = { approved: '#C9A233', changes_requested: '#C9A233', rejected: '#F4EFE3', pending: '#7A7468' }
 
 function Pill({ text, color }: { text: string; color: string }) {
   return <span style={{ color, background: color + '18', border: '1px solid ' + color + '40' }} className="px-2 py-0.5 rounded text-xs font-medium">{text}</span>
@@ -95,11 +95,11 @@ function Overview() {
     <div className="space-y-6">
       <Grid cols={6}>
         <KpiCard icon="gauge" label="Throughput" value={`${s.throughput}%`} sub={`${s.delivered}/${s.briefs} delivered`} accent={ACCENT} />
-        <KpiCard icon="clock" label="Avg Turnaround" value={`${s.avgTurnaround}d`} sub="delivered briefs" accent="#8b5cf6" />
-        <KpiCard icon="flag" label="On-Time Rate" value={`${s.onTimeRate}%`} accent={s.onTimeRate >= 75 ? '#10b981' : '#f59e0b'} />
-        <KpiCard icon="check" label="Approval Rate" value={`${s.approvalRate}%`} sub={`${s.approvedRounds}/${s.decidedRounds} rounds`} accent={s.approvalRate >= 60 ? '#10b981' : '#f59e0b'} />
-        <KpiCard icon="alert" label="Backlog" value={String(s.backlog)} sub={`${s.urgentOpen} urgent`} accent={s.urgentOpen > 0 ? '#c94f4f' : '#0ea5e9'} />
-        <KpiCard icon="flame" label="Revision Load" value={`${s.revisionLoad}×`} sub={`${s.assets} assets`} accent="#06b6d4" />
+        <KpiCard icon="clock" label="Avg Turnaround" value={`${s.avgTurnaround}d`} sub="delivered briefs" accent="#C9A233" />
+        <KpiCard icon="flag" label="On-Time Rate" value={`${s.onTimeRate}%`} accent={s.onTimeRate >= 75 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="check" label="Approval Rate" value={`${s.approvalRate}%`} sub={`${s.approvedRounds}/${s.decidedRounds} rounds`} accent={s.approvalRate >= 60 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="alert" label="Backlog" value={String(s.backlog)} sub={`${s.urgentOpen} urgent`} accent={s.urgentOpen > 0 ? '#F4EFE3' : '#C9A233'} />
+        <KpiCard icon="flame" label="Revision Load" value={`${s.revisionLoad}×`} sub={`${s.assets} assets`} accent="#C9A233" />
       </Grid>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Panel icon="chart-line" title="Production trend (briefs delivered / month)">
@@ -107,7 +107,7 @@ function Overview() {
           <div className="flex justify-between mt-2 text-[11px] text-empire-text-dim">{s.trendLabels.map(l => <span key={l}>{l}</span>)}</div>
         </Panel>
         <Panel icon="chart-bar" title="Assets produced / month">
-          <BarChart data={s.trendProduced} labels={s.trendLabels} color="#8b5cf6" height={140} />
+          <BarChart data={s.trendProduced} labels={s.trendLabels} color="#C9A233" height={140} />
         </Panel>
         <Panel icon="check" title="Review board">
           <div className="text-[11px] uppercase tracking-widest text-empire-text-dim">Rounds</div>
@@ -137,7 +137,7 @@ function Pipeline() {
         </Panel>
         <Panel icon="pen-nib" title="Briefs by type">
           {data.byType.length ? (
-            <DonutChart size={170} segments={data.byType.map(t => ({ label: t.type, value: t.count, color: TYPE_COLOR[t.type] || '#6b7280' }))} />
+            <DonutChart size={170} segments={data.byType.map(t => ({ label: t.type, value: t.count, color: TYPE_COLOR[t.type] || '#7A7468' }))} />
           ) : <EmptyState icon="document" title="No briefs" />}
         </Panel>
       </div>
@@ -145,7 +145,7 @@ function Pipeline() {
         <div className="flex flex-wrap gap-3">
           {data.byStage.map(s => (
             <div key={s.stage} className="border border-empire-border rounded px-3 py-2 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: STAGE_COLOR[s.stage] || '#6b7280' }} />
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: STAGE_COLOR[s.stage] || '#7A7468' }} />
               <span className="text-empire-text-muted text-xs capitalize">{s.stage}</span>
               <span className="text-empire-text font-empire">{s.count}</span>
               <span className="text-empire-text-dim text-[11px]">avg {s.avgVersions}×</span>
@@ -183,23 +183,23 @@ function Reviews() {
   if (!data) return <EmptyState icon="check" title="No reviews" />
   const cols: Column<Round>[] = [
     { key: 'assetName', label: 'Asset', render: r => <div><div className="font-medium text-empire-text">{r.assetName}</div><div className="text-empire-text-dim text-[11px]">round {r.round} · {r.reviewer || '—'}</div></div> },
-    { key: 'decision', label: 'Decision', render: r => <Pill text={r.decision.replace(/_/g, ' ')} color={DECISION_COLOR[r.decision] || '#6b7280'} /> },
+    { key: 'decision', label: 'Decision', render: r => <Pill text={r.decision.replace(/_/g, ' ')} color={DECISION_COLOR[r.decision] || '#7A7468'} /> },
     { key: 'notes', label: 'Notes', render: r => <span className="text-empire-text-muted">{r.notes || '—'}</span> },
     { key: 'decidedAt', label: 'Decided', align: 'right', render: r => <span className="text-empire-text-dim text-xs">{r.decidedAt ? new Date(r.decidedAt).toLocaleDateString() : 'pending'}</span> },
   ]
   return (
     <div className="space-y-4">
       <Grid cols={4}>
-        <KpiCard icon="check" label="Approval Rate" value={`${data.approvalRate}%`} sub={`${data.approved}/${data.decided} decided`} accent={data.approvalRate >= 60 ? '#10b981' : '#f59e0b'} />
-        <KpiCard icon="pen-nib" label="Change Requests" value={String(data.changes)} sub={`${data.changeRate}% of decided`} accent="#f59e0b" />
-        <KpiCard icon="close" label="Rejected" value={String(data.rejected)} accent="#c94f4f" />
+        <KpiCard icon="check" label="Approval Rate" value={`${data.approvalRate}%`} sub={`${data.approved}/${data.decided} decided`} accent={data.approvalRate >= 60 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="pen-nib" label="Change Requests" value={String(data.changes)} sub={`${data.changeRate}% of decided`} accent="#C9A233" />
+        <KpiCard icon="close" label="Rejected" value={String(data.rejected)} accent="#F4EFE3" />
         <KpiCard icon="chart-bar" label="Total Rounds" value={String(data.total)} accent={ACCENT} />
       </Grid>
       <Panel icon="overview" title="Decision breakdown">
         <div className="flex flex-wrap gap-3">
           {data.breakdown.map(d => (
             <div key={d.decision} className="border border-empire-border rounded px-3 py-2 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: DECISION_COLOR[d.decision] || '#6b7280' }} />
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: DECISION_COLOR[d.decision] || '#7A7468' }} />
               <span className="text-empire-text-muted text-xs capitalize">{d.decision.replace(/_/g, ' ')}</span>
               <span className="text-empire-text font-empire">{d.count}</span>
             </div>
@@ -251,10 +251,10 @@ function Briefs() {
   const rows = data?.data || []
   const cols: Column<Brief>[] = [
     { key: 'title', label: 'Brief', render: b => <div><div className="font-medium text-empire-text">{b.title}</div><div className="text-empire-text-dim text-[11px]">{b.requestingDept} · {b.ownerName || '—'}</div></div> },
-    { key: 'type', label: 'Type', render: b => <Pill text={b.type} color={TYPE_COLOR[b.type] || '#6b7280'} /> },
-    { key: 'priority', label: 'Priority', render: b => <Pill text={b.priority} color={PRIORITY_COLOR[b.priority] || '#6b7280'} /> },
-    { key: 'status', label: 'Status', render: b => <Pill text={b.status.replace(/_/g, ' ')} color={BSTATUS_COLOR[b.status] || '#6b7280'} /> },
-    { key: 'daysToDue', label: 'Due', align: 'right', render: b => b.deliveredAt ? <span style={{ color: b.onTime ? '#10b981' : '#c94f4f' }}>{b.onTime ? 'on time' : 'late'}</span> : <span style={{ color: (b.daysToDue ?? 999) < 0 ? '#c94f4f' : (b.daysToDue ?? 999) < 7 ? '#f59e0b' : '#7A7468' }}>{b.daysToDue != null ? `${b.daysToDue}d` : '—'}</span> },
+    { key: 'type', label: 'Type', render: b => <Pill text={b.type} color={TYPE_COLOR[b.type] || '#7A7468'} /> },
+    { key: 'priority', label: 'Priority', render: b => <Pill text={b.priority} color={PRIORITY_COLOR[b.priority] || '#7A7468'} /> },
+    { key: 'status', label: 'Status', render: b => <Pill text={b.status.replace(/_/g, ' ')} color={BSTATUS_COLOR[b.status] || '#7A7468'} /> },
+    { key: 'daysToDue', label: 'Due', align: 'right', render: b => b.deliveredAt ? <span style={{ color: b.onTime ? '#C9A233' : '#F4EFE3' }}>{b.onTime ? 'on time' : 'late'}</span> : <span style={{ color: (b.daysToDue ?? 999) < 0 ? '#F4EFE3' : (b.daysToDue ?? 999) < 7 ? '#C9A233' : '#7A7468' }}>{b.daysToDue != null ? `${b.daysToDue}d` : '—'}</span> },
     { key: 'id', label: '', align: 'right', render: b => (
       <div className="flex items-center gap-2 justify-end">
         {b.status !== 'delivered' && b.status !== 'archived' && <button onClick={() => advance(b)} className="inline-flex items-center gap-1 text-empire-text-dim hover:text-empire-gold text-xs transition-colors"><EmpireIcon name="chevron-right" size={12} />advance</button>}
@@ -302,9 +302,9 @@ function Briefs() {
             <div className="font-empire text-empire-text text-lg">{viewing.title}</div>
             <DetailRow label="Requesting unit">{viewing.requestingDept}</DetailRow>
             <DetailRow label="Owner">{viewing.ownerName || '—'}</DetailRow>
-            <DetailRow label="Type"><Pill text={viewing.type} color={TYPE_COLOR[viewing.type] || '#6b7280'} /></DetailRow>
-            <DetailRow label="Priority"><Pill text={viewing.priority} color={PRIORITY_COLOR[viewing.priority] || '#6b7280'} /></DetailRow>
-            <DetailRow label="Status"><Pill text={viewing.status.replace(/_/g, ' ')} color={BSTATUS_COLOR[viewing.status] || '#6b7280'} /></DetailRow>
+            <DetailRow label="Type"><Pill text={viewing.type} color={TYPE_COLOR[viewing.type] || '#7A7468'} /></DetailRow>
+            <DetailRow label="Priority"><Pill text={viewing.priority} color={PRIORITY_COLOR[viewing.priority] || '#7A7468'} /></DetailRow>
+            <DetailRow label="Status"><Pill text={viewing.status.replace(/_/g, ' ')} color={BSTATUS_COLOR[viewing.status] || '#7A7468'} /></DetailRow>
             <DetailRow label="Due">{viewing.dueDate ? new Date(viewing.dueDate).toLocaleDateString() : '—'}</DetailRow>
             <DetailRow label="Delivered">{viewing.deliveredAt ? new Date(viewing.deliveredAt).toLocaleDateString() : '—'}</DetailRow>
             {viewing.turnaroundDays != null && <DetailRow label="Turnaround">{viewing.turnaroundDays}d{viewing.onTime != null ? (viewing.onTime ? ' · on time' : ' · late') : ''}</DetailRow>}

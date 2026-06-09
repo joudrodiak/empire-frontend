@@ -17,7 +17,7 @@ type Page<T> = { data: T[]; page: number; pageSize: number; total: number; total
 // tickets (/api/client-success/*). NRR/GRR, health distribution, renewal risk
 // and CSAT are all derived server-side. Nothing is hard-coded.
 
-const ACCENT = '#06b6d4'
+const ACCENT = '#C9A233'
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'accounts', label: 'Accounts' },
@@ -26,14 +26,14 @@ const TABS = [
   { id: 'support', label: 'Support' },
   { id: 'capability', label: 'Capability' },
 ]
-const TIER_COLOR: Record<string, string> = { enterprise: '#a855f7', growth: '#06b6d4', starter: '#6b7280' }
-const STATUS_COLOR: Record<string, string> = { active: '#10b981', at_risk: '#f59e0b', churned: '#c94f4f' }
-const RISK_COLOR: Record<string, string> = { low: '#10b981', medium: '#f59e0b', high: '#c94f4f' }
-const PRIO_COLOR: Record<string, string> = { urgent: '#c94f4f', high: '#e08a3c', normal: '#4f8ff7', low: '#6b7280' }
-const BAND_COLOR: Record<string, string> = { Healthy: '#10b981', Stable: '#4f8ff7', 'At Risk': '#f59e0b', Critical: '#c94f4f' }
+const TIER_COLOR: Record<string, string> = { enterprise: '#C9A233', growth: '#C9A233', starter: '#7A7468' }
+const STATUS_COLOR: Record<string, string> = { active: '#C9A233', at_risk: '#C9A233', churned: '#F4EFE3' }
+const RISK_COLOR: Record<string, string> = { low: '#C9A233', medium: '#C9A233', high: '#F4EFE3' }
+const PRIO_COLOR: Record<string, string> = { urgent: '#F4EFE3', high: '#C9A233', normal: '#C9A233', low: '#7A7468' }
+const BAND_COLOR: Record<string, string> = { Healthy: '#C9A233', Stable: '#C9A233', 'At Risk': '#C9A233', Critical: '#F4EFE3' }
 const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(Math.round(n))
 const eur = (n: number) => `€${fmt(n)}`
-const healthColor = (h: number) => h >= 80 ? '#10b981' : h >= 60 ? '#4f8ff7' : h >= 40 ? '#f59e0b' : '#c94f4f'
+const healthColor = (h: number) => h >= 80 ? '#C9A233' : h >= 60 ? '#C9A233' : h >= 40 ? '#C9A233' : '#F4EFE3'
 
 function Pill({ text, color }: { text: string; color: string }) {
   return <span className="px-2 py-0.5 rounded-full text-[11px] font-medium border whitespace-nowrap" style={{ color, borderColor: `${color}55`, background: `${color}12` }}>{text}</span>
@@ -48,10 +48,10 @@ function stripGlyph(s: string): string {
   return s.replace(GLYPH_PREFIX, '').trim()
 }
 function reasonTone(r: string): { icon: 'close' | 'alert' | 'check'; color: string; text: string } {
-  if (r.startsWith(CROSS)) return { icon: 'close', color: '#c94f4f', text: stripGlyph(r) }
-  if (r.startsWith(WARN)) return { icon: 'alert', color: '#f59e0b', text: stripGlyph(r) }
-  if (r.startsWith(TICK)) return { icon: 'check', color: '#10b981', text: stripGlyph(r) }
-  return { icon: 'check', color: '#9aa', text: r }
+  if (r.startsWith(CROSS)) return { icon: 'close', color: '#F4EFE3', text: stripGlyph(r) }
+  if (r.startsWith(WARN)) return { icon: 'alert', color: '#C9A233', text: stripGlyph(r) }
+  if (r.startsWith(TICK)) return { icon: 'check', color: '#C9A233', text: stripGlyph(r) }
+  return { icon: 'check', color: '#7A7468', text: r }
 }
 function Stars({ n, color }: { n: number; color: string }) {
   return (
@@ -128,22 +128,22 @@ function Overview() {
     <div className="space-y-6">
       <Grid cols={6}>
         <KpiCard icon="coins" label="Total ARR" value={eur(s.arr)} sub={`${s.activeAccounts} accounts`} accent={ACCENT} />
-        <KpiCard icon="arrow-up" label="Net Revenue Retention" value={`${s.nrr}%`} sub="incl. expansion" accent={s.nrr >= 100 ? '#10b981' : '#f59e0b'} />
-        <KpiCard icon="shield" label="Gross Retention" value={`${s.grr}%`} accent={s.grr >= 90 ? '#10b981' : '#f59e0b'} />
+        <KpiCard icon="arrow-up" label="Net Revenue Retention" value={`${s.nrr}%`} sub="incl. expansion" accent={s.nrr >= 100 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="shield" label="Gross Retention" value={`${s.grr}%`} accent={s.grr >= 90 ? '#C9A233' : '#C9A233'} />
         <KpiCard icon="gauge" label="Avg Health" value={String(s.avgHealth)} accent={healthColor(s.avgHealth)} />
-        <KpiCard icon="star" label="Avg CSAT" value={`${s.avgCsat}/5`} sub={`${s.openTickets} open tickets`} accent={s.avgCsat >= 4 ? '#10b981' : '#f59e0b'} />
-        <KpiCard icon="alert" label="At-Risk Accounts" value={String(s.atRisk)} sub={`${s.churned} churned`} accent={s.atRisk > 0 ? '#f59e0b' : '#10b981'} />
+        <KpiCard icon="star" label="Avg CSAT" value={`${s.avgCsat}/5`} sub={`${s.openTickets} open tickets`} accent={s.avgCsat >= 4 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="alert" label="At-Risk Accounts" value={String(s.atRisk)} sub={`${s.churned} churned`} accent={s.atRisk > 0 ? '#C9A233' : '#C9A233'} />
       </Grid>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Panel icon="calendar" title="Renewals — next 90 days" className="lg:col-span-2">
           <div className="grid grid-cols-3 gap-4">
             <div><div className="text-[10px] uppercase tracking-[0.16em] text-empire-text-muted">Up for renewal</div><div className="text-3xl font-empire text-empire-text leading-none mt-1.5 tabular-nums">{s.renewalsNext90}</div></div>
             <div><div className="text-[10px] uppercase tracking-[0.16em] text-empire-text-muted">ARR in play</div><div className="text-3xl font-empire leading-none mt-1.5 tabular-nums" style={{ color: ACCENT }}>{eur(s.renewalArr90)}</div></div>
-            <div><div className="text-[10px] uppercase tracking-[0.16em] text-empire-text-muted">ARR at risk</div><div className="text-3xl font-empire leading-none mt-1.5 tabular-nums" style={{ color: '#c94f4f' }}>{eur(s.renewalAtRisk)}</div></div>
+            <div><div className="text-[10px] uppercase tracking-[0.16em] text-empire-text-muted">ARR at risk</div><div className="text-3xl font-empire leading-none mt-1.5 tabular-nums" style={{ color: '#F4EFE3' }}>{eur(s.renewalAtRisk)}</div></div>
           </div>
         </Panel>
         <Panel icon="arrow-down" title="Revenue churn (12mo)">
-          <div className="text-4xl font-empire leading-none tabular-nums" style={{ color: s.logoChurn > 8 ? '#c94f4f' : '#f59e0b' }}>{s.logoChurn}%</div>
+          <div className="text-4xl font-empire leading-none tabular-nums" style={{ color: s.logoChurn > 8 ? '#F4EFE3' : '#C9A233' }}>{s.logoChurn}%</div>
           <div className="text-empire-text-muted text-xs mt-2">{eur(s.arrChurned)} ARR lost · avg account {eur(s.avgArr)}</div>
         </Panel>
       </div>
@@ -186,10 +186,10 @@ function Accounts() {
   const rows = data?.data || []
   const cols: Column<Acct>[] = [
     { key: 'name', label: 'Account', render: a => <div><div className="font-medium text-empire-text">{a.name}</div>{a.csmName && <div className="text-empire-text-dim text-[11px]">CSM: {a.csmName}</div>}</div> },
-    { key: 'tier', label: 'Tier', render: a => <Pill text={a.tier} color={TIER_COLOR[a.tier] || '#6b7280'} /> },
-    { key: 'status', label: 'Status', render: a => <Pill text={a.status.replace('_', ' ')} color={STATUS_COLOR[a.status] || '#6b7280'} /> },
+    { key: 'tier', label: 'Tier', render: a => <Pill text={a.tier} color={TIER_COLOR[a.tier] || '#7A7468'} /> },
+    { key: 'status', label: 'Status', render: a => <Pill text={a.status.replace('_', ' ')} color={STATUS_COLOR[a.status] || '#7A7468'} /> },
     { key: 'arr', label: 'ARR', align: 'right', render: a => <span className="text-empire-text">{eur(a.arr)}</span> },
-    { key: 'netExpansion', label: 'Δ12mo', align: 'right', render: a => <span style={{ color: a.netExpansion > 0 ? '#10b981' : a.netExpansion < 0 ? '#c94f4f' : '#6b7280' }}>{a.netExpansion > 0 ? '+' : ''}{eur(a.netExpansion)}</span> },
+    { key: 'netExpansion', label: 'Δ12mo', align: 'right', render: a => <span style={{ color: a.netExpansion > 0 ? '#C9A233' : a.netExpansion < 0 ? '#F4EFE3' : '#7A7468' }}>{a.netExpansion > 0 ? '+' : ''}{eur(a.netExpansion)}</span> },
     { key: 'healthScore', label: 'Health', render: a => <HealthDot h={a.healthScore} /> },
     { key: 'id', label: '', align: 'right', render: a => <div className="flex justify-end"><RowActions onView={() => setActive({ row: a, mode: 'view' })} onEdit={() => setActive({ row: a, mode: 'edit' })} onDelete={() => remove(a.id)} deleteLabel={a.name} /></div> },
   ]
@@ -278,9 +278,9 @@ function Renewals() {
   const rows = data || []
   const cols: Column<Renewal>[] = [
     { key: 'name', label: 'Account', render: r => <div><div className="font-medium text-empire-text">{r.name}</div><div className="text-empire-text-dim text-[11px]">{r.csmName || '—'}</div></div> },
-    { key: 'tier', label: 'Tier', render: r => <Pill text={r.tier} color={TIER_COLOR[r.tier] || '#6b7280'} /> },
+    { key: 'tier', label: 'Tier', render: r => <Pill text={r.tier} color={TIER_COLOR[r.tier] || '#7A7468'} /> },
     { key: 'arr', label: 'ARR', align: 'right', render: r => <span className="text-empire-text">{eur(r.arr)}</span> },
-    { key: 'daysToRenewal', label: 'Renews in', align: 'right', render: r => <span style={{ color: (r.daysToRenewal ?? 999) < 30 ? '#c94f4f' : (r.daysToRenewal ?? 999) < 90 ? '#f59e0b' : '#7A7468' }}>{r.daysToRenewal != null ? `${r.daysToRenewal}d` : '—'}</span> },
+    { key: 'daysToRenewal', label: 'Renews in', align: 'right', render: r => <span style={{ color: (r.daysToRenewal ?? 999) < 30 ? '#F4EFE3' : (r.daysToRenewal ?? 999) < 90 ? '#C9A233' : '#7A7468' }}>{r.daysToRenewal != null ? `${r.daysToRenewal}d` : '—'}</span> },
     { key: 'healthScore', label: 'Health', render: r => <HealthDot h={r.healthScore} /> },
     { key: 'risk', label: 'Risk', align: 'right', render: r => <Pill text={r.risk} color={RISK_COLOR[r.risk]} /> },
   ]
@@ -290,7 +290,7 @@ function Renewals() {
       <Grid cols={3}>
         <KpiCard icon="calendar" label="Upcoming Renewals" value={String(rows.length)} accent={ACCENT} />
         <KpiCard icon="coins" label="ARR in Pipeline" value={eur(rows.reduce((s, r) => s + r.arr, 0))} accent={ACCENT} />
-        <KpiCard icon="alert" label="High-Risk ARR" value={eur(atRiskArr)} accent={atRiskArr > 0 ? '#c94f4f' : '#10b981'} />
+        <KpiCard icon="alert" label="High-Risk ARR" value={eur(atRiskArr)} accent={atRiskArr > 0 ? '#F4EFE3' : '#C9A233'} />
       </Grid>
       <Panel icon="calendar" title="Renewal calendar (soonest first)">
         <DataTable columns={cols} rows={rows} empty="No upcoming renewals." />
@@ -319,12 +319,12 @@ function Support() {
   if (loading) return <Loading />
   const rows = data?.data || []
   const cols: Column<Ticket>[] = [
-    { key: 'priority', label: 'Prio', render: t => <Pill text={t.priority} color={PRIO_COLOR[t.priority] || '#6b7280'} /> },
+    { key: 'priority', label: 'Prio', render: t => <Pill text={t.priority} color={PRIO_COLOR[t.priority] || '#7A7468'} /> },
     { key: 'subject', label: 'Subject', render: t => <div><div className="font-medium text-empire-text text-sm">{t.subject}</div><div className="text-empire-text-dim text-[11px]">{t.account}</div></div> },
     { key: 'ageHours', label: 'Age', align: 'right', render: t => <span className="text-empire-text-muted text-xs">{t.ageHours < 24 ? `${t.ageHours}h` : `${Math.round(t.ageHours / 24)}d`}</span> },
-    { key: 'csat', label: 'CSAT', align: 'right', render: t => t.csat != null ? <Stars n={t.csat} color={t.csat >= 4 ? '#10b981' : t.csat >= 3 ? '#f59e0b' : '#c94f4f'} /> : <span className="text-empire-text-dim">—</span> },
+    { key: 'csat', label: 'CSAT', align: 'right', render: t => t.csat != null ? <Stars n={t.csat} color={t.csat >= 4 ? '#C9A233' : t.csat >= 3 ? '#C9A233' : '#F4EFE3'} /> : <span className="text-empire-text-dim">—</span> },
     { key: 'status', label: 'Status', align: 'right', render: t => t.status === 'resolved'
-        ? <Pill text="resolved" color="#10b981" />
+        ? <Pill text="resolved" color="#C9A233" />
         : <select value={t.status} onChange={e => setTicketStatus(t.id, e.target.value)} className="bg-empire-bg-soft border border-empire-border rounded px-1.5 py-1 text-xs text-empire-text"><option value="open">open</option><option value="pending">pending</option><option value="resolved">resolved</option></select> },
     { key: 'id', label: '', align: 'right', render: t => <div className="flex justify-end"><RowActions onView={() => setActive({ row: t, mode: 'view' })} onEdit={() => setActive({ row: t, mode: 'edit' })} onDelete={() => removeTicket(t.id)} deleteLabel={t.subject} /></div> },
   ]
@@ -420,9 +420,9 @@ function Capability() {
       {/* Org-wide cross-dept snapshot */}
       <Grid cols={4}>
         <KpiCard icon="people" label="Active Headcount" value={String(summary.people.activeHeadcount)} sub={`${summary.people.departments} departments`} accent={ACCENT} />
-        <KpiCard icon="engineering" label="Eng Delivery Capacity" value={`${summary.engineering.capacityRatio}%`} sub={`${summary.engineering.freeDeliverySlots} free slot(s)`} accent={summary.engineering.capacityRatio >= 50 ? '#10b981' : '#f59e0b'} />
-        <KpiCard icon="gauge" label="SLA Health" value={`${summary.operations.slaHealth}%`} sub={`${summary.operations.slaMeeting}/${summary.operations.slas} met`} accent={summary.operations.slaHealth >= 50 ? '#10b981' : '#f59e0b'} />
-        <KpiCard icon="lifebuoy" label="Account Headroom" value={String(summary.clientSuccess.accountHeadroom)} sub={`${summary.clientSuccess.activeAccounts}/${summary.clientSuccess.accountCapacity} used`} accent={summary.clientSuccess.accountHeadroom > 0 ? '#10b981' : '#c94f4f'} />
+        <KpiCard icon="engineering" label="Eng Delivery Capacity" value={`${summary.engineering.capacityRatio}%`} sub={`${summary.engineering.freeDeliverySlots} free slot(s)`} accent={summary.engineering.capacityRatio >= 50 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="gauge" label="SLA Health" value={`${summary.operations.slaHealth}%`} sub={`${summary.operations.slaMeeting}/${summary.operations.slas} met`} accent={summary.operations.slaHealth >= 50 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="lifebuoy" label="Account Headroom" value={String(summary.clientSuccess.accountHeadroom)} sub={`${summary.clientSuccess.activeAccounts}/${summary.clientSuccess.accountCapacity} used`} accent={summary.clientSuccess.accountHeadroom > 0 ? '#C9A233' : '#F4EFE3'} />
       </Grid>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -464,14 +464,14 @@ function Capability() {
             <div className="mt-5 space-y-4">
               <div className="flex items-center gap-4">
                 <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold border" style={{
-                  color: verdict.canOnboard ? '#10b981' : '#c94f4f',
-                  borderColor: verdict.canOnboard ? '#10b98155' : '#c94f4f55',
-                  background: verdict.canOnboard ? '#10b98112' : '#c94f4f12',
+                  color: verdict.canOnboard ? '#C9A233' : '#F4EFE3',
+                  borderColor: verdict.canOnboard ? '#C9A23355' : '#F4EFE355',
+                  background: verdict.canOnboard ? '#C9A23312' : '#F4EFE312',
                 }}><EmpireIcon name={verdict.canOnboard ? 'check' : 'close'} size={15} />{verdict.canOnboard ? 'CAN ONBOARD' : 'CANNOT ONBOARD'}</span>
                 <div className="text-empire-text-muted text-xs">Confidence <span className="text-empire-text font-medium">{verdict.confidence}%</span> · {verdict.engagementSize}</div>
               </div>
 
-              <ProgressBar value={verdict.confidence} max={100} color={verdict.canOnboard ? '#10b981' : '#f59e0b'} />
+              <ProgressBar value={verdict.confidence} max={100} color={verdict.canOnboard ? '#C9A233' : '#C9A233'} />
 
               <div>
                 <div className="text-empire-text-dim text-[11px] uppercase tracking-wide mb-1">Signals</div>
@@ -492,8 +492,8 @@ function Capability() {
                 <div className="border border-empire-border rounded p-3">
                   <div className="text-empire-text-dim text-[11px] uppercase tracking-wide mb-1.5">People — skills</div>
                   <div className="flex flex-wrap gap-1.5 mb-1">
-                    {verdict.breakdown.people.coveredSkills.map(s => <Pill key={s} text={s} color="#10b981" />)}
-                    {verdict.breakdown.people.missingSkills.map(s => <Pill key={s} text={s} color="#c94f4f" />)}
+                    {verdict.breakdown.people.coveredSkills.map(s => <Pill key={s} text={s} color="#C9A233" />)}
+                    {verdict.breakdown.people.missingSkills.map(s => <Pill key={s} text={s} color="#F4EFE3" />)}
                   </div>
                   <div className="text-empire-text-dim text-[11px]">{verdict.breakdown.people.availableHeadcount} available · {verdict.breakdown.people.skillCoverage}% coverage</div>
                 </div>

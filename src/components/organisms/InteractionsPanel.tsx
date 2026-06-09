@@ -14,8 +14,8 @@ type IxMetrics = {
   trend: { date: string; count: number }[]
 }
 
-const CHANNEL_COLOR: Record<string, string> = { chat: '#6366f1', email: '#06b6d4', ticket: '#c9a233', call: '#3a9d5c', api: '#8b5cf6' }
-const SENT_COLOR: Record<string, string> = { positive: '#3a9d5c', neutral: '#c9a233', negative: '#c94f4f' }
+const CHANNEL_COLOR: Record<string, string> = { chat: '#C9A233', email: '#C9A233', ticket: '#c9a233', call: '#C9A233', api: '#C9A233' }
+const SENT_COLOR: Record<string, string> = { positive: '#C9A233', neutral: '#c9a233', negative: '#F4EFE3' }
 const CHANNELS = ['chat', 'email', 'ticket', 'call', 'api']
 
 function dur(sec: number | null): string {
@@ -25,7 +25,7 @@ function dur(sec: number | null): string {
   return `${(sec / 3600).toFixed(1)}h`
 }
 
-export function InteractionsPanel({ departmentSlug, accent = '#8b5cf6', aiManagerName }: { departmentSlug: string; accent?: string; aiManagerName?: string | null }) {
+export function InteractionsPanel({ departmentSlug, accent = '#C9A233' }: { departmentSlug: string; accent?: string }) {
   const [m, setM] = useState<IxMetrics | null>(null)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -65,7 +65,7 @@ export function InteractionsPanel({ departmentSlug, accent = '#8b5cf6', aiManage
             {m.department.managedByAI ? (
               <span className="inline-flex items-center gap-1.5">
                 <EmpireIcon name="cog" size={12} className="text-empire-gold/70" />
-                {`${aiManagerName || m.department.aiManagerName} handles inbound — escalates to a human only when needed.`}
+                Automation handles inbound and escalates to a human only when needed.
               </span>
             ) : 'Customer & ops interactions.'}
           </p>
@@ -119,14 +119,14 @@ export function InteractionsPanel({ departmentSlug, accent = '#8b5cf6', aiManage
       )}
 
       {m.volume === 0 ? (
-        <EmptyState icon="lifebuoy" title="No interactions logged yet" hint={`Log interactions (or pipe them from your support tools) to see ${aiManagerName || 'the AI manager'}’s volume, response time, resolution rate and CSAT.`} />
+        <EmptyState icon="lifebuoy" title="No interactions logged yet" hint="Log interactions or pipe them from support tools to see volume, response time, resolution rate and CSAT." />
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <KpiCard label="Volume" value={`${m.volume}`} sub={`${m.openCount} open`} accent={accent} />
-            <KpiCard label="Resolution Rate" value={`${m.resolutionRate}%`} sub={`${m.aiHandledRate}% AI-handled`} accent="#3a9d5c" />
+            <KpiCard label="Resolution Rate" value={`${m.resolutionRate}%`} sub={`${m.aiHandledRate}% AI-handled`} accent="#C9A233" />
             <KpiCard label="Avg Response" value={dur(m.avgResponseTimeSec)} sub={`resolve ${dur(m.avgResolutionTimeSec)}`} accent={accent} />
-            <KpiCard label="CSAT" value={m.csat != null ? `${m.csat}/5` : '—'} sub={`${m.escalationRate}% escalated`} accent={m.csat != null && m.csat >= 4 ? '#3a9d5c' : '#c9a233'} />
+            <KpiCard label="CSAT" value={m.csat != null ? `${m.csat}/5` : '—'} sub={`${m.escalationRate}% escalated`} accent={m.csat != null && m.csat >= 4 ? '#C9A233' : '#c9a233'} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

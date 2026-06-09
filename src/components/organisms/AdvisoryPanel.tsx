@@ -15,7 +15,7 @@ import { deptIcon } from '@/lib/dept-icons'
 // the warm-intro funnel (requested → made → responded → converted) with
 // conversion rate and pipeline value all derive server-side from /api/advisory/*.
 
-const ACCENT = '#14b8a6' // advisory teal
+const ACCENT = '#C9A233' // advisory teal
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: 'overview' as const },
@@ -25,11 +25,11 @@ const TABS = [
 ]
 
 const EXPERTISE_COLOR: Record<string, string> = {
-  GTM: '#14b8a6', Finance: '#22c55e', Product: '#8b5cf6', Legal: '#f59e0b', Technical: '#4f8ff7', Industry: '#ec4899',
+  GTM: '#C9A233', Finance: '#C9A233', Product: '#C9A233', Legal: '#C9A233', Technical: '#C9A233', Industry: '#C9A233',
 }
-const TIER_COLOR: Record<string, string> = { strategic: '#14b8a6', specialist: '#4f8ff7', operational: '#94a3b8' }
-const STATUS_COLOR: Record<string, string> = { active: '#10b981', onboarding: '#4f8ff7', inactive: '#f59e0b', alumni: '#94a3b8' }
-const INTRO_COLOR: Record<string, string> = { requested: '#6b7280', made: '#4f8ff7', responded: '#06b6d4', converted: '#10b981', declined: '#c94f4f' }
+const TIER_COLOR: Record<string, string> = { strategic: '#C9A233', specialist: '#C9A233', operational: '#C9A233' }
+const STATUS_COLOR: Record<string, string> = { active: '#C9A233', onboarding: '#C9A233', inactive: '#C9A233', alumni: '#C9A233' }
+const INTRO_COLOR: Record<string, string> = { requested: '#7A7468', made: '#C9A233', responded: '#C9A233', converted: '#C9A233', declined: '#F4EFE3' }
 
 const inputCls = 'bg-empire-bg-soft border border-empire-border rounded px-2 py-1.5 text-sm text-empire-text placeholder:text-empire-text-dim focus:outline-none focus:border-empire-gold/60'
 
@@ -85,16 +85,16 @@ function Overview() {
   if (loading) return <Loading />
   if (!s) return <EmptyState icon="compass" title="No advisory data" hint="Seed the advisory dataset to populate the board." />
   const expertiseSegments = (net?.byExpertise || []).map(x => ({
-    label: x.expertise, value: x.advisors, color: EXPERTISE_COLOR[x.expertise] || '#6b7280',
+    label: x.expertise, value: x.advisors, color: EXPERTISE_COLOR[x.expertise] || '#7A7468',
   }))
   return (
     <div className="space-y-6">
       <Grid cols={5}>
         <KpiCard icon="people" label="Active Advisors" value={String(s.activeAdvisors)} sub={`${s.totalAdvisors} total`} accent={ACCENT} />
-        <KpiCard icon="coins" label="Equity Granted" value={`${s.equityGrantedPct}%`} sub={`${s.equityVestedPct}% vested`} accent="#22c55e" />
-        <KpiCard icon="clock" label="Committed Hrs/mo" value={String(s.committedHours)} sub="across active board" accent="#4f8ff7" />
-        <KpiCard icon="star" label="Sessions (90d)" value={String(s.sessions90)} sub={`${s.avgValueRating} avg value`} accent="#8b5cf6" />
-        <KpiCard icon="handshake" label="Intro Conversion" value={`${s.introConversion}%`} sub={`${s.introsConverted} converted`} accent={s.introConversion >= 25 ? '#10b981' : '#f59e0b'} />
+        <KpiCard icon="coins" label="Equity Granted" value={`${s.equityGrantedPct}%`} sub={`${s.equityVestedPct}% vested`} accent="#C9A233" />
+        <KpiCard icon="clock" label="Committed Hrs/mo" value={String(s.committedHours)} sub="across active board" accent="#C9A233" />
+        <KpiCard icon="star" label="Sessions (90d)" value={String(s.sessions90)} sub={`${s.avgValueRating} avg value`} accent="#C9A233" />
+        <KpiCard icon="handshake" label="Intro Conversion" value={`${s.introConversion}%`} sub={`${s.introsConverted} converted`} accent={s.introConversion >= 25 ? '#C9A233' : '#C9A233'} />
       </Grid>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
@@ -147,18 +147,18 @@ function Network() {
           <div className="space-y-1.5 mt-3">
             {data.byExpertise.map(x => (
               <div key={x.expertise} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: EXPERTISE_COLOR[x.expertise] || '#6b7280' }} /><span className="text-empire-text-muted">{x.expertise}</span></div>
+                <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: EXPERTISE_COLOR[x.expertise] || '#7A7468' }} /><span className="text-empire-text-muted">{x.expertise}</span></div>
                 <span className="text-empire-text">{x.advisors} · {x.equityPct}% · {x.hours}h/mo</span>
               </div>
             ))}
           </div>
         </Panel>
         <Panel icon="medal" title="Advisors by tier">
-          <BarChart data={data.byTier.map(t => t.advisors)} labels={data.byTier.map(t => t.tier)} color="#4f8ff7" height={160} />
+          <BarChart data={data.byTier.map(t => t.advisors)} labels={data.byTier.map(t => t.tier)} color="#C9A233" height={160} />
           <div className="space-y-1.5 mt-3">
             {data.byTier.map(t => (
               <div key={t.tier} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2"><Pill text={t.tier} color={TIER_COLOR[t.tier] || '#6b7280'} /></div>
+                <div className="flex items-center gap-2"><Pill text={t.tier} color={TIER_COLOR[t.tier] || '#7A7468'} /></div>
                 <span className="text-empire-text">{t.advisors} advisors · {t.equityPct}% equity</span>
               </div>
             ))}
@@ -166,7 +166,7 @@ function Network() {
         </Panel>
       </div>
       <Panel icon="calendar" title="Sessions by type">
-        <BarChart data={data.byType.map(t => t.count)} labels={data.byType.map(t => t.type)} color="#8b5cf6" height={150} />
+        <BarChart data={data.byType.map(t => t.count)} labels={data.byType.map(t => t.type)} color="#C9A233" height={150} />
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4">
           {data.byType.map(t => (
             <div key={t.type} className="border border-empire-border rounded p-2.5 transition-colors hover:border-empire-gold/40">
@@ -193,7 +193,7 @@ function Intros() {
   const cols: Column<IntroRow>[] = [
     { key: 'target', label: 'Target', render: i => <div><div className="font-medium text-empire-text text-sm">{i.target}</div><div className="text-empire-text-dim text-[11px]">via {i.advisor}</div></div> },
     { key: 'purpose', label: 'Purpose', render: i => <span className="text-empire-text-muted text-xs capitalize">{i.purpose}</span> },
-    { key: 'status', label: 'Status', render: i => <Pill text={i.status} color={INTRO_COLOR[i.status] || '#6b7280'} /> },
+    { key: 'status', label: 'Status', render: i => <Pill text={i.status} color={INTRO_COLOR[i.status] || '#7A7468'} /> },
     { key: 'potentialValueEur', label: 'Potential', align: 'right', render: i => <span className="text-empire-text">{i.potentialValueEur ? formatCurrency(i.potentialValueEur) : '—'}</span> },
   ]
   return (
@@ -239,9 +239,9 @@ function Advisors() {
   const rows = data?.data || []
   const cols: Column<Advisor>[] = [
     { key: 'name', label: 'Advisor', render: a => <div><div className="font-medium text-empire-text">{a.name}</div><div className="text-empire-text-dim text-[11px]">{a.firm || '—'}</div></div> },
-    { key: 'expertise', label: 'Expertise', render: a => <Pill text={a.expertise} color={EXPERTISE_COLOR[a.expertise] || '#6b7280'} /> },
-    { key: 'tier', label: 'Tier', render: a => <Pill text={a.tier} color={TIER_COLOR[a.tier] || '#6b7280'} /> },
-    { key: 'status', label: 'Status', render: a => <Pill text={a.status} color={STATUS_COLOR[a.status] || '#6b7280'} /> },
+    { key: 'expertise', label: 'Expertise', render: a => <Pill text={a.expertise} color={EXPERTISE_COLOR[a.expertise] || '#7A7468'} /> },
+    { key: 'tier', label: 'Tier', render: a => <Pill text={a.tier} color={TIER_COLOR[a.tier] || '#7A7468'} /> },
+    { key: 'status', label: 'Status', render: a => <Pill text={a.status} color={STATUS_COLOR[a.status] || '#7A7468'} /> },
     { key: 'equityPct', label: 'Equity', align: 'right', render: a => <span className="text-empire-text">{a.equityPct}%</span> },
     { key: 'monthlyHours', label: 'Hrs/mo', align: 'right', render: a => <span className="text-empire-text-muted">{a.monthlyHours}</span> },
     { key: 'sessionCount', label: 'Sessions', align: 'right', render: a => <span className="text-empire-text-muted">{a.sessionCount}</span> },
@@ -288,9 +288,9 @@ function Advisors() {
             <div className="font-empire text-empire-text text-lg">{viewing.name}</div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <AdvDetail label="Firm">{viewing.firm || '—'}</AdvDetail>
-              <AdvDetail label="Expertise"><Pill text={viewing.expertise} color={EXPERTISE_COLOR[viewing.expertise] || '#6b7280'} /></AdvDetail>
-              <AdvDetail label="Tier"><Pill text={viewing.tier} color={TIER_COLOR[viewing.tier] || '#6b7280'} /></AdvDetail>
-              <AdvDetail label="Status"><Pill text={viewing.status} color={STATUS_COLOR[viewing.status] || '#6b7280'} /></AdvDetail>
+              <AdvDetail label="Expertise"><Pill text={viewing.expertise} color={EXPERTISE_COLOR[viewing.expertise] || '#7A7468'} /></AdvDetail>
+              <AdvDetail label="Tier"><Pill text={viewing.tier} color={TIER_COLOR[viewing.tier] || '#7A7468'} /></AdvDetail>
+              <AdvDetail label="Status"><Pill text={viewing.status} color={STATUS_COLOR[viewing.status] || '#7A7468'} /></AdvDetail>
               <AdvDetail label="Equity">{viewing.equityPct}%</AdvDetail>
               <AdvDetail label="Hours / mo">{viewing.monthlyHours}</AdvDetail>
               <AdvDetail label="Sessions">{viewing.sessionCount}</AdvDetail>

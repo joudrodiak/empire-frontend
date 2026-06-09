@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { fetcher, patch } from '@/lib/api'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { Modal } from '@/components/molecules/Modal'
@@ -24,7 +24,15 @@ export function StructurePanel({ departmentSlug, accent }: { departmentSlug: str
   const [data, setData] = useState<StructureResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Person | null>(null)
+  const [scale, setScale] = useState(1)
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const dragRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
   const gold = accent || '#C9A233'
+  const zoomBy = (delta: number) => setScale(value => Math.min(1.8, Math.max(0.7, Number((value + delta).toFixed(2)))))
+  const centerTree = () => {
+    setScale(1)
+    setOffset({ x: 0, y: 0 })
+  }
 
   const load = useCallback(async () => {
     try {
@@ -71,12 +79,47 @@ export function StructurePanel({ departmentSlug, accent }: { departmentSlug: str
       {people.length === 0 ? (
         <div className="text-center py-16 text-empire-text-muted text-sm">No one assigned to this unit yet.</div>
       ) : (
-        <div className="overflow-x-auto pb-4">
-          <div className="inline-flex flex-col items-center gap-0 min-w-full">
-            <div className="flex items-start justify-center gap-8">
-              {roots.map(r => (
-                <TreeNode key={r.id} person={r} childrenOf={childrenOf} onEdit={setEditing} accent={gold} depth={0} ancestors={new Set()} />
-              ))}
+        <div
+          className="relative min-h-[560px] overflow-hidden rounded-xl border border-empire-border bg-empire-surface/50 p-4 touch-none cursor-grab active:cursor-grabbing"
+          onWheel={event => {
+            event.preventDefault()
+            zoomBy(event.deltaY > 0 ? -0.08 : 0.08)
+          }}
+          onPointerDown={event => {
+            if ((event.target as HTMLElement).closest('button')) return
+            event.currentTarget.setPointerCapture(event.pointerId)
+            dragRef.current = { x: event.clientX, y: event.clientY, ox: offset.x, oy: offset.y }
+          }}
+          onPointerMove={event => {
+            const drag = dragRef.current
+            if (!drag) return
+            setOffset({ x: drag.ox + event.clientX - drag.x, y: drag.oy + event.clientY - drag.y })
+          }}
+          onPointerUp={() => { dragRef.current = null }}
+          onPointerCancel={() => { dragRef.current = null }}
+        >
+          <div className="absolute right-4 top-4 z-20 flex items-center gap-1 rounded-full border border-empire-border/70 bg-empire-deep/80 p-1 backdrop-blur">
+            <button type="button" onClick={() => zoomBy(-0.12)} aria-label="Zoom structure out" className="grid h-8 w-8 place-items-center rounded-full text-empire-text-muted transition-colors hover:bg-empire-elevated hover:text-empire-gold">
+              <EmpireIcon name="close" size={13} />
+            </button>
+            <span className="min-w-12 text-center font-data text-[11px] text-empire-text-dim">{Math.round(scale * 100)}%</span>
+            <button type="button" onClick={() => zoomBy(0.12)} aria-label="Zoom structure in" className="grid h-8 w-8 place-items-center rounded-full text-empire-text-muted transition-colors hover:bg-empire-elevated hover:text-empire-gold">
+              <EmpireIcon name="plus" size={14} />
+            </button>
+            <button type="button" onClick={centerTree} aria-label="Center structure" className="grid h-8 w-8 place-items-center rounded-full text-empire-text-muted transition-colors hover:bg-empire-elevated hover:text-empire-gold">
+              <EmpireIcon name="compass" size={14} />
+            </button>
+          </div>
+          <div
+            className="flex min-h-[520px] min-w-max items-center justify-center px-10 py-14 will-change-transform"
+            style={{ transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})`, transformOrigin: '50% 50%' }}
+          >
+            <div className="inline-flex flex-col items-center gap-0">
+              <div className="flex items-start justify-center gap-8">
+                {roots.map(r => (
+                  <TreeNode key={r.id} person={r} childrenOf={childrenOf} onEdit={setEditing} accent={gold} depth={0} ancestors={new Set()} />
+                ))}
+              </div>
             </div>
           </div>
         </div>

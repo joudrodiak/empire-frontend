@@ -110,11 +110,11 @@ function Overview() {
     <div className="space-y-6">
       <Grid cols={6}>
         <KpiCard label="MTD Revenue" value={eurK(s.mtdRevenue)} spark={s.trend.map(t => t.revenue)} accent={ACCENT} icon="chart-line" />
-        <KpiCard label="Monthly Burn" value={s.burn > 0 ? eurK(s.burn) : 'Cash-positive'} accent={s.burn > 0 ? '#c94f4f' : '#3a9d5c'} icon="flame" />
+        <KpiCard label="Monthly Burn" value={s.burn > 0 ? eurK(s.burn) : 'Cash-positive'} accent={s.burn > 0 ? '#F4EFE3' : '#C9A233'} icon="flame" />
         <KpiCard label="Runway" value={s.runwayMonths != null ? `${s.runwayMonths} mo` : '∞'} sub="at current burn" accent={ACCENT} icon="clock" />
-        <KpiCard label="Gross Margin" value={`${s.grossMarginPct}%`} accent="#3a9d5c" icon="gauge" />
+        <KpiCard label="Gross Margin" value={`${s.grossMarginPct}%`} accent="#C9A233" icon="gauge" />
         <KpiCard label="Cash Balance" value={eurK(s.cash)} accent={ACCENT} icon="coins" />
-        <KpiCard label="Net Income MTD" value={eurK(s.netIncomeMTD)} delta={profitable ? 'profit' : 'loss'} deltaGood={profitable} accent={profitable ? '#3a9d5c' : '#c94f4f'} icon="finance" />
+        <KpiCard label="Net Income MTD" value={eurK(s.netIncomeMTD)} delta={profitable ? 'profit' : 'loss'} deltaGood={profitable} accent={profitable ? '#C9A233' : '#F4EFE3'} icon="finance" />
       </Grid>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Panel title="Revenue vs Expenses (6 mo)" className="lg:col-span-2" icon="chart-line">
@@ -129,8 +129,8 @@ function Overview() {
         </Panel>
       </div>
       <Grid cols={3}>
-        <KpiCard label="Accounts Receivable" value={eurK(s.ar)} sub="owed to us" accent="#3a9d5c" icon="arrow-down" />
-        <KpiCard label="Accounts Payable" value={eurK(s.ap)} sub="we owe" accent="#c94f4f" icon="arrow-up" />
+        <KpiCard label="Accounts Receivable" value={eurK(s.ar)} sub="owed to us" accent="#C9A233" icon="arrow-down" />
+        <KpiCard label="Accounts Payable" value={eurK(s.ap)} sub="we owe" accent="#F4EFE3" icon="arrow-up" />
         <KpiCard label="Journal Entries" value={`${s.entryCount}`} sub="posted, all balanced" accent={ACCENT} icon="book" />
       </Grid>
     </div>
@@ -178,9 +178,9 @@ function PnL() {
     <div className="space-y-6">
       <Grid cols={4}>
         <KpiCard label="Revenue" value={eurK(p.revenue)} accent={ACCENT} icon="chart-line" />
-        <KpiCard label="Gross Profit" value={eurK(p.grossProfit)} sub={`${p.grossMarginPct}% margin`} accent="#3a9d5c" icon="coins" />
+        <KpiCard label="Gross Profit" value={eurK(p.grossProfit)} sub={`${p.grossMarginPct}% margin`} accent="#C9A233" icon="coins" />
         <KpiCard label="Operating Income" value={eurK(p.operatingIncome)} accent={ACCENT} icon="gauge" />
-        <KpiCard label="Net Income" value={eurK(p.netIncome)} delta={p.netIncome >= 0 ? 'profit' : 'loss'} deltaGood={p.netIncome >= 0} accent={p.netIncome >= 0 ? '#3a9d5c' : '#c94f4f'} icon="finance" />
+        <KpiCard label="Net Income" value={eurK(p.netIncome)} delta={p.netIncome >= 0 ? 'profit' : 'loss'} deltaGood={p.netIncome >= 0} accent={p.netIncome >= 0 ? '#C9A233' : '#F4EFE3'} icon="finance" />
       </Grid>
       <Panel title="Income Statement" icon="document" actions={<ExportBtn onClick={exportStatement} />}><DataTable columns={cols} rows={rows} /></Panel>
     </div>
@@ -220,9 +220,9 @@ function BalanceSheet() {
     <div className="space-y-6">
       <Grid cols={4}>
         <KpiCard label="Total Assets" value={eurK(b.totalAssets)} accent={ACCENT} icon="coins" />
-        <KpiCard label="Total Liabilities" value={eurK(b.totalLiabilities)} accent="#c94f4f" icon="card" />
-        <KpiCard label="Total Equity" value={eurK(b.totalEquity)} sub={`incl. retained ${eurK(b.retainedEarnings)}`} accent="#3a9d5c" icon="shield" />
-        <KpiCard label="A = L + E" value={b.balanced ? 'Balanced' : `Off ${eur(b.difference)}`} accent={b.balanced ? '#3a9d5c' : '#c94f4f'} icon={b.balanced ? 'check' : 'alert'} />
+        <KpiCard label="Total Liabilities" value={eurK(b.totalLiabilities)} accent="#F4EFE3" icon="card" />
+        <KpiCard label="Total Equity" value={eurK(b.totalEquity)} sub={`incl. retained ${eurK(b.retainedEarnings)}`} accent="#C9A233" icon="shield" />
+        <KpiCard label="A = L + E" value={b.balanced ? 'Balanced' : `Off ${eur(b.difference)}`} accent={b.balanced ? '#C9A233' : '#F4EFE3'} icon={b.balanced ? 'check' : 'alert'} />
       </Grid>
       <div className="flex justify-end"><ExportBtn onClick={exportStatement} /></div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -263,7 +263,7 @@ function printStatement(title: string, periodLabel: string, sections: StmtSectio
     table{width:100%;border-collapse:collapse}
     td{padding:6px 4px;font-size:13px}
     td.num{text-align:right;font-variant-numeric:tabular-nums;font-family:Arial,sans-serif}
-    td.neg{color:#9a2b2b}
+    td.neg{color:#080810}
     td.ind{padding-left:22px;color:#666}
     td.sec{text-transform:uppercase;font-size:10px;letter-spacing:1.5px;color:#888;font-family:Arial,sans-serif;padding-top:14px;border-bottom:1px solid #eee}
     tr.b td{font-weight:bold;color:#1a1a1a}
@@ -341,7 +341,7 @@ function CashFlow() {
   return (
     <div className="space-y-6">
       <Grid cols={4}>
-        <KpiCard label="Operating" value={eurK(c.operating)} accent={c.operating >= 0 ? '#3a9d5c' : '#c94f4f'} icon="cog" />
+        <KpiCard label="Operating" value={eurK(c.operating)} accent={c.operating >= 0 ? '#C9A233' : '#F4EFE3'} icon="cog" />
         <KpiCard label="Investing" value={eurK(c.investing)} accent={ACCENT} icon="chart-line" />
         <KpiCard label="Financing" value={eurK(c.financing)} accent={ACCENT} icon="coins" />
         <KpiCard label="Net Cash Flow" value={eurK(c.netCashFlow)} delta={c.netCashFlow >= 0 ? 'inflow' : 'outflow'} deltaGood={c.netCashFlow >= 0} accent={ACCENT} icon={c.netCashFlow >= 0 ? 'arrow-up' : 'arrow-down'} />
@@ -365,8 +365,8 @@ function CashFlow() {
       {fc && proj.length > 0 && (
         <Panel title={`Cash Forecast (${fc.ahead} mo)`} icon="compass"
           actions={fc.runway
-            ? <Pill text={`Runway ~${fc.runway.monthsUntilNegative} mo`} color="#c94f4f" />
-            : <Pill text="No cash-out in horizon" color="#3a9d5c" />}>
+            ? <Pill text={`Runway ~${fc.runway.monthsUntilNegative} mo`} color="#F4EFE3" />
+            : <Pill text="No cash-out in horizon" color="#C9A233" />}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
               <AreaChart series={closingLine} labels={closingLabels} color={ACCENT} height={200} />
@@ -377,8 +377,8 @@ function CashFlow() {
               </div>
             </div>
             <div className="space-y-3">
-              <KpiCard label="Projected Closing" value={eurK(fc.projectedClosingCash)} sub={`in ${fc.ahead} months`} accent={(fc.projectedClosingCash ?? 0) >= 0 ? '#3a9d5c' : '#c94f4f'} icon="coins" />
-              <KpiCard label="Cash Runway" value={fc.runway ? `${fc.runway.monthsUntilNegative} mo` : '∞'} sub={fc.runway ? 'until negative' : 'positive trend'} accent={fc.runway ? '#c94f4f' : '#3a9d5c'} icon="clock" />
+              <KpiCard label="Projected Closing" value={eurK(fc.projectedClosingCash)} sub={`in ${fc.ahead} months`} accent={(fc.projectedClosingCash ?? 0) >= 0 ? '#C9A233' : '#F4EFE3'} icon="coins" />
+              <KpiCard label="Cash Runway" value={fc.runway ? `${fc.runway.monthsUntilNegative} mo` : '∞'} sub={fc.runway ? 'until negative' : 'positive trend'} accent={fc.runway ? '#F4EFE3' : '#C9A233'} icon="clock" />
               <div className="text-[11px] text-empire-text-dim leading-relaxed">
                 {fc.runway?.message || 'At the current trend cash stays positive across the forecast horizon.'} Bands are ±1σ of the trailing trend residual.
               </div>
@@ -416,7 +416,7 @@ function CapexOpex() {
   if (loading) return <Loading />
   if (!c) return <EmptyState icon="briefcase" title="No spend data" hint="Post expense or fixed-asset entries to classify CapEx vs OpEx." />
   const cols: Column<CapexRow>[] = [
-    { key: 'kind', label: 'Type', render: r => <Pill text={r.kind === 'capex' ? 'CapEx' : 'OpEx'} color={r.kind === 'capex' ? '#4f8ff7' : '#c9a233'} /> },
+    { key: 'kind', label: 'Type', render: r => <Pill text={r.kind === 'capex' ? 'CapEx' : 'OpEx'} color={r.kind === 'capex' ? '#C9A233' : '#c9a233'} /> },
     { key: 'code', label: 'Account', render: r => <span className="font-mono text-xs text-empire-text-muted">{r.code}</span> },
     { key: 'name', label: 'Name', render: r => <span className="font-medium text-empire-text">{r.name}</span> },
     { key: 'subtype', label: 'Subtype', render: r => <span className="text-empire-text-muted text-xs">{r.subtype || '—'}</span> },
@@ -425,21 +425,21 @@ function CapexOpex() {
   return (
     <div className="space-y-6">
       <Grid cols={4}>
-        <KpiCard label="Total CapEx" value={eurK(c.totalCapex)} sub={`${c.capexAccounts} account${c.capexAccounts === 1 ? '' : 's'}`} accent="#4f8ff7" icon="briefcase" />
+        <KpiCard label="Total CapEx" value={eurK(c.totalCapex)} sub={`${c.capexAccounts} account${c.capexAccounts === 1 ? '' : 's'}`} accent="#C9A233" icon="briefcase" />
         <KpiCard label="Total OpEx" value={eurK(c.totalOpex)} sub={`${c.opexAccounts} account${c.opexAccounts === 1 ? '' : 's'}`} accent={ACCENT} icon="cog" />
-        <KpiCard label="CapEx Share" value={`${c.capexPct}%`} sub="of total spend" accent="#4f8ff7" icon="chart-bar" />
+        <KpiCard label="CapEx Share" value={`${c.capexPct}%`} sub="of total spend" accent="#C9A233" icon="chart-bar" />
         <KpiCard label="CapEx : OpEx" value={`${c.capexToOpexRatio}×`} sub="capital intensity" accent={ACCENT} icon="gauge" />
       </Grid>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Panel title="Spend Mix" icon="chart-bar">
           <div className="flex justify-center">
             <DonutChart segments={[
-              { label: 'CapEx', value: c.totalCapex, color: '#4f8ff7' },
+              { label: 'CapEx', value: c.totalCapex, color: '#C9A233' },
               { label: 'OpEx', value: c.totalOpex, color: ACCENT },
             ]} />
           </div>
           <div className="flex items-center justify-center gap-4 mt-3 text-xs">
-            <span className="flex items-center gap-1.5 text-empire-text-muted"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#4f8ff7' }} />CapEx {c.capexPct}%</span>
+            <span className="flex items-center gap-1.5 text-empire-text-muted"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#C9A233' }} />CapEx {c.capexPct}%</span>
             <span className="flex items-center gap-1.5 text-empire-text-muted"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: ACCENT }} />OpEx {c.opexPct}%</span>
           </div>
         </Panel>
@@ -469,9 +469,9 @@ function ARAP() {
   return (
     <div className="space-y-6">
       <Grid cols={4}>
-        <KpiCard label="Total Receivable" value={eurK(a.totalAR)} accent="#3a9d5c" icon="arrow-down" />
-        <KpiCard label="Total Payable" value={eurK(a.totalAP)} accent="#c94f4f" icon="arrow-up" />
-        <KpiCard label="Overdue AR (90d+)" value={eurK(a.overdueAR)} accent="#c94f4f" icon="alert" />
+        <KpiCard label="Total Receivable" value={eurK(a.totalAR)} accent="#C9A233" icon="arrow-down" />
+        <KpiCard label="Total Payable" value={eurK(a.totalAP)} accent="#F4EFE3" icon="arrow-up" />
+        <KpiCard label="Overdue AR (90d+)" value={eurK(a.overdueAR)} accent="#F4EFE3" icon="alert" />
         <KpiCard label="Net Working Capital" value={eurK(a.netWorkingCapital)} accent={ACCENT} icon="gauge" />
       </Grid>
       <div className="flex justify-end">
@@ -481,11 +481,11 @@ function ARAP() {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Panel title="Accounts Receivable — Aging" icon="arrow-down">
-          <BarChart data={a.ar.map(x => x.amount)} labels={a.ar.map(x => x.bucket)} color="#3a9d5c" height={160} />
+          <BarChart data={a.ar.map(x => x.amount)} labels={a.ar.map(x => x.bucket)} color="#C9A233" height={160} />
           <div className="mt-4"><DataTable columns={cols} rows={a.ar} /></div>
         </Panel>
         <Panel title="Accounts Payable — Aging" icon="arrow-up">
-          <BarChart data={a.ap.map(x => x.amount)} labels={a.ap.map(x => x.bucket)} color="#c94f4f" height={160} />
+          <BarChart data={a.ap.map(x => x.amount)} labels={a.ap.map(x => x.bucket)} color="#F4EFE3" height={160} />
           <div className="mt-4"><DataTable columns={cols} rows={a.ap} /></div>
         </Panel>
       </div>
@@ -587,7 +587,7 @@ type Spend = {
 type SpendList = { data: Spend[]; page: number; pageSize: number; total: number; totalPages: number }
 const SPEND_CATEGORIES = ['tooling', 'travel', 'marketing', 'payroll', 'contractor', 'infra', 'legal', 'misc']
 const PAYMENT_METHODS = ['card', 'bank_transfer', 'direct_debit', 'cash', 'invoice']
-const SPEND_STATUS_COLOR: Record<string, string> = { pending: '#c9a233', approved: '#3a9d5c', rejected: '#c94f4f' }
+const SPEND_STATUS_COLOR: Record<string, string> = { pending: '#c9a233', approved: '#C9A233', rejected: '#F4EFE3' }
 const curSym = (c: string) => (c === 'AED' ? 'AED ' : c === 'USD' ? '$' : '€')
 const money = (n: number, c = 'EUR') => `${n < 0 ? '-' : ''}${curSym(c)}${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
@@ -611,7 +611,7 @@ function exportSpendPdf(s: Spend) {
     td{padding:8px 4px;border-bottom:1px solid #eee;font-size:13px;vertical-align:top}
     td.k{color:#888;text-transform:uppercase;font-size:10px;letter-spacing:1px;width:180px;font-family:Arial,sans-serif}
     td.v{color:#1a1a1a}
-    .status{display:inline-block;padding:3px 10px;border:1px solid #C9A233;border-radius:3px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8a6d1f}
+    .status{display:inline-block;padding:3px 10px;border:1px solid #C9A233;border-radius:3px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#C9A233}
     .rc{margin-top:24px} .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:6px;font-family:Arial,sans-serif}
     .rc img{max-width:100%;max-height:420px;border:1px solid #ddd;border-radius:6px}
     .note{font-size:12px;color:#555;font-family:Arial,sans-serif}
@@ -677,7 +677,7 @@ function SpendCenter({ departmentSlug }: { departmentSlug: string }) {
       <Grid cols={4}>
         <KpiCard label="Logged Spend" value={eurK(totalSpent)} sub="this page · excl. rejected" accent={ACCENT} icon="coins" />
         <KpiCard label="Pending Approval" value={`${pending.length}`} sub={eurK(pendingTotal)} accent="#c9a233" icon="clock" />
-        <KpiCard label="Recoverable VAT" value={eurK(taxRecoverable)} sub="approved, on this page" accent="#3a9d5c" icon="shield" />
+        <KpiCard label="Recoverable VAT" value={eurK(taxRecoverable)} sub="approved, on this page" accent="#C9A233" icon="shield" />
         <KpiCard label="Records" value={`${list?.total ?? 0}`} accent={ACCENT} icon="document" />
       </Grid>
 
@@ -700,7 +700,7 @@ function SpendCenter({ departmentSlug }: { departmentSlug: string }) {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-empire-text font-medium truncate">{s.title}</span>
-                      <Pill text={s.status} color={SPEND_STATUS_COLOR[s.status] || '#7a7a82'} />
+                      <Pill text={s.status} color={SPEND_STATUS_COLOR[s.status] || '#7A7468'} />
                       {s.receiptData && <EmpireIcon name="document" size={12} className="text-empire-gold-muted" />}
                     </div>
                     <div className="text-[11px] text-empire-text-dim mt-0.5 truncate">
@@ -732,7 +732,7 @@ function SpendCenter({ departmentSlug }: { departmentSlug: string }) {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="font-empire text-empire-gold text-2xl">{money(view.amount, view.currency)}</span>
-              <Pill text={view.status} color={SPEND_STATUS_COLOR[view.status] || '#7a7a82'} />
+              <Pill text={view.status} color={SPEND_STATUS_COLOR[view.status] || '#7A7468'} />
             </div>
             <div className="space-y-0.5">
               <Field label="Vendor">{view.vendor || '—'}</Field>
@@ -883,7 +883,7 @@ type TaxData = {
   recommended: { code: string; name: string; totalTaxEur: number; savingVsHighestEur: number }
 }
 
-const IMPACT_COLOR: Record<string, string> = { high: '#3a9d5c', medium: '#c9a233', low: '#7a7a82' }
+const IMPACT_COLOR: Record<string, string> = { high: '#C9A233', medium: '#c9a233', low: '#7A7468' }
 const localFmt = (n: number, ccy: string) =>
   `${n < 0 ? '-' : ''}${ccy === 'AED' ? 'AED ' : '€'}${Math.abs(Math.round(n)).toLocaleString()}`
 
@@ -898,9 +898,9 @@ function TaxCenter() {
       {/* Taxable basis derived from the ledger P&L */}
       <Grid cols={4}>
         <KpiCard label="Revenue (YTD)" value={eurK(b.revenue)} accent={ACCENT} icon="chart-line" />
-        <KpiCard label="Deductible Expenses" value={eurK(b.deductibleExpenses)} sub={`COGS ${eurK(b.cogs)} · OpEx ${eurK(b.opex)}`} accent="#c94f4f" icon="card" />
-        <KpiCard label="Taxable Profit" value={eurK(b.taxableProfit)} delta={profitable ? 'profit' : 'loss'} deltaGood={profitable} accent={profitable ? '#3a9d5c' : '#c94f4f'} icon="finance" />
-        <KpiCard label="Net Margin" value={`${b.netMarginPct}%`} accent={b.netMarginPct >= 0 ? '#3a9d5c' : '#c94f4f'} icon="gauge" />
+        <KpiCard label="Deductible Expenses" value={eurK(b.deductibleExpenses)} sub={`COGS ${eurK(b.cogs)} · OpEx ${eurK(b.opex)}`} accent="#F4EFE3" icon="card" />
+        <KpiCard label="Taxable Profit" value={eurK(b.taxableProfit)} delta={profitable ? 'profit' : 'loss'} deltaGood={profitable} accent={profitable ? '#C9A233' : '#F4EFE3'} icon="finance" />
+        <KpiCard label="Net Margin" value={`${b.netMarginPct}%`} accent={b.netMarginPct >= 0 ? '#C9A233' : '#F4EFE3'} icon="gauge" />
       </Grid>
 
       {/* Recommendation banner */}
@@ -913,7 +913,7 @@ function TaxCenter() {
           </div>
         </div>
         {t.recommended.savingVsHighestEur > 0 && (
-          <Pill text={`Saves ${eur(t.recommended.savingVsHighestEur)} vs alternative`} color="#3a9d5c" />
+          <Pill text={`Saves ${eur(t.recommended.savingVsHighestEur)} vs alternative`} color="#C9A233" />
         )}
       </div>
 
@@ -993,12 +993,12 @@ function JurisdictionCard({ j, recommended }: { j: Jurisdiction; recommended: bo
     <Panel
       title={`${j.name} (${j.currency})`}
       icon={j.code === 'NL' ? 'compass' : 'flag'}
-      actions={recommended ? <Pill text="Recommended" color="#3a9d5c" /> : undefined}
+      actions={recommended ? <Pill text="Recommended" color="#C9A233" /> : undefined}
     >
       <div className="space-y-4">
         <Grid cols={2}>
           <KpiCard label="Corporate Income Tax" value={localFmt(j.cit.total, j.currency)} sub={`eff. ${j.cit.effectiveRate}%${j.cit.smallBusinessRelief ? ' · relief' : ''}`} accent={ACCENT} icon="finance" />
-          <KpiCard label={vatPayable >= 0 ? 'Net VAT Payable' : 'VAT Reclaimable'} value={localFmt(Math.abs(vatPayable), j.currency)} accent={vatPayable >= 0 ? '#c94f4f' : '#3a9d5c'} icon="coins" />
+          <KpiCard label={vatPayable >= 0 ? 'Net VAT Payable' : 'VAT Reclaimable'} value={localFmt(Math.abs(vatPayable), j.currency)} accent={vatPayable >= 0 ? '#F4EFE3' : '#C9A233'} icon="coins" />
         </Grid>
 
         <div>
@@ -1047,7 +1047,7 @@ function JurisdictionCard({ j, recommended }: { j: Jurisdiction; recommended: bo
 /* ---------------- Ledger (journal + post entry) ---------------- */
 type Account = { id: string; code: string; name: string; type: string; balance: number; debitTotal?: number; creditTotal?: number; subtype?: string; sortOrder?: number }
 const ACCT_TYPE_ORDER = ['asset', 'liability', 'equity', 'revenue', 'expense']
-const ACCT_TYPE_COLOR: Record<string, string> = { asset: '#3a9d5c', liability: '#c94f4f', equity: '#4f8ff7', revenue: '#c9a233', expense: '#b06ad6' }
+const ACCT_TYPE_COLOR: Record<string, string> = { asset: '#C9A233', liability: '#F4EFE3', equity: '#C9A233', revenue: '#c9a233', expense: '#C9A233' }
 type JournalEntry = { id: string; date: string; memo: string; source: string; debitTotal: number; creditTotal: number; lines: { id: string; debit: number; credit: number; account: { code: string; name: string } }[] }
 type JournalPage = { data: JournalEntry[]; page: number; pageSize: number; total: number; totalPages: number }
 
@@ -1110,9 +1110,9 @@ function Ledger({ departmentSlug }: { departmentSlug: string }) {
     <div className="space-y-6">
       <Grid cols={4}>
         <KpiCard label="Posted Entries" value={`${journal?.total ?? 0}`} sub="all balanced" accent={ACCENT} icon="book" />
-        <KpiCard label="Trial Balance" value={tbBalanced ? 'In balance' : `Off ${eur(tbDebit - tbCredit)}`} sub={`Dr ${eurK(tbDebit)} = Cr ${eurK(tbCredit)}`} accent={tbBalanced ? '#3a9d5c' : '#c94f4f'} icon={tbBalanced ? 'check' : 'alert'} />
+        <KpiCard label="Trial Balance" value={tbBalanced ? 'In balance' : `Off ${eur(tbDebit - tbCredit)}`} sub={`Dr ${eurK(tbDebit)} = Cr ${eurK(tbCredit)}`} accent={tbBalanced ? '#C9A233' : '#F4EFE3'} icon={tbBalanced ? 'check' : 'alert'} />
         <KpiCard label="Accounts" value={`${accts?.length ?? 0}`} sub="chart of accounts" accent={ACCENT} icon="document" />
-        <KpiCard label="Manual / Page" value={`${manualCount}`} sub="hand-posted entries" accent="#b06ad6" icon="pen" />
+        <KpiCard label="Manual / Page" value={`${manualCount}`} sub="hand-posted entries" accent="#C9A233" icon="pen" />
       </Grid>
 
       <div className="flex items-center justify-between">
@@ -1354,7 +1354,7 @@ type Feasibility = { regions: BankRegion[]; providers: BankProvider[] }
 type BankConn = { id: string; provider: string; region: string; institution: string; accountName: string | null; iban: string | null; currency: string; status: string; lastSyncedAt: string | null; consentExpiresAt: string | null; balance: number }
 type ConnList = { data: BankConn[]; total: number; totalPages: number; totalBalance: number; connected: number }
 
-const CONN_STATUS_COLOR: Record<string, string> = { connected: '#3a9d5c', pending: '#c9a233', disconnected: '#7a7a82', error: '#c94f4f' }
+const CONN_STATUS_COLOR: Record<string, string> = { connected: '#C9A233', pending: '#c9a233', disconnected: '#7A7468', error: '#F4EFE3' }
 
 function BankCenter() {
   const { data: feas } = useFin<Feasibility>('bank/feasibility')
@@ -1384,7 +1384,7 @@ function BankCenter() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {feas?.regions.map(r => (
           <Panel key={r.region} title={r.label} icon={r.region === 'NL' ? 'compass' : 'flag'}
-            actions={<Pill text={r.feasible ? 'Feasible today' : 'Not yet'} color={r.feasible ? '#3a9d5c' : '#c94f4f'} />}>
+            actions={<Pill text={r.feasible ? 'Feasible today' : 'Not yet'} color={r.feasible ? '#C9A233' : '#F4EFE3'} />}>
             <div className="space-y-2">
               <Field label="Framework">{r.framework}</Field>
               <p className="text-xs text-empire-text-dim leading-relaxed">{r.summary}</p>
@@ -1407,7 +1407,7 @@ function BankCenter() {
           <>
             <Grid cols={3}>
               <KpiCard label="Linked Accounts" value={`${conns.total}`} accent={ACCENT} icon="card" />
-              <KpiCard label="Connected (live)" value={`${conns.connected}`} accent="#3a9d5c" icon="check" />
+              <KpiCard label="Connected (live)" value={`${conns.connected}`} accent="#C9A233" icon="check" />
               <KpiCard label="Aggregate Balance" value={eurK(conns.totalBalance)} sub="connected accounts" accent={ACCENT} icon="coins" />
             </Grid>
             <div className="mt-4 space-y-2">
@@ -1416,7 +1416,7 @@ function BankCenter() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-empire-text font-medium truncate">{c.institution}</span>
-                      <Pill text={c.status} color={CONN_STATUS_COLOR[c.status] || '#7a7a82'} />
+                      <Pill text={c.status} color={CONN_STATUS_COLOR[c.status] || '#7A7468'} />
                       <span className="text-[10px] uppercase tracking-wide text-empire-text-dim">{c.region}</span>
                     </div>
                     <div className="text-[11px] text-empire-text-dim mt-0.5 truncate">

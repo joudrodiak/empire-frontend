@@ -9,6 +9,7 @@ import { COMPANIES } from '@/lib/profiles'
 import { EMBLEMS, deterministicEmblem } from '@/lib/emblems'
 import { fetcher, post } from '@/lib/api'
 import { useAuth, userCan } from '@/lib/auth'
+import { EMPIRE_COLORS, empireColor } from '@/lib/theme'
 
 /**
  * EMPIRE OS wordmark + company switcher. Profiles are COMPANIES (Cregen Inc.,
@@ -33,7 +34,7 @@ const META: Record<string, { icon: IconName; accent: string }> = Object.fromEntr
 // back to the client META for the seeded portfolio, then the house defaults.
 const brand = (c: Company): Branded => {
   const base = META[c.slug] ?? { icon: 'crown' as IconName, accent: '#C9A233' }
-  return { ...c, icon: (c.icon as IconName) || base.icon, accent: c.accent || base.accent }
+  return { ...c, icon: (c.icon as IconName) || base.icon, accent: empireColor(c.accent || base.accent) }
 }
 
 function readActiveSlug(): string | null {
@@ -174,7 +175,7 @@ type Unit = { id: string; name: string; slug: string; description?: string | nul
 type SeedHire = { firstName: string; lastName: string; email: string; password: string; role: string; departmentId: string; salaryAmount: string }
 
 const INDUSTRIES = ['AI / Software', 'Creative / Media', 'Research & Development', 'Consulting / Advisory', 'Finance', 'E-commerce', 'Healthcare', 'Education', 'Real Estate', 'Other']
-const ACCENTS = ['#C9A233', '#e8b4b8', '#7aa2f7', '#8bd5a0', '#c78bf0', '#e0884f', '#5fd3c4', '#d65f6f']
+const ACCENTS = [EMPIRE_COLORS.gold, EMPIRE_COLORS.ivory, EMPIRE_COLORS.obsidian]
 // Core units (final_backlog §2) — always enabled, locked on in the picker.
 const CORE_UNIT_SLUGS = ['executive', 'hr', 'finance', 'legal']
 const WIZARD_STEPS = ['Identity', 'Branding', 'Structure', 'Team', 'Review'] as const
@@ -315,7 +316,7 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
           <div className="space-y-4 animate-fade-in">
             <p className="text-[11px] text-empire-text-muted">The medallion, wordmark and accent persist with the tenant.</p>
             <div className="flex items-center gap-3 rounded-xl border border-empire-border bg-empire-surface/40 p-3">
-              <span className="medallion grid place-items-center shrink-0" style={{ width: 44, height: 44, background: `radial-gradient(circle at 30% 26%, ${accent} 0%, ${accent}cc 45%, #4a3a0c 100%)` }}>
+              <span className="medallion grid place-items-center shrink-0" style={{ width: 44, height: 44, background: `radial-gradient(circle at 30% 26%, ${accent} 0%, ${accent}cc 45%, ${EMPIRE_COLORS.obsidian} 100%)` }}>
                 <EmpireIcon name={effectiveIcon} size={20} className="relative z-10 text-empire-void" />
               </span>
               <div className="min-w-0">
@@ -332,10 +333,6 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
                     className={`h-7 w-7 rounded-full border-2 transition-transform hover:scale-110 ${accent === a ? 'border-empire-text' : 'border-transparent'}`}
                     style={{ background: a }} aria-label={`Accent ${a}`} />
                 ))}
-                <label className="ml-1 flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-empire-text-muted">
-                  <input type="color" value={accent} onChange={e => setAccent(e.target.value)} className="h-7 w-7 cursor-pointer rounded border border-empire-border bg-transparent" />
-                  Custom
-                </label>
               </div>
             </div>
             <div>
@@ -448,7 +445,7 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
         {step === 4 && (
           <div className="max-w-full space-y-3 overflow-hidden animate-fade-in">
             <div className="flex min-w-0 items-center gap-3 rounded-xl border border-empire-border bg-empire-surface/40 p-3">
-              <span className="medallion grid place-items-center shrink-0" style={{ width: 44, height: 44, background: `radial-gradient(circle at 30% 26%, ${accent} 0%, ${accent}cc 45%, #4a3a0c 100%)` }}>
+              <span className="medallion grid place-items-center shrink-0" style={{ width: 44, height: 44, background: `radial-gradient(circle at 30% 26%, ${accent} 0%, ${accent}cc 45%, ${EMPIRE_COLORS.obsidian} 100%)` }}>
                 <EmpireIcon name={effectiveIcon} size={20} className="relative z-10 text-empire-void" />
               </span>
               <div className="min-w-0">

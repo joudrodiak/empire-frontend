@@ -11,6 +11,7 @@ import { Fact } from '@/components/molecules/Fact'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
 import { rankIcon } from '@/lib/rank-icons'
+import { empireColor } from '@/lib/theme'
 
 export interface PersonLite {
   id: string
@@ -31,7 +32,7 @@ export interface PersonLite {
 
 function compLine(p: PersonLite): { text: string; tone: string } {
   if (p.contractType === 'commission') return { text: `${p.commissionRate}% commission`, tone: 'text-empire-amber-bright' }
-  if (p.contractType === 'ai_agent') return { text: 'AI Agent · always-on', tone: 'text-purple-400' }
+  if (p.contractType === 'ai_agent') return { text: 'AI Agent · always-on', tone: 'text-empire-gold' }
   if (p.contractType === 'advisory') return { text: 'Advisory board', tone: 'text-empire-text-muted' }
   if (p.salaryAmount) return { text: `€${p.salaryAmount.toLocaleString()} / mo`, tone: 'text-empire-gold' }
   return { text: '—', tone: 'text-empire-text-muted' }
@@ -47,7 +48,7 @@ export function PersonModal({ person, onClose }: { person: PersonLite | null; on
   }, [person, onClose])
 
   if (!person) return null
-  const accent = person.department.color || '#c9a233'
+  const accent = empireColor(person.department.color)
   const profile = profileFor(person.name, person.role)
   // Prefer real progression from the API; fall back to synthetic showcase data.
   const hasReal = person.xp != null && person.level != null

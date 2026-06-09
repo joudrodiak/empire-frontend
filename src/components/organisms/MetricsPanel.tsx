@@ -25,10 +25,10 @@ type Metrics = {
 }
 
 const RAG_STYLE: Record<string, { color: string; label: string }> = {
-  GREEN: { color: '#3a9d5c', label: 'Healthy' },
+  GREEN: { color: '#C9A233', label: 'Healthy' },
   AMBER: { color: '#c9a233', label: 'Watch' },
-  RED: { color: '#c94f4f', label: 'Needs action' },
-  PENDING: { color: '#6b7280', label: 'No data yet' },
+  RED: { color: '#F4EFE3', label: 'Needs action' },
+  PENDING: { color: '#7A7468', label: 'No data yet' },
 }
 
 export function MetricsPanel({ departmentSlug, accent = '#c9a233' }: { departmentSlug: string; accent?: string }) {
@@ -61,7 +61,7 @@ export function MetricsPanel({ departmentSlug, accent = '#c9a233' }: { departmen
           label="Z-Score vs Empire"
           value={m.health.compositeScore != null ? zTxt : '—'}
           sub={m.health.compositeScore != null ? m.health.interpretation : 'needs KPI data'}
-          accent={m.health.zScore >= 0 ? '#3a9d5c' : '#c94f4f'}
+          accent={m.health.zScore >= 0 ? '#C9A233' : '#F4EFE3'}
         />
         <KpiCard label="Team Level" icon={rankIcon(m.team.deptRank.name)} value={`L${m.team.deptLevel}`} sub={`${m.team.deptRank.name} · ${m.team.deptXp.toLocaleString()} XP`} accent={accent} />
         <KpiCard label="Members" value={`${m.team.memberCount}`} sub={`avg level ${m.team.avgLevel}`} accent={accent} />
@@ -86,7 +86,7 @@ export function MetricsPanel({ departmentSlug, accent = '#c9a233' }: { departmen
             <Row label="This dept" value={m.health.compositeScore != null ? `${m.health.compositeScore}` : '—'} accent={rag.color} />
             <Row label="Empire average" value={`${m.health.empireMean}`} />
             <Row label="Spread (σ)" value={`${m.health.empireStd}`} />
-            <Row label="Z-score" value={m.health.compositeScore != null ? zTxt : '—'} accent={m.health.zScore >= 0 ? '#3a9d5c' : '#c94f4f'} />
+            <Row label="Z-score" value={m.health.compositeScore != null ? zTxt : '—'} accent={m.health.zScore >= 0 ? '#C9A233' : '#F4EFE3'} />
             <p className="text-[11px] text-empire-text-muted leading-snug pt-1">
               Z-score = standard deviations above/below the Empire-wide average composite. +1σ is clearly ahead; −1σ clearly behind.
             </p>

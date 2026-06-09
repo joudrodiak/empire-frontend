@@ -3,9 +3,9 @@ import React from 'react'
 import { cn } from '@/components/atoms/cn'
 
 const TONE: Record<string, string> = {
-  green: 'text-rag-green bg-rag-green/10 border-rag-green/30',
-  amber: 'text-rag-amber bg-rag-amber/10 border-rag-amber/30',
-  red: 'text-rag-red bg-rag-red/10 border-rag-red/30',
+  green: 'text-empire-gold bg-empire-gold/10 border-empire-gold/30',
+  amber: 'text-empire-text bg-empire-elevated border-empire-gold/25',
+  red: 'text-empire-ivory bg-empire-void border-empire-border',
   gold: 'text-empire-gold bg-empire-gold/10 border-empire-gold/30',
   muted: 'text-empire-text-muted bg-empire-elevated border-empire-border',
 }
@@ -15,7 +15,10 @@ export function Badge({ children, tone = 'muted' }: { children: React.ReactNode;
 }
 
 const RAG_DOT: Record<string, string> = {
-  green: 'bg-rag-green', amber: 'bg-rag-amber', red: 'bg-rag-red', muted: 'bg-empire-text-muted',
+  green: 'bg-empire-gold',
+  amber: 'bg-empire-ivory',
+  red: 'bg-empire-ink',
+  muted: 'bg-empire-text-muted',
 }
 
 export function RagBadge({ status }: { status: string }) {

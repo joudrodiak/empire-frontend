@@ -32,6 +32,7 @@ import { AdvisoryPanel } from '@/components/organisms/AdvisoryPanel'
 import { StructurePanel } from '@/components/organisms/StructurePanel'
 import { NotificationsPanel } from '@/components/organisms/NotificationsPanel'
 import { formatDistanceToNow, format } from 'date-fns'
+import { empireColor, empireTint } from '@/lib/theme'
 
 type Dept = {
   id: string; name: string; slug: string; description: string
@@ -134,6 +135,7 @@ export default function DepartmentClient() {
   )
 
   const latestScore = dept.compositeScores?.[0]
+  const accent = empireColor(dept.color)
   // Depts with a dedicated enterprise panel render their domain inside that panel
   // (Finance → Financials, Engineering → Delivery). Suppress the generic catch-all
   // tab so we don't show two ledgers / two sprint lists. ADD new dedicated panels here.
@@ -181,8 +183,8 @@ export default function DepartmentClient() {
           </div>
           <div className="ml-auto flex items-center gap-3">
             {dept.managedByAI && (
-              <span className="text-purple-400 text-xs inline-flex items-center gap-1.5">
-                <EmpireIcon name="cog" size={13} className="text-purple-400" /> {dept.aiManagerName}
+              <span className="text-empire-gold text-xs inline-flex items-center gap-1.5">
+                <EmpireIcon name="cog" size={13} className="text-empire-gold" /> Automated unit
               </span>
             )}
             {latestScore && (
@@ -190,7 +192,7 @@ export default function DepartmentClient() {
                 {latestScore.score != null ? `Score: ${latestScore.score}` : ragLabel(latestScore.ragStatus)}
               </span>
             )}
-            <RuleBook accent={dept.color || '#c9a233'} />
+            <RuleBook accent={accent} />
           </div>
         </div>
         <div className="max-w-screen-xl mx-auto px-6 flex flex-wrap gap-1 pb-0">
@@ -217,16 +219,16 @@ export default function DepartmentClient() {
 
       <main key={activeTab} className="max-w-screen-xl mx-auto px-6 py-8 animate-slide-up">
         {activeTab === 'overview' && (
-          <OverviewTab dept={dept} latestScore={latestScore} followUps={followUps} entries={entries} allDepts={allDepts} onUpdate={load} onCreateContract={createContractFor} />
+          <OverviewTab dept={dept} latestScore={latestScore} followUps={followUps} entries={entries} allDepts={allDepts} onUpdate={load} onCreateContract={createContractFor} accent={accent} />
         )}
         {activeTab === 'structure' && (
-          <StructurePanel departmentSlug={dept.slug} accent={dept.color || '#c9a233'} />
+          <StructurePanel departmentSlug={dept.slug} accent={accent} />
         )}
         {activeTab === 'metrics' && (
-          <MetricsPanel departmentSlug={dept.slug} accent={dept.color || '#c9a233'} />
+          <MetricsPanel departmentSlug={dept.slug} accent={accent} />
         )}
         {activeTab === 'interactions' && dept.managedByAI && (
-          <InteractionsPanel departmentSlug={dept.slug} accent={dept.color || '#8b5cf6'} aiManagerName={dept.aiManagerName} />
+          <InteractionsPanel departmentSlug={dept.slug} accent={accent} />
         )}
         {activeTab === 'finance' && dept.slug === 'finance' && (
           <FinancePanel departmentSlug={dept.slug} />
@@ -281,12 +283,12 @@ export default function DepartmentClient() {
           />
         )}
         {activeTab === 'tickets' && (
-          <TicketsPanel departmentSlug={dept.slug} accent={dept.color || '#c9a233'} />
+          <TicketsPanel departmentSlug={dept.slug} accent={accent} />
         )}
         {activeTab === 'contracts' && (
           <ContractsPanel
             departmentSlug={dept.slug}
-            accent={dept.color || '#c9a233'}
+            accent={accent}
             prefillEmployeeId={contractPrefill}
             onConsumePrefill={() => setContractPrefill(null)}
           />
@@ -296,9 +298,9 @@ export default function DepartmentClient() {
   )
 }
 
-function OverviewTab({ dept, latestScore, followUps, entries, allDepts, onUpdate, onCreateContract }: {
+function OverviewTab({ dept, latestScore, followUps, entries, allDepts, onUpdate, onCreateContract, accent }: {
   dept: Dept; latestScore?: CompositeScore; followUps: FollowUp[]; entries: DeptEntry[]; allDepts: AllDept[]; onUpdate: () => void
-  onCreateContract?: (empId: string) => void
+  onCreateContract?: (empId: string) => void; accent: string
 }) {
   const openFollowUps = followUps.filter(f => f.status !== 'done')
   const criticalFollowUps = openFollowUps.filter(f => f.priority === 'critical' || f.priority === 'high')
@@ -322,16 +324,16 @@ function OverviewTab({ dept, latestScore, followUps, entries, allDepts, onUpdate
       <div className="grid grid-cols-3 gap-8">
         {/* Roster — full CRUD + cross-unit reassignment */}
         <div className="col-span-1">
-          <Roster dept={dept} allDepts={allDepts} onUpdate={onUpdate} onCreateContract={onCreateContract} />
+          <Roster dept={dept} allDepts={allDepts} onUpdate={onUpdate} onCreateContract={onCreateContract} accent={accent} />
           {dept.managedByAI && (
-            <div className="p-3 mt-2 bg-empire-surface border border-purple-800/40 rounded-lg text-center">
-              <div className="text-purple-400 text-xs inline-flex items-center gap-1.5">
-                <EmpireIcon name="cog" size={13} className="text-purple-400" /> {dept.aiManagerName}
+            <div className="p-3 mt-2 bg-empire-surface border border-empire-gold/25 rounded-lg text-center">
+              <div className="text-empire-gold text-xs inline-flex items-center gap-1.5">
+                <EmpireIcon name="cog" size={13} className="text-empire-gold" /> Automated unit
               </div>
             </div>
           )}
           <div className="mt-2">
-            <RuleBook variant="inline" accent={dept.color || '#c9a233'} initialSection="cross-dept" />
+            <RuleBook variant="inline" accent={accent} initialSection="cross-dept" />
           </div>
         </div>
 
@@ -400,7 +402,7 @@ function OverviewTab({ dept, latestScore, followUps, entries, allDepts, onUpdate
 
       {/* Reporting structure — also surfaced here on the Overview, not only its own tab */}
       <div className="rounded-xl border border-empire-border bg-empire-elevated/20 p-4">
-        <StructurePanel departmentSlug={dept.slug} accent={dept.color || '#c9a233'} />
+        <StructurePanel departmentSlug={dept.slug} accent={accent} />
       </div>
     </div>
   )
@@ -413,7 +415,7 @@ function OverviewTab({ dept, latestScore, followUps, entries, allDepts, onUpdate
  * (DELETE /api/employees/:id). Paginated. */
 const ROSTER_PAGE_SIZE = 6
 
-function Roster({ dept, allDepts, onUpdate, onCreateContract }: { dept: Dept; allDepts: AllDept[]; onUpdate: () => void; onCreateContract?: (empId: string) => void }) {
+function Roster({ dept, allDepts, onUpdate, onCreateContract, accent }: { dept: Dept; allDepts: AllDept[]; onUpdate: () => void; onCreateContract?: (empId: string) => void; accent: string }) {
   const [page, setPage] = useState(0)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Employee | null>(null)
@@ -454,7 +456,7 @@ function Roster({ dept, allDepts, onUpdate, onCreateContract }: { dept: Dept; al
               ) : (
                 <div
                   className="w-8 h-8 rounded flex items-center justify-center text-xs font-bold flex-shrink-0"
-                  style={{ background: (dept.color || '#C9A233') + '30', color: dept.color || '#C9A233' }}
+                  style={{ background: empireTint(accent, '30'), color: accent }}
                 >
                   {emp.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                 </div>
@@ -496,7 +498,7 @@ function Roster({ dept, allDepts, onUpdate, onCreateContract }: { dept: Dept; al
         })}
       </div>
       {employees.length > ROSTER_PAGE_SIZE && (
-        <Pagination page={safePage} pageCount={pageCount} total={employees.length} onPage={setPage} accent={dept.color || '#c9a233'} />
+        <Pagination page={safePage} pageCount={pageCount} total={employees.length} onPage={setPage} accent={accent} />
       )}
 
       {(adding || editing) && (
@@ -516,7 +518,7 @@ function Roster({ dept, allDepts, onUpdate, onCreateContract }: { dept: Dept; al
               {viewing.avatarUrl
                 // eslint-disable-next-line @next/next/no-img-element
                 ? <img src={viewing.avatarUrl} alt={viewing.name} className="w-12 h-12 rounded-full object-cover border border-empire-border" />
-                : <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: (dept.color || '#C9A233') + '30', color: dept.color || '#C9A233' }}>{viewing.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}</div>}
+                : <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: empireTint(accent, '30'), color: accent }}>{viewing.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}</div>}
               <div className="font-empire text-empire-text text-lg">{viewing.name}</div>
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm">

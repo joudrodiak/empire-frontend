@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,10 +6,12 @@
 :root {
   --gold: #C9A233;
   --void: #080810;
+  --ivory: #F4EFE3;
 
   /* Empire surface + text tokens (R G B triplets) consumed by tailwind via
      rgb(var(--e-x) / <alpha>). Default = DARK theme. html.light overrides below.
-     Gold + RAG are fixed and never themed. */
+     The product palette is intentionally limited to obsidian, imperial gold,
+     and ivory; legacy semantic aliases map back into that system. */
   --e-void: 8 8 16;
   --e-deep: 13 13 26;
   --e-bg: 11 11 20;
@@ -20,6 +22,9 @@
   --e-text: 245 240 232;
   --e-text-muted: 122 116 104;
   --e-text-dim: 74 69 64;
+  --e-gold: 201 162 51;
+  --e-ivory: 244 239 227;
+  --e-ink: 8 8 16;
 
   /* Themeable glass + chrome (overridden in html.light). */
   --glass-bg: 18 18 31;
@@ -43,6 +48,9 @@ html.light {
   --e-text: 42 36 24;
   --e-text-muted: 107 97 73;
   --e-text-dim: 154 142 114;
+  --e-gold: 181 139 30;
+  --e-ivory: 255 252 246;
+  --e-ink: 42 36 24;
 
   --glass-bg: 252 249 242;
   --glass-bg-a: 0.62;
@@ -62,9 +70,10 @@ html {
 }
 
 body {
-  background: var(--page-bg);
+  background:
+    linear-gradient(180deg, rgb(var(--e-bg)) 0%, rgb(var(--e-void)) 100%);
   color: rgb(var(--e-text));
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
@@ -88,13 +97,13 @@ body {
 
 /* RAG badge */
 .rag-green {
-  @apply bg-empire-green-bg text-empire-green-bright border border-empire-green/40;
+  @apply bg-empire-gold/10 text-empire-gold border border-empire-gold/35;
 }
 .rag-amber {
-  @apply bg-empire-amber-bg text-empire-amber-bright border border-empire-amber/40;
+  @apply bg-empire-elevated text-empire-text border border-empire-gold/30;
 }
 .rag-red {
-  @apply bg-empire-red-bg text-empire-red-bright border border-empire-red/40;
+  @apply bg-empire-void text-empire-ivory border border-empire-border;
 }
 .rag-pending {
   @apply bg-empire-surface text-empire-text-muted border border-empire-border;
@@ -129,7 +138,7 @@ body {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02) 42%),
     rgb(var(--glass-bg) / var(--glass-bg-a));
-  border-radius: 16px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow:
     0 4px 30px rgba(0, 0, 0, 0.35),
@@ -149,7 +158,7 @@ html.light .glass {
 /* Brighter gold-frost variant for floating chrome (dock / brand). */
 .glass-gold {
   background: linear-gradient(135deg, rgba(26, 26, 46, 0.62), rgba(13, 13, 26, 0.62));
-  border-radius: 18px;
+  border-radius: 10px;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(201, 162, 51, 0.12);
   -webkit-backdrop-filter: blur(18px) saturate(150%);
   backdrop-filter: blur(18px) saturate(150%);
@@ -163,7 +172,7 @@ html.light .glass {
    always reads crisp. Keep the same border/radius/shadow as .glass-gold. */
 .glass-solid {
   background: linear-gradient(135deg, rgba(24, 24, 42, 0.985), rgba(12, 12, 22, 0.985));
-  border-radius: 18px;
+  border-radius: 10px;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(201, 162, 51, 0.12);
   border: 1px solid rgba(201, 162, 51, 0.28);
 }
@@ -289,7 +298,7 @@ html.light .glass-edgeless {
 /* Steel medallion for neutral/non-active units — same light source. */
 .medallion-steel {
   background:
-    radial-gradient(circle at 30% 26%, #eef0f4 0%, #d6d9e2 14%, #9aa0b0 40%, #5a5f72 70%, #232734 100%);
+    radial-gradient(circle at 30% 26%, #f2ead1 0%, #d6d0c0 14%, #7A7468 40%, #2A2A44 70%, #080810 100%);
   color: #15171f;
 }
 
@@ -335,7 +344,7 @@ html.light .glass-edgeless {
   width: 118px;
   min-height: 100px;
   flex-direction: column;
-  border-radius: 16px;
+  border-radius: 8px;
   border: 1px solid rgba(201, 162, 51, 0.4);
   background: rgba(18, 18, 26, 0.86);
   box-shadow: 0 14px 38px rgba(0,0,0,0.35);

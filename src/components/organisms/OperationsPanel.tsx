@@ -15,18 +15,18 @@ type Page<T> = { data: T[]; page: number; pageSize: number; total: number; total
 // Operations / Rodiak — the engine room. Vendor spend & renewal risk, process
 // maturity, SLA attainment and run-cost trend all derive from /api/operations/*.
 
-const ACCENT = '#0ea5e9'
+const ACCENT = '#C9A233'
 const TABS = [
   { id: 'overview', label: 'Overview', icon: 'overview' as const },
   { id: 'vendors', label: 'Vendors', icon: 'handshake' as const },
   { id: 'slas', label: 'SLAs', icon: 'shield' as const },
   { id: 'processes', label: 'Processes', icon: 'cog' as const },
 ]
-const CAT_COLOR: Record<string, string> = { saas: '#0ea5e9', infra: '#8b5cf6', contractor: '#f59e0b', logistics: '#10b981', facilities: '#ec4899', services: '#06b6d4' }
-const CRIT_COLOR: Record<string, string> = { critical: '#c94f4f', high: '#f59e0b', medium: '#4f8ff7', low: '#6b7280' }
-const VSTATUS_COLOR: Record<string, string> = { active: '#10b981', review: '#f59e0b', churned: '#6b7280' }
-const SLA_COLOR: Record<string, string> = { met: '#10b981', at_risk: '#f59e0b', breached: '#c94f4f' }
-const PSTATUS_COLOR: Record<string, string> = { documented: '#10b981', draft: '#f59e0b', needs_review: '#e08a3c', deprecated: '#6b7280' }
+const CAT_COLOR: Record<string, string> = { saas: '#C9A233', infra: '#C9A233', contractor: '#C9A233', logistics: '#C9A233', facilities: '#C9A233', services: '#C9A233' }
+const CRIT_COLOR: Record<string, string> = { critical: '#F4EFE3', high: '#C9A233', medium: '#C9A233', low: '#7A7468' }
+const VSTATUS_COLOR: Record<string, string> = { active: '#C9A233', review: '#C9A233', churned: '#7A7468' }
+const SLA_COLOR: Record<string, string> = { met: '#C9A233', at_risk: '#C9A233', breached: '#F4EFE3' }
+const PSTATUS_COLOR: Record<string, string> = { documented: '#C9A233', draft: '#C9A233', needs_review: '#C9A233', deprecated: '#7A7468' }
 const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(Math.round(n))
 const eur = (n: number) => `€${fmt(n)}`
 
@@ -83,11 +83,11 @@ function Overview() {
     <div className="space-y-6">
       <Grid cols={6}>
         <KpiCard icon="coins" label="Vendor Spend (yr)" value={eur(s.vendorSpend)} sub={`${s.activeVendors} active`} accent={ACCENT} />
-        <KpiCard icon="gauge" label="Monthly Run Cost" value={eur(s.monthlyRunCost)} accent="#8b5cf6" />
-        <KpiCard icon="clock" label="Renewals (90d)" value={String(s.renewals90)} sub={`${eur(s.renewalSpend)} at stake`} accent={s.renewals90 > 0 ? '#f59e0b' : '#10b981'} />
-        <KpiCard icon="shield" label="SLA Health" value={`${s.slaHealth}%`} sub={`${s.slaMeeting}/${s.slas} met`} accent={s.slaHealth >= 80 ? '#10b981' : '#f59e0b'} />
-        <KpiCard icon="document" label="Process Coverage" value={`${s.docCoverage}%`} sub={`${s.processes} processes`} accent={s.docCoverage >= 70 ? '#10b981' : '#f59e0b'} />
-        <KpiCard icon="cog" label="Avg Automation" value={`${s.avgAutomation}%`} accent="#06b6d4" />
+        <KpiCard icon="gauge" label="Monthly Run Cost" value={eur(s.monthlyRunCost)} accent="#C9A233" />
+        <KpiCard icon="clock" label="Renewals (90d)" value={String(s.renewals90)} sub={`${eur(s.renewalSpend)} at stake`} accent={s.renewals90 > 0 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="shield" label="SLA Health" value={`${s.slaHealth}%`} sub={`${s.slaMeeting}/${s.slas} met`} accent={s.slaHealth >= 80 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="document" label="Process Coverage" value={`${s.docCoverage}%`} sub={`${s.processes} processes`} accent={s.docCoverage >= 70 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="cog" label="Avg Automation" value={`${s.avgAutomation}%`} accent="#C9A233" />
       </Grid>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Panel icon="chart-line" title="Run-cost trend (vendor + ops)" className="lg:col-span-2">
@@ -96,7 +96,7 @@ function Overview() {
         </Panel>
         <Panel icon="alert" title="SLA breaches (period)">
           <div className="text-[11px] uppercase tracking-widest text-empire-text-dim">Breaches</div>
-          <div className="font-empire text-5xl leading-none mt-1 tabular-nums" style={{ color: s.totalBreaches > 8 ? '#c94f4f' : '#f59e0b' }}>{s.totalBreaches}</div>
+          <div className="font-empire text-5xl leading-none mt-1 tabular-nums" style={{ color: s.totalBreaches > 8 ? '#F4EFE3' : '#C9A233' }}>{s.totalBreaches}</div>
           <div className="text-empire-text-muted text-xs mt-2">avg attainment {s.avgAttainment}% · {s.criticalVendors} critical vendors</div>
         </Panel>
       </div>
@@ -120,11 +120,11 @@ function Vendors() {
   const rows = data?.data || []
   const cols: Column<Vendor>[] = [
     { key: 'name', label: 'Vendor', render: v => <div><div className="font-medium text-empire-text">{v.name}</div><div className="text-empire-text-dim text-[11px]">{v.ownerName || '—'}{v.autoRenew ? ' · auto-renew' : ''}</div></div> },
-    { key: 'category', label: 'Category', render: v => <Pill text={v.category} color={CAT_COLOR[v.category] || '#6b7280'} /> },
-    { key: 'criticality', label: 'Critical', render: v => <Pill text={v.criticality} color={CRIT_COLOR[v.criticality] || '#6b7280'} /> },
-    { key: 'status', label: 'Status', render: v => <Pill text={v.status} color={VSTATUS_COLOR[v.status] || '#6b7280'} /> },
+    { key: 'category', label: 'Category', render: v => <Pill text={v.category} color={CAT_COLOR[v.category] || '#7A7468'} /> },
+    { key: 'criticality', label: 'Critical', render: v => <Pill text={v.criticality} color={CRIT_COLOR[v.criticality] || '#7A7468'} /> },
+    { key: 'status', label: 'Status', render: v => <Pill text={v.status} color={VSTATUS_COLOR[v.status] || '#7A7468'} /> },
     { key: 'annualCost', label: 'Annual', align: 'right', render: v => <span className="text-empire-text">{eur(v.annualCost)}</span> },
-    { key: 'daysToRenewal', label: 'Renews', align: 'right', render: v => <span style={{ color: (v.daysToRenewal ?? 999) < 30 ? '#c94f4f' : (v.daysToRenewal ?? 999) < 90 ? '#f59e0b' : '#7A7468' }}>{v.daysToRenewal != null ? `${v.daysToRenewal}d` : '—'}</span> },
+    { key: 'daysToRenewal', label: 'Renews', align: 'right', render: v => <span style={{ color: (v.daysToRenewal ?? 999) < 30 ? '#F4EFE3' : (v.daysToRenewal ?? 999) < 90 ? '#C9A233' : '#7A7468' }}>{v.daysToRenewal != null ? `${v.daysToRenewal}d` : '—'}</span> },
     { key: 'id', label: '', align: 'right', render: v => <RowActions onView={() => setViewing(v)} onEdit={() => setEditing(v)} onDelete={() => remove(v.id)} deleteLabel={`vendor “${v.name}”`} /> },
   ]
   return (
@@ -162,9 +162,9 @@ function Vendors() {
         {viewing && (
           <div className="space-y-3 text-sm">
             <div className="flex flex-wrap gap-2">
-              <Pill text={viewing.category} color={CAT_COLOR[viewing.category] || '#6b7280'} />
-              <Pill text={viewing.criticality} color={CRIT_COLOR[viewing.criticality] || '#6b7280'} />
-              <Pill text={viewing.status} color={VSTATUS_COLOR[viewing.status] || '#6b7280'} />
+              <Pill text={viewing.category} color={CAT_COLOR[viewing.category] || '#7A7468'} />
+              <Pill text={viewing.criticality} color={CRIT_COLOR[viewing.criticality] || '#7A7468'} />
+              <Pill text={viewing.status} color={VSTATUS_COLOR[viewing.status] || '#7A7468'} />
             </div>
             <VField label="Owner" value={viewing.ownerName || '—'} />
             <VField label="Annual cost" value={eur(viewing.annualCost)} />
@@ -245,16 +245,16 @@ function Slas() {
     { key: 'name', label: 'SLA', render: r => <div><div className="font-medium text-empire-text">{r.name}</div><div className="text-empire-text-dim text-[11px]">{r.service} · {r.period}</div></div> },
     { key: 'targetPct', label: 'Target', align: 'right', render: r => <span className="text-empire-text-muted">{r.targetPct}%</span> },
     { key: 'actualPct', label: 'Actual', align: 'right', render: r => <span style={{ color: SLA_COLOR[r.status] }}>{r.actualPct}%</span> },
-    { key: 'delta', label: 'Δ', align: 'right', render: r => <span style={{ color: r.delta >= 0 ? '#10b981' : '#c94f4f' }}>{r.delta > 0 ? '+' : ''}{r.delta}</span> },
-    { key: 'breaches', label: 'Breaches', align: 'right', render: r => <span style={{ color: r.breaches > 0 ? '#f59e0b' : '#6b7280' }}>{r.breaches}</span> },
+    { key: 'delta', label: 'Δ', align: 'right', render: r => <span style={{ color: r.delta >= 0 ? '#C9A233' : '#F4EFE3' }}>{r.delta > 0 ? '+' : ''}{r.delta}</span> },
+    { key: 'breaches', label: 'Breaches', align: 'right', render: r => <span style={{ color: r.breaches > 0 ? '#C9A233' : '#7A7468' }}>{r.breaches}</span> },
     { key: 'status', label: 'Status', align: 'right', render: r => <Pill text={r.status.replace('_', ' ')} color={SLA_COLOR[r.status]} /> },
   ]
   return (
     <div className="space-y-4">
       <Grid cols={3}>
         <KpiCard icon="shield" label="SLAs Tracked" value={String(rows.length)} accent={ACCENT} />
-        <KpiCard icon="check" label="Meeting Target" value={`${met}/${rows.length}`} accent={met === rows.length ? '#10b981' : '#f59e0b'} />
-        <KpiCard icon="alert" label="Total Breaches" value={String(rows.reduce((s, r) => s + r.breaches, 0))} accent="#c94f4f" />
+        <KpiCard icon="check" label="Meeting Target" value={`${met}/${rows.length}`} accent={met === rows.length ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="alert" label="Total Breaches" value={String(rows.reduce((s, r) => s + r.breaches, 0))} accent="#F4EFE3" />
       </Grid>
       <Panel icon="shield" title="SLA board (target vs actual)">
         <DataTable columns={cols} rows={rows} empty="No SLAs." />
@@ -272,9 +272,9 @@ function Processes() {
   if (!data) return <EmptyState icon="document" title="No processes" />
   const cols: Column<Proc>[] = [
     { key: 'name', label: 'Process', render: p => <div><div className="font-medium text-empire-text">{p.name}</div><div className="flex items-center gap-1 text-empire-text-dim text-[11px]">{p.area} · {p.ownerName || '—'}{p.stale && <span className="inline-flex items-center gap-0.5 text-rag-amber-bright"> · <EmpireIcon name="alert" size={11} />stale</span>}</div></div> },
-    { key: 'status', label: 'Status', render: p => <Pill text={p.status.replace('_', ' ')} color={PSTATUS_COLOR[p.status] || '#6b7280'} /> },
+    { key: 'status', label: 'Status', render: p => <Pill text={p.status.replace('_', ' ')} color={PSTATUS_COLOR[p.status] || '#7A7468'} /> },
     { key: 'cycleTimeHours', label: 'Cycle', align: 'right', render: p => <span className="text-empire-text-muted">{p.cycleTimeHours}h</span> },
-    { key: 'automationPct', label: 'Automation', render: p => <div className="w-28"><ProgressBar value={p.automationPct} max={100} color={p.automationPct >= 60 ? '#10b981' : p.automationPct >= 30 ? '#f59e0b' : '#c94f4f'} /></div> },
+    { key: 'automationPct', label: 'Automation', render: p => <div className="w-28"><ProgressBar value={p.automationPct} max={100} color={p.automationPct >= 60 ? '#C9A233' : p.automationPct >= 30 ? '#C9A233' : '#F4EFE3'} /></div> },
   ]
   return (
     <div className="space-y-4">
@@ -282,7 +282,7 @@ function Processes() {
         <div className="flex flex-wrap gap-3">
           {data.byStatus.map(s => (
             <div key={s.status} className="border border-empire-border rounded px-3 py-2 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: PSTATUS_COLOR[s.status] || '#6b7280' }} />
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: PSTATUS_COLOR[s.status] || '#7A7468' }} />
               <span className="text-empire-text-muted text-xs capitalize">{s.status.replace('_', ' ')}</span>
               <span className="text-empire-text font-empire">{s.count}</span>
             </div>

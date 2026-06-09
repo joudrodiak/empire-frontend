@@ -11,11 +11,11 @@ export function KpiCard({ label, value, sub, delta, deltaGood = true, spark, acc
   icon?: IconName
 }) {
   return (
-    <div className="group bg-empire-surface border border-empire-border rounded-xl p-4 flex flex-col justify-between min-h-[112px] transition-all duration-200 hover:border-empire-gold/40 hover:-translate-y-0.5 hover:shadow-gold-glow">
+    <div className="group bg-empire-surface/88 border border-empire-border rounded-lg p-4 flex flex-col justify-between min-h-[112px] transition-all duration-200 hover:border-empire-gold/35 hover:-translate-y-0.5 hover:shadow-gold-glow">
       <div className="flex items-start justify-between gap-2">
         <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-empire-text-muted min-w-0">
           {icon && <EmpireIcon name={icon} size={13} className="text-empire-text-dim group-hover:text-empire-gold/70 transition-colors shrink-0" />}
-          <span className="truncate">{label}</span>
+          <span className="truncate tracking-[0.12em]">{label}</span>
         </span>
         {delta && (
           <span className={cn('shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded',
@@ -25,7 +25,7 @@ export function KpiCard({ label, value, sub, delta, deltaGood = true, spark, acc
         )}
       </div>
       <div className="mt-2">
-        <div className="font-data text-2xl font-bold tracking-tight tabular-nums text-empire-text leading-none">{value}</div>
+        <div className="font-data text-2xl font-semibold tracking-tight tabular-nums text-empire-text leading-none">{value}</div>
         {sub && <div className="text-[11px] text-empire-text-muted mt-1.5">{sub}</div>}
       </div>
       {spark && <div className="mt-2 -mb-1"><Sparkline data={spark} color={accent} height={26} /></div>}

@@ -18,7 +18,7 @@ export function XpBar({ xp, level, accent = '#c9a233' }: { xp: number; level: nu
       </div>
       <div className="h-2 rounded-full bg-empire-elevated overflow-hidden border border-empire-border/60">
         <div className="h-full rounded-full transition-all"
-          style={{ width: `${p.pct}%`, background: `linear-gradient(90deg, ${accent}99, ${accent})`, boxShadow: `0 0 8px ${accent}66` }} />
+          style={{ width: `${p.pct}%`, background: `${accent}cc`, boxShadow: `0 0 8px ${accent}66` }} />
       </div>
     </div>
   )

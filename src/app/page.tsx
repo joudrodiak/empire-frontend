@@ -151,15 +151,16 @@ export default function EmpireDashboard() {
         </div>
 
         {/* Nav tabs */}
-        <div className="max-w-screen-2xl mx-auto px-6 flex gap-1 pb-0">
+        <div className="max-w-screen-2xl mx-auto px-6 pb-0">
+          <div className="relative flex gap-1">
           {(['overview', 'network', 'roster', 'deals', 'chronicle', 'approvals'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 text-xs uppercase tracking-widest font-medium border-b-2 transition-colors ${
+              className={`relative min-w-[7.5rem] px-4 py-2 text-xs uppercase tracking-widest font-medium transition-all duration-200 hover:-translate-y-0.5 ${
                 activeTab === tab
-                  ? 'border-empire-gold text-empire-gold'
-                  : 'border-transparent text-empire-text-muted hover:text-empire-text'
+                  ? 'text-empire-gold'
+                  : 'text-empire-text-muted hover:text-empire-text'
               }`}
             >
               {tab}
@@ -170,6 +171,15 @@ export default function EmpireDashboard() {
               )}
             </button>
           ))}
+          <span
+            aria-hidden
+            className="absolute bottom-0 h-0.5 rounded-full bg-empire-gold transition-transform duration-300 ease-out"
+            style={{
+              width: '7.5rem',
+              transform: `translateX(${(['overview', 'network', 'roster', 'deals', 'chronicle', 'approvals'] as const).indexOf(activeTab) * 7.75}rem)`,
+            }}
+          />
+          </div>
         </div>
       </header>
 
@@ -199,7 +209,7 @@ function CompanyNetworkTab({ departments, employees }: { departments: Department
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
   const units = departments.slice(0, 12)
   const center = { x: 50, y: 50 }
-  const radius = 33
+  const radius = 39
   const zoomBy = (delta: number) => setScale(value => Math.min(1.8, Math.max(0.68, Number((value + delta).toFixed(2)))))
   const centerMap = () => {
     setScale(1)
@@ -220,18 +230,18 @@ function CompanyNetworkTab({ departments, employees }: { departments: Department
   unitNodes.forEach((node, index) => {
     const accent = empireColor(node.dept.color)
     edges.push({ x1: center.x, y1: center.y, x2: node.x, y2: node.y, color: accent, delay: index * 70 })
-    const memberHubX = node.x + Math.cos(node.angle) * 10
-    const memberHubY = node.y + Math.sin(node.angle) * 10
-    const docHubX = node.x + Math.cos(node.angle + 0.45) * 12
-    const docHubY = node.y + Math.sin(node.angle + 0.45) * 12
+    const memberHubX = node.x + Math.cos(node.angle) * 14
+    const memberHubY = node.y + Math.sin(node.angle) * 14
+    const docHubX = node.x + Math.cos(node.angle + 0.45) * 16
+    const docHubY = node.y + Math.sin(node.angle + 0.45) * 16
     edges.push({ x1: node.x, y1: node.y, x2: memberHubX, y2: memberHubY, color: '#F4EFE3', delay: 180 + index * 45 })
     edges.push({ x1: node.x, y1: node.y, x2: docHubX, y2: docHubY, color: '#C9A233', delay: 240 + index * 45 })
     childNodes.push({ id: `${node.dept.id}-members`, kind: 'members', label: `${node.dept.name} members`, x: memberHubX, y: memberHubY, color: '#F4EFE3', href: `/departments/${node.dept.slug}`, delay: index * 60 })
     childNodes.push({ id: `${node.dept.id}-docs`, kind: 'documents', label: `${node.dept.name} documents`, x: docHubX, y: docHubY, color: '#C9A233', href: `/departments/${node.dept.slug}`, delay: index * 60 + 90 })
     node.members.forEach((member, memberIndex) => {
       const spread = (memberIndex - (node.members.length - 1) / 2) * 0.28
-      const px = memberHubX + Math.cos(node.angle + spread) * 7
-      const py = memberHubY + Math.sin(node.angle + spread) * 7
+      const px = memberHubX + Math.cos(node.angle + spread) * 10
+      const py = memberHubY + Math.sin(node.angle + spread) * 10
       edges.push({ x1: memberHubX, y1: memberHubY, x2: px, y2: py, color: '#F4EFE3', delay: 320 + index * 35 + memberIndex * 45 })
       childNodes.push({ id: member.id, kind: 'person', label: `${member.name} · ${member.role}`, x: px, y: py, color: accent, delay: index * 80 + memberIndex * 60 })
     })
@@ -242,7 +252,7 @@ function CompanyNetworkTab({ departments, employees }: { departments: Department
       <SectionHeader title="Company Network" subtitle="Company intelligence map for MCP agents: units, members and documents as connected context" />
       <GlassPanel variant="glass" className="relative overflow-hidden rounded-xl p-0">
         <div
-          className="relative h-[680px] min-h-[560px] touch-none cursor-grab overflow-hidden bg-[radial-gradient(circle_at_center,rgba(201,162,51,0.13),transparent_34%),linear-gradient(180deg,rgba(16,16,23,0.96),rgba(8,8,13,0.98))] active:cursor-grabbing"
+          className="network-canvas relative h-[760px] min-h-[620px] touch-none cursor-grab overflow-hidden active:cursor-grabbing"
           onWheel={event => {
             event.preventDefault()
             zoomBy(event.deltaY > 0 ? -0.08 : 0.08)
@@ -278,16 +288,16 @@ function CompanyNetworkTab({ departments, employees }: { departments: Department
           >
             <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
               {edges.map((edge, i) => (
-                <line
+                <path
                   key={i}
-                  x1={edge.x1}
-                  y1={edge.y1}
-                  x2={edge.x2}
-                  y2={edge.y2}
+                  d={`M ${edge.x1} ${edge.y1} Q ${(edge.x1 + edge.x2) / 2} ${(edge.y1 + edge.y2) / 2 - 1.4} ${edge.x2} ${edge.y2}`}
                   vectorEffect="non-scaling-stroke"
+                  fill="none"
                   stroke={edge.color}
-                  strokeWidth={edge.x1 === center.x && edge.y1 === center.y ? 0.22 : 0.12}
+                  strokeWidth={edge.x1 === center.x && edge.y1 === center.y ? 0.2 : 0.11}
                   strokeLinecap="round"
+                  strokeLinejoin="round"
+                  shapeRendering="geometricPrecision"
                   className="network-edge"
                   style={{ animationDelay: `${edge.delay}ms` }}
                 />
@@ -295,8 +305,7 @@ function CompanyNetworkTab({ departments, employees }: { departments: Department
             </svg>
 
             <div className="network-node network-company" style={{ left: `${center.x}%`, top: `${center.y}%` }}>
-              <span className="font-empire text-lg text-empire-gold">Empire OS</span>
-              <span className="mt-1 text-center text-[10px] uppercase tracking-widest text-empire-text-muted">Company Intelligence App</span>
+              <span className="font-empire text-lg text-empire-gold">Cregen</span>
               <span className="network-tip">Mother node: active company</span>
             </div>
 

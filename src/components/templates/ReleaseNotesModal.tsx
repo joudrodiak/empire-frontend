@@ -52,7 +52,7 @@ export function ReleaseNotesModal() {
   return (
     <div className="fixed inset-0 z-[70] grid place-items-center bg-empire-void/70 px-4 backdrop-blur-xl" role="dialog" aria-modal="true" aria-labelledby="release-title">
       <GlassPanel variant="gold" className="relative w-full max-w-lg overflow-hidden rounded-xl p-0 shadow-2xl">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-empire-gold to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-px bg-empire-gold/60" />
         <div className="p-6">
           <div className="flex items-start gap-4">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-empire-gold/35 bg-empire-gold/15 text-empire-gold shadow-gold-glow">

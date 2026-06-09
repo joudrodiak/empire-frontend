@@ -34,7 +34,7 @@ export function BarChart({ data, height = 200, color = '#c9a233', labels, valueF
               className="relative flex-1 cursor-default rounded-t-md"
               style={{
                 height: mounted ? `${Math.max(2, (d / max) * 100)}%` : '2%',
-                background: `linear-gradient(180deg, ${color}f2 0%, ${color}cc 42%, ${color}66 100%)`,
+                background: `${color}cc`,
                 boxShadow: on
                   ? `inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -10px 18px ${color}33, 0 0 0 1px ${color}, 0 6px 18px ${color}55`
                   : `inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -8px 14px rgba(0,0,0,0.28), 0 4px 12px rgba(0,0,0,0.3)`,
@@ -46,7 +46,7 @@ export function BarChart({ data, height = 200, color = '#c9a233', labels, valueF
               onMouseLeave={() => setHover(null)}
             >
               {/* glossy top cap */}
-              <span className="pointer-events-none absolute inset-x-0 top-0 h-1/3 rounded-t-md" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.32), rgba(255,255,255,0))' }} />
+              <span className="pointer-events-none absolute inset-x-0 top-0 h-1 rounded-t-md bg-white/25" />
               {on && (
                 <div
                   className="chart-tip left-1/2 top-0"

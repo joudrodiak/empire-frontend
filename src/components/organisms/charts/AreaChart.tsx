@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react'
 
 /**
  * AreaChart — smoothed (bezier) line with a soft luminous glow and a draw-in
- * animation over a layered gradient fill. Hovering reveals a crosshair + glass
+ * animation over a layered fill. Hovering reveals a crosshair + glass
  * info blob with the value (and compare value when present) plus an optional
  * legend. Pure SVG, no chart library. Public props unchanged.
  */

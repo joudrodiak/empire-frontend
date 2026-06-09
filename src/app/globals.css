@@ -65,15 +65,28 @@ html.light {
   box-sizing: border-box;
 }
 
+:where(a[href], button):not(:disabled) {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-duration: 180ms;
+  transition-timing-function: ease;
+}
+
+:where(a[href], button):not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+:where(a[href], button):not(:disabled):active {
+  transform: translateY(0);
+}
+
 html {
   background: var(--page-bg);
 }
 
 body {
-  background:
-    radial-gradient(circle at 18% 8%, rgba(201, 162, 51, 0.13), transparent 26rem),
-    radial-gradient(circle at 86% 18%, rgba(244, 239, 227, 0.055), transparent 22rem),
-    linear-gradient(180deg, rgb(var(--e-bg)) 0%, rgb(var(--e-void)) 100%);
+  background-color: rgb(var(--e-void));
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='54' height='46' viewBox='0 0 54 46'%3E%3Cpath d='M0 0H54M0 0V46' stroke='rgba(255,255,255,0.025)' stroke-width='1'/%3E%3C/svg%3E");
   color: rgb(var(--e-text));
   font-family: 'IBM Plex Sans', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -92,7 +105,7 @@ body {
 
 /* Gold divider */
 .gold-line {
-  background: linear-gradient(90deg, transparent, #C9A233 30%, #C9A233 70%, transparent);
+  background: #C9A233;
   height: 1px;
   width: 100%;
 }
@@ -123,6 +136,21 @@ body {
   @apply px-4 py-2 bg-empire-gold text-empire-void text-xs uppercase tracking-widest rounded-lg font-semibold transition-all duration-200 hover:bg-empire-gold/90 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-empire-gold/30 active:translate-y-0;
   box-shadow: 0 10px 28px rgba(201,162,51,0.18), inset 0 1px 0 rgba(255,255,255,0.38);
 }
+.empire-btn-primary:disabled,
+button:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+select.empire-input,
+.empire-select,
+select.bg-empire-bg-soft,
+select.bg-empire-surface\/60 {
+  appearance: none;
+  background-color: rgb(var(--e-elevated) / 0.82);
+  background-image: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 24px rgba(0,0,0,0.18);
+}
 
 /* ============================================================
    EMPIRE OS — Liquid Glass + Liquid Metal + 3D Medallions
@@ -139,10 +167,7 @@ body {
      blur, and — the actual "glass tell" — an inset top sheen. Mirrors the
      reference recipe (rgba white / radius 16 / blur / 1px white border / soft
      shadow), inverted for a dark UI. */
-  background:
-    radial-gradient(circle at 18% 0%, rgba(201, 162, 51, 0.105), transparent 18rem),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02) 42%),
-    rgb(var(--glass-bg) / var(--glass-bg-a));
+  background-color: rgb(var(--glass-bg) / var(--glass-bg-a));
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   position: relative;
@@ -162,9 +187,7 @@ body {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background:
-    linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.055) 38%, rgba(201,162,51,0.09) 50%, transparent 64%),
-    linear-gradient(180deg, rgba(255,255,255,0.06), transparent 32%);
+  background: rgba(255,255,255,0.045);
   transform: translateX(-120%);
   transition: transform 0.7s cubic-bezier(.2,.8,.2,1);
 }
@@ -177,10 +200,7 @@ body {
 }
 .glass:hover::before { transform: translateX(120%); }
 html.light .glass {
-  background:
-    radial-gradient(circle at 18% 0%, rgba(201, 162, 51, 0.10), transparent 18rem),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.30) 42%),
-    rgb(var(--glass-bg) / var(--glass-bg-a));
+  background-color: rgb(var(--glass-bg) / var(--glass-bg-a));
   border: 1px solid rgba(255, 255, 255, 0.5);
   box-shadow:
     0 4px 30px rgba(120, 100, 40, 0.14),
@@ -191,9 +211,7 @@ html.light .glass {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 22% 0%, rgba(201, 162, 51, 0.20), transparent 16rem),
-    linear-gradient(135deg, rgba(26, 26, 46, 0.68), rgba(13, 13, 26, 0.68));
+  background-color: rgba(18, 18, 31, 0.82);
   border-radius: 10px;
   box-shadow: 0 16px 52px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(201, 162, 51, 0.18);
   -webkit-backdrop-filter: blur(18px) saturate(150%);
@@ -206,7 +224,7 @@ html.light .glass {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(255,255,255,0.07), transparent 36%);
+  background: rgba(255,255,255,0.028);
 }
 .glass-gold:hover {
   border-color: rgba(201, 162, 51, 0.44);
@@ -219,17 +237,17 @@ html.light .glass {
    backdrop-filter and uses a near-opaque gold-tinted fill instead, so the panel
    always reads crisp. Keep the same border/radius/shadow as .glass-gold. */
 .glass-solid {
-  background: linear-gradient(135deg, rgba(24, 24, 42, 0.985), rgba(12, 12, 22, 0.985));
+  background: rgba(18, 18, 31, 0.985);
   border-radius: 10px;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(201, 162, 51, 0.12);
   border: 1px solid rgba(201, 162, 51, 0.28);
 }
 html.light .glass-solid {
-  background: linear-gradient(135deg, rgba(252, 250, 245, 0.985), rgba(244, 240, 232, 0.985));
+  background: rgba(252, 250, 245, 0.985);
 }
 /* Edgeless (no visible hard edge) floating box for the bottom dock. */
 .glass-edgeless {
-  background: linear-gradient(135deg, rgba(20, 20, 36, 0.66), rgba(8, 8, 16, 0.54));
+  background: rgba(14, 14, 26, 0.72);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   backdrop-filter: blur(20px) saturate(160%);
   border: 1px solid rgba(201, 162, 51, 0.13);
@@ -237,9 +255,9 @@ html.light .glass-solid {
   border-radius: 9999px;
 }
 
-/* Light-theme glass: brighten the frosted gradients so dark ink reads. */
+/* Light-theme glass: brighten the frosted surfaces so dark ink reads. */
 html.light .glass-gold {
-  background: linear-gradient(135deg, rgba(255, 253, 247, 0.72), rgba(244, 238, 224, 0.72));
+  background: rgba(255, 253, 247, 0.78);
   box-shadow: 0 8px 40px rgba(120, 100, 40, 0.18), inset 0 1px 0 rgba(201, 162, 51, 0.22);
   border: 1px solid rgba(201, 162, 51, 0.34);
 }
@@ -250,23 +268,18 @@ html.light .glass-edgeless {
 }
 
 /* Liquid metal — molten-gold brushed surface with a slow specular
-   sweep. Pure CSS/SVG, no WebGL/no library. The sheen animates the
-   gradient position; the SVG turbulence layer (in LiquidMetalButton)
-   adds the liquid warp. */
+   sweep. Pure CSS/SVG fallback; the SVG turbulence layer in
+   LiquidMetalButton adds the liquid warp. */
 .liquid-metal {
   position: relative;
   isolation: isolate;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0) 40%),
-    linear-gradient(100deg, #6e5410 0%, #c9a233 22%, #f4e39b 38%, #c9a233 52%, #8a6f1e 72%, #c9a233 100%);
-  background-size: 100% 100%, 220% 100%;
-  background-position: 0 0, var(--lm-pos, 0%) 0;
+  background: #c9a233;
   border-radius: 12px;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.5),
     inset 0 -2px 6px rgba(0,0,0,0.45),
     0 6px 20px rgba(201,162,51,0.25);
-  transition: background-position 0.1s linear, box-shadow 0.25s ease, transform 0.2s ease;
+  transition: box-shadow 0.25s ease, transform 0.2s ease;
   animation: lm-sheen 6s linear infinite;
 }
 .liquid-metal:hover {
@@ -278,8 +291,8 @@ html.light .glass-edgeless {
 }
 .liquid-metal:active { transform: translateY(0) scale(0.99); }
 @keyframes lm-sheen {
-  0%   { background-position: 0 0, 0% 0; }
-  100% { background-position: 0 0, 200% 0; }
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.08); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -292,11 +305,7 @@ html.light .glass-edgeless {
 }
 /* Dark/steel metal variant for secondary actions. */
 .liquid-metal-steel {
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 40%),
-    linear-gradient(100deg, #1a1a2e 0%, #3a3a55 30%, #6a6a85 48%, #3a3a55 66%, #1a1a2e 100%);
-  background-size: 100% 100%, 220% 100%;
-  background-position: 0 0, var(--lm-pos, 0%) 0;
+  background: #3a3a55;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.25),
     inset 0 -2px 6px rgba(0,0,0,0.6),
@@ -304,8 +313,7 @@ html.light .glass-edgeless {
 }
 
 /* (Removed `.metal-frame` — the CSS fake liquid-metal rim. The company switcher
-   now uses the real WebGL shader border via <LiquidMetalFrame>, so this faux
-   gradient-ring is dead and was deleted to avoid two competing "metal" looks.) */
+   now uses the real WebGL shader border via <LiquidMetalFrame>.) */
 
 /* 3D unit medallion — static layered "coin" the unit glyph sits on.
    One consistent light source (top-left, 30%/26%) shared by every Empire 3D
@@ -316,8 +324,7 @@ html.light .glass-edgeless {
   display: grid;
   place-items: center;
   border-radius: 9999px;
-  background:
-    radial-gradient(circle at 30% 26%, #fbf1c4 0%, #f4e39b 14%, #c9a233 38%, #8a6f1e 68%, #4a3a0c 100%);
+  background: #c9a233;
   box-shadow:
     inset 0 2px 3px rgba(255,255,255,0.6),
     inset 0 -4px 8px rgba(0,0,0,0.55),
@@ -336,7 +343,7 @@ html.light .glass-edgeless {
   left: 16%; top: 13%;
   width: 42%; height: 34%;
   border-radius: 9999px;
-  background: radial-gradient(circle at 38% 34%, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.3) 36%, rgba(255,255,255,0) 70%);
+  background: rgba(255,255,255,0.42);
   filter: blur(0.5px);
   pointer-events: none;
   z-index: 1;
@@ -354,8 +361,7 @@ html.light .glass-edgeless {
 }
 /* Steel medallion for neutral/non-active units — same light source. */
 .medallion-steel {
-  background:
-    radial-gradient(circle at 30% 26%, #f2ead1 0%, #d6d0c0 14%, #7A7468 40%, #2A2A44 70%, #080810 100%);
+  background: #7A7468;
   color: #15171f;
 }
 
@@ -373,8 +379,28 @@ html.light .glass-edgeless {
   opacity: 0;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  filter: drop-shadow(0 0 3px currentColor);
+  filter: drop-shadow(0 0 2px rgba(201,162,51,0.24));
   animation: network-edge-draw 900ms ease forwards;
+}
+.network-canvas {
+  background-color: rgba(9, 10, 16, 0.98);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='40' viewBox='0 0 48 40'%3E%3Cpath d='M0 0H48M0 0V40' stroke='rgba(201,162,51,0.05)' stroke-width='1'/%3E%3C/svg%3E");
+}
+.network-canvas::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22rem;
+  height: 22rem;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  border: 1px solid rgba(201,162,51,0.16);
+  box-shadow:
+    0 0 90px rgba(201,162,51,0.12),
+    inset 0 0 70px rgba(201,162,51,0.055);
+  pointer-events: none;
 }
 .network-node {
   position: absolute;
@@ -386,19 +412,17 @@ html.light .glass-edgeless {
   animation: network-node-in 520ms cubic-bezier(.2,.8,.2,1) forwards;
 }
 .network-company {
-  width: 156px;
-  min-height: 156px;
+  width: 148px;
+  min-height: 148px;
   flex-direction: column;
   border-radius: 9999px;
   border: 1px solid rgba(201, 162, 51, 0.55);
-  background:
-    radial-gradient(circle at 30% 20%, rgba(255,255,255,0.23), transparent 31%),
-    linear-gradient(145deg, rgba(35, 29, 12, 0.96), rgba(9, 10, 14, 0.94));
+  background: rgba(20, 17, 10, 0.96);
   box-shadow: 0 0 48px rgba(201, 162, 51, 0.22), inset 0 0 32px rgba(201, 162, 51, 0.1);
   animation: network-node-in 520ms cubic-bezier(.2,.8,.2,1) forwards, network-pulse 4s ease-in-out 700ms infinite;
 }
 .network-unit {
-  width: 118px;
+  width: 112px;
   min-height: 100px;
   flex-direction: column;
   border-radius: 8px;

@@ -45,11 +45,6 @@ const config: Config = {
         data: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
         sans: ['IBM Plex Sans', 'system-ui', 'sans-serif'],
       },
-      backgroundImage: {
-        'empire-gradient': 'linear-gradient(135deg, rgb(var(--e-void)) 0%, rgb(var(--e-bg)) 55%, rgb(var(--e-deep)) 100%)',
-        'gold-gradient': 'linear-gradient(135deg, rgb(var(--e-gold) / 0.72), rgb(var(--e-gold)), rgb(var(--e-gold) / 0.72))',
-        'card-gradient': 'linear-gradient(135deg, rgb(var(--e-surface)) 0%, rgb(var(--e-elevated)) 100%)',
-      },
       boxShadow: {
         'gold-glow': '0 0 20px rgba(201, 162, 51, 0.15)',
         'gold-border': 'inset 0 0 0 1px rgba(201, 162, 51, 0.2)',

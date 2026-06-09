@@ -95,7 +95,7 @@ export function LiquidMetalFrame({
       ) : (
         <span
           className="absolute inset-0 -z-10"
-          style={{ background: `linear-gradient(100deg, ${cfg.colorBack}, ${cfg.colorTint} 50%, ${cfg.colorBack})` }}
+          style={{ background: cfg.colorTint, boxShadow: `inset 0 0 0 1px ${cfg.colorBack}` }}
           aria-hidden
         />
       )}

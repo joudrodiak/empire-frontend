@@ -23,7 +23,7 @@ export function PageShell({
           </div>
           {badge}
         </div>
-        <div className="h-px w-full" style={{ background: `linear-gradient(90deg, transparent, ${accent}55, transparent)` }} />
+        <div className="h-px w-full" style={{ background: `${accent}55` }} />
       </header>
       <main className="max-w-[1400px] mx-auto px-6 py-6">{children}</main>
     </div>

@@ -972,8 +972,8 @@ function DutchFilingCenter() {
         <button className="empire-btn-primary" onClick={load}>Build forms</button>
       </div>
       {[vat, vpb].filter(Boolean).map(form => <div key={form!.type} className="rounded-lg border border-empire-border p-3">
-        <div className="mb-2 flex items-center justify-between"><h3 className="text-sm font-semibold text-empire-text">{form!.type} · {form!.period}</h3><button className="text-xs text-empire-gold" onClick={() => save(form!)}>Save draft</button></div>
-        <div className="space-y-1">{form!.form.map(row => <div key={row.code} className="grid grid-cols-[3rem_1fr_auto] gap-2 border-t border-empire-border/40 py-1.5 text-xs"><span className="font-data text-empire-gold">{row.code}</span><span className="text-empire-text-muted" title={row.source}>{row.label}</span><span className="font-data text-empire-text">{eur(row.amount)}</span></div>)}</div>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold text-empire-text">{form!.type} · {form!.period}</h3><button className="text-xs text-empire-gold transition-all duration-200 hover:-translate-y-0.5" onClick={() => save(form!)}>Save draft</button></div>
+        <div className="space-y-1">{form!.form.map(row => <div key={row.code} className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-x-2 gap-y-1 border-t border-empire-border/40 py-2 text-xs sm:grid-cols-[3.5rem_minmax(0,1fr)_minmax(7rem,auto)]"><span className="font-data text-empire-gold">{row.code}</span><span className="min-w-0 whitespace-normal break-words leading-5 text-empire-text-muted" title={row.source}>{row.label}</span><span className="col-start-2 font-data text-empire-text sm:col-start-auto sm:text-right">{eur(row.amount)}</span></div>)}</div>
         {form!.warnings.map(w => <p key={w} className="mt-2 text-[10px] text-rag-amber">{w}</p>)}
       </div>)}
       <div className="grid gap-2 border-t border-empire-border pt-3 sm:grid-cols-[1fr_10rem_auto]">

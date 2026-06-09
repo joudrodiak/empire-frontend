@@ -316,7 +316,7 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
           <div className="space-y-4 animate-fade-in">
             <p className="text-[11px] text-empire-text-muted">The medallion, wordmark and accent persist with the tenant.</p>
             <div className="flex items-center gap-3 rounded-xl border border-empire-border bg-empire-surface/40 p-3">
-              <span className="medallion grid place-items-center shrink-0" style={{ width: 44, height: 44, background: `radial-gradient(circle at 30% 26%, ${accent} 0%, ${accent}cc 45%, ${EMPIRE_COLORS.obsidian} 100%)` }}>
+              <span className="medallion grid place-items-center shrink-0" style={{ width: 44, height: 44, background: accent }}>
                 <EmpireIcon name={effectiveIcon} size={20} className="relative z-10 text-empire-void" />
               </span>
               <div className="min-w-0">
@@ -445,7 +445,7 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
         {step === 4 && (
           <div className="max-w-full space-y-3 overflow-hidden animate-fade-in">
             <div className="flex min-w-0 items-center gap-3 rounded-xl border border-empire-border bg-empire-surface/40 p-3">
-              <span className="medallion grid place-items-center shrink-0" style={{ width: 44, height: 44, background: `radial-gradient(circle at 30% 26%, ${accent} 0%, ${accent}cc 45%, ${EMPIRE_COLORS.obsidian} 100%)` }}>
+              <span className="medallion grid place-items-center shrink-0" style={{ width: 44, height: 44, background: accent }}>
                 <EmpireIcon name={effectiveIcon} size={20} className="relative z-10 text-empire-void" />
               </span>
               <div className="min-w-0">

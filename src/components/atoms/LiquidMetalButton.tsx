@@ -45,7 +45,7 @@ export function LiquidMetalButton({
       borderWidth={borderWidth}
       radius={12}
       metalConfig={metalConfig}
-      className={`font-semibold uppercase tracking-widest text-empire-text transition-transform active:scale-[0.98] ${className}`}
+      className={`font-semibold uppercase tracking-widest text-empire-text transition-transform hover:-translate-y-0.5 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-55 ${className}`}
       innerClassName={`items-center justify-center ${SIZES[size]}`}
     >
       {icon && <span className="grid place-items-center">{icon}</span>}

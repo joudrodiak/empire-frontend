@@ -34,7 +34,7 @@ export function RagBadge({ status }: { status: string }) {
 
 export function HeaderBadge({ children, accent = '#c9a233' }: { children: React.ReactNode; accent?: string }) {
   return (
-    <span className="rounded-full border px-3 py-1 text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-sm" style={{ color: accent, borderColor: `${accent}55`, background: `linear-gradient(135deg, ${accent}18, ${accent}08)` }}>
+    <span className="rounded-full border px-3 py-1 text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-sm" style={{ color: accent, borderColor: `${accent}55`, background: `${accent}12` }}>
       {children}
     </span>
   )

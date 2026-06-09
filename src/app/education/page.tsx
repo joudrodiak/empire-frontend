@@ -4,13 +4,15 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { GlassPanel } from '@/components/atoms/GlassPanel'
-import { EDUCATION_DOCS } from '@/lib/education'
+import { Modal } from '@/components/molecules/Modal'
+import { EDUCATION_DOCS, type EducationDoc } from '@/lib/education'
 
 const CATEGORIES = ['All', ...Array.from(new Set(EDUCATION_DOCS.map(doc => doc.category)))]
 
 export default function EducationPage() {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All')
+  const [selected, setSelected] = useState<EducationDoc | null>(null)
 
   const docs = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -67,7 +69,7 @@ export default function EducationPage() {
           ))}
         </nav>
 
-        <section className="grid grid-cols-1 gap-4 xl:grid-cols-2" aria-label="Feature documentation">
+        <section className="grid grid-cols-1 gap-4 xl:grid-cols-2" aria-label="Unit documentation">
           {docs.map(doc => (
             <GlassPanel key={doc.id} variant="glass" className="rounded-xl p-5">
               <div className="flex items-start gap-4">
@@ -97,9 +99,9 @@ export default function EducationPage() {
                         <span key={tag} className="rounded border border-empire-border/70 px-2 py-0.5 text-[10px] text-empire-text-dim">{tag}</span>
                       ))}
                     </div>
-                    <Link href={doc.path} className="inline-flex items-center gap-1.5 text-xs font-medium text-empire-gold transition-colors hover:text-empire-gold-bright">
+                    <button type="button" onClick={() => setSelected(doc)} className="inline-flex items-center gap-1.5 text-xs font-medium text-empire-gold transition-all duration-200 hover:-translate-y-0.5 hover:text-empire-gold-bright">
                       Open <EmpireIcon name="chevron-right" size={12} />
-                    </Link>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -113,6 +115,35 @@ export default function EducationPage() {
             <p className="mt-3 text-sm text-empire-text-muted">No feature docs match that search.</p>
           </GlassPanel>
         )}
+        <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.title || 'Education unit'} icon={<EmpireIcon name={selected?.icon || 'book'} size={18} />} width="max-w-2xl">
+          {selected && (
+            <div className="space-y-4">
+              <p className="text-sm leading-6 text-empire-text-muted">{selected.summary}</p>
+              <div className="rounded-lg border border-empire-border bg-empire-elevated/30 p-3">
+                <p className="text-[10px] uppercase tracking-widest text-empire-text-dim">Deeper dive</p>
+                <ol className="mt-3 space-y-2">
+                  {selected.steps.map((step, index) => (
+                    <li key={step} className="grid grid-cols-[1.75rem_minmax(0,1fr)] gap-2 text-sm leading-6 text-empire-text-muted">
+                      <span className="grid h-6 w-6 place-items-center rounded-full border border-empire-gold/30 bg-empire-gold/10 font-data text-[10px] text-empire-gold">{index + 1}</span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              <div className="rounded-lg border border-empire-gold/20 bg-empire-gold/5 px-3 py-2 text-xs leading-5 text-empire-text-muted">
+                <span className="font-semibold text-empire-gold">Specific outcome:</span> {selected.outcome}
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {selected.tags.map(tag => <span key={tag} className="rounded border border-empire-border/70 px-2 py-0.5 text-[10px] text-empire-text-dim">{tag}</span>)}
+                </div>
+                <Link href={selected.path} className="inline-flex items-center gap-1.5 rounded-lg border border-empire-gold/35 px-3 py-2 text-xs font-medium text-empire-gold transition-all duration-200 hover:-translate-y-0.5 hover:bg-empire-gold/10">
+                  Go to unit <EmpireIcon name="external" size={12} />
+                </Link>
+              </div>
+            </div>
+          )}
+        </Modal>
       </div>
     </main>
   )

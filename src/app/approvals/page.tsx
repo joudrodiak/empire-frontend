@@ -93,8 +93,8 @@ export default function ApprovalsPage() {
         </div>
         {channels && <ChannelBadges channels={channels} />}
         {canRaise && (
-          <LiquidMetalButton onClick={() => setRaiseOpen(true)} className="text-xs">
-            <EmpireIcon name="plus" size={14} /> Raise request
+          <LiquidMetalButton onClick={() => setRaiseOpen(true)} icon={<EmpireIcon name="plus" size={14} />} className="text-xs">
+            Raise request
           </LiquidMetalButton>
         )}
       </header>

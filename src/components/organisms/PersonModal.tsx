@@ -72,7 +72,7 @@ export function PersonModal({ person, onClose }: { person: PersonLite | null; on
         onClick={(e) => e.stopPropagation()}
         style={{ boxShadow: `0 0 0 1px ${accent}22, 0 24px 80px -20px ${accent}44` }}>
         <div className="relative px-6 pt-6 pb-5 border-b border-empire-border/70"
-          style={{ background: `linear-gradient(160deg, ${accent}1f, transparent 70%)` }}>
+          style={{ background: `${accent}12` }}>
           <button onClick={onClose} aria-label="Close"
             className="absolute top-4 right-4 w-8 h-8 grid place-items-center rounded-lg border border-empire-border text-empire-text-muted hover:text-empire-text hover:border-empire-gold/40 transition-colors"><EmpireIcon name="close" size={15} /></button>
           <div className="flex items-start gap-4">

@@ -9,7 +9,6 @@ import { Modal } from '@/components/molecules/Modal'
 import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
-import { ContractsPanel } from '@/components/organisms/ContractsPanel'
 
 type Page<T> = { data: T[]; page: number; pageSize: number; total: number; totalPages: number }
 
@@ -26,7 +25,6 @@ const TABS = [
   { id: 'reviews', label: 'Reviews' },
   { id: 'attrition', label: 'Attrition' },
   { id: 'reqs', label: 'Requisitions' },
-  { id: 'contracts', label: 'Contracts' },
 ]
 // Employee lifecycle (People Operations) — type & status palettes.
 const LIFE_TYPE_COLOR: Record<string, string> = { onboarding: '#C9A233', offboarding: '#F4EFE3', promotion: '#C9A233', transfer: '#C9A233', performance: '#C9A233' }
@@ -77,9 +75,6 @@ export function HRPanel() {
       {tab === 'reviews' && <Reviews />}
       {tab === 'attrition' && <Attrition />}
       {tab === 'reqs' && <Reqs />}
-      {/* Global contract registry — every unit's contracts, searchable by employee,
-          with a create shortcut. Centralizes People-Ops contract administration. */}
-      {tab === 'contracts' && <ContractsPanel global accent={ACCENT} />}
     </div>
   )
 }

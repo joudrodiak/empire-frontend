@@ -19,7 +19,7 @@ export function Panel({ title, actions, children, className, pad = true, icon }:
           </h3>
           {actions}
           {/* gold hairline divider under the header */}
-          <span className="pointer-events-none absolute left-0 right-0 bottom-0 h-px bg-gradient-to-r from-empire-gold/30 via-empire-border/70 to-transparent" />
+          <span className="pointer-events-none absolute left-0 right-0 bottom-0 h-px bg-empire-border/80" />
         </div>
       )}
       <div className={pad ? 'p-4' : ''}>{children}</div>

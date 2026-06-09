@@ -634,10 +634,10 @@ function InfluencerEdit({ influencer, open, onClose, onSaved }: { influencer: In
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Platforms</span>
-            <div className="mt-1 flex min-h-[36px] flex-wrap gap-1.5 rounded border border-empire-border bg-empire-bg px-2 py-1.5">
+            <div className="mt-1 flex min-h-[44px] flex-wrap gap-2 rounded-lg border border-empire-border bg-empire-elevated/50 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
               {INF_PLATFORMS.map(p => (
                 <button key={p} type="button" onClick={() => togglePlatform(p)}
-                  className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide transition-colors ${selectedPlatforms.includes(p) ? 'border-empire-gold/50 bg-empire-gold/10 text-empire-gold' : 'border-empire-border text-empire-text-dim hover:text-empire-text'}`}>
+                  className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-wide shadow-sm transition-all duration-200 hover:-translate-y-0.5 ${selectedPlatforms.includes(p) ? 'border-empire-gold/50 bg-empire-gold/10 text-empire-gold shadow-[0_8px_20px_rgba(201,162,51,0.14)]' : 'border-empire-border bg-empire-bg/60 text-empire-text-dim hover:border-empire-gold/35 hover:text-empire-text'}`}>
                   {p}
                 </button>
               ))}
@@ -654,16 +654,16 @@ function InfluencerEdit({ influencer, open, onClose, onSaved }: { influencer: In
         <div className="grid grid-cols-3 gap-3">
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Followers</span>
             <input type="number" className={modalInput} value={f.followers} onChange={e => set('followers', e.target.value)} /></label>
-          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Engagement %</span>
-            <input type="number" className={modalInput} value={f.engagementRate} onChange={e => set('engagementRate', e.target.value)} /></label>
-          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Deal € </span>
-            <input type="number" className={modalInput} value={f.dealValue} onChange={e => set('dealValue', e.target.value)} /></label>
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Engagement</span>
+            <span className="mt-1 flex items-center rounded border border-empire-border bg-empire-bg"><input type="number" className={`${modalInput} mt-0 border-0 bg-transparent`} value={f.engagementRate} onChange={e => set('engagementRate', e.target.value)} placeholder="3.2" /><span className="pr-2 text-xs text-empire-text-dim">%</span></span></label>
+          <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Deal</span>
+            <span className="mt-1 flex items-center rounded border border-empire-border bg-empire-bg"><span className="pl-2 text-xs text-empire-text-dim">€</span><input type="number" className={`${modalInput} mt-0 border-0 bg-transparent`} value={f.dealValue} onChange={e => set('dealValue', e.target.value)} placeholder="2500" /></span></label>
         </div>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Notes</span>
           <textarea className={modalInput} rows={2} value={f.description} onChange={e => set('description', e.target.value)} placeholder="Campaign context, deliverables, contacts…" /></label>
         <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
-          <button onClick={save} disabled={busy || !f.title} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white disabled:opacity-50" style={{ background: ACCENT }}>{busy ? 'Saving…' : 'Save'}</button>
+          <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted transition-all duration-200 hover:-translate-y-0.5 hover:text-empire-text">Cancel</button>
+          <button onClick={save} disabled={busy || !f.title} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50" style={{ background: ACCENT }}>{busy ? 'Saving…' : 'Save'}</button>
         </div>
       </div>
     </Modal>
@@ -955,14 +955,14 @@ function SocialAccountEdit({ account, open, onClose, onSaved }: { account: Socia
   // Real authorization-code handshake. If the provider has live keys in env we
   // bounce to its consent screen; otherwise we run the dev "simulate" connect so
   // the flow is demoable on dummy data (no secrets required).
-  async function connectOAuth() {
-    if (!account) return
+  async function connectOAuth(accountId = account?.id, platform = account?.platform) {
+    if (!accountId || !platform) return
     setOauthBusy(true); setOauthNote('')
     try {
       const r: { configured: boolean; url?: string; hint?: string } =
-        await fetcher(`/api/marketing/social/oauth/${account.platform}/authorize-url?accountId=${account.id}`)
+        await fetcher(`/api/marketing/social/oauth/${platform}/authorize-url?accountId=${accountId}`)
       if (r.configured && r.url) { window.location.href = r.url; return }
-      await post(`/api/marketing/social/accounts/${account.id}/oauth/simulate`, {})
+      await post(`/api/marketing/social/accounts/${accountId}/oauth/simulate`, {})
       setOauthNote('Simulated OAuth connection — add provider keys in env for a live token.')
       onSaved()
     } catch (e) { console.error(e); setOauthNote('Could not start OAuth.') } finally { setOauthBusy(false) }
@@ -973,7 +973,13 @@ function SocialAccountEdit({ account, open, onClose, onSaved }: { account: Socia
     const body = { platform: f.platform, handle: f.handle, displayName: f.displayName || null, connection: f.connection, ...(account && { status: f.status }) }
     try {
       if (account) await patch(`/api/marketing/social/accounts/${account.id}`, body)
-      else await post('/api/marketing/social/accounts', body)
+      else {
+        const created = await post('/api/marketing/social/accounts', body)
+        if (f.connection === 'oauth' || f.connection === 'login_session') {
+          await connectOAuth(created.id, f.platform)
+          return
+        }
+      }
       onSaved()
     } catch (e) { console.error(e) } finally { setBusy(false) }
   }
@@ -998,7 +1004,7 @@ function SocialAccountEdit({ account, open, onClose, onSaved }: { account: Socia
           <div className="rounded-lg border border-empire-border bg-empire-elevated/30 p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[11px] uppercase tracking-wide text-empire-text-muted">OAuth authorization</span>
-              <button onClick={connectOAuth} disabled={oauthBusy} className="rounded px-3 py-1.5 text-xs uppercase tracking-widest border border-empire-gold/40 text-empire-gold hover:bg-empire-gold/10 disabled:opacity-50 inline-flex items-center gap-1.5">
+              <button onClick={() => connectOAuth()} disabled={oauthBusy} className="rounded px-3 py-1.5 text-xs uppercase tracking-widest border border-empire-gold/40 text-empire-gold transition-all duration-200 hover:-translate-y-0.5 hover:bg-empire-gold/10 disabled:opacity-50 inline-flex items-center gap-1.5">
                 <EmpireIcon name="lock" size={12} /> {oauthBusy ? 'Connecting…' : 'Connect via OAuth'}
               </button>
             </div>
@@ -1008,8 +1014,8 @@ function SocialAccountEdit({ account, open, onClose, onSaved }: { account: Socia
         )}
         <p className="text-[11px] text-empire-text-dim leading-relaxed">Auth keys/tokens are added in env later — connecting now records the account so metrics light up on first sync.</p>
         <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
-          <button onClick={save} disabled={busy || !f.handle} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white disabled:opacity-50" style={{ background: ACCENT }}>{busy ? 'Saving…' : account ? 'Save' : 'Connect'}</button>
+          <button onClick={onClose} disabled={busy || oauthBusy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted transition-all duration-200 hover:-translate-y-0.5 hover:text-empire-text">Cancel</button>
+          <button onClick={save} disabled={busy || oauthBusy || !f.handle} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50" style={{ background: ACCENT }}>{busy || oauthBusy ? 'Connecting…' : account ? 'Save' : 'Connect'}</button>
         </div>
       </div>
     </Modal>

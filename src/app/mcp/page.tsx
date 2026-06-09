@@ -60,10 +60,10 @@ function Connection() {
         <span className="mt-0.5 grid h-9 w-9 place-items-center rounded-lg border border-empire-gold/30 bg-empire-gold/10 text-empire-gold"><EmpireIcon name="link" size={16} /></span>
         <div className="min-w-0 flex-1">
           <h2 className="font-empire text-lg text-empire-text">{wizardSource === 'codex' ? 'Codex' : 'Claude'} MCP wizard</h2>
-          <p className="mt-1 text-xs text-empire-text-muted">Confirm the endpoint below, generate a client-id token, then paste the token into your MCP client configuration.</p>
+          <p className="mt-1 text-xs text-empire-text-muted">Confirm this connection for the platform that sent you here, generate a token, then paste only the token value into that platform.</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <Fact label="Endpoint" value={`${origin}${meta.endpoint}`} />
-            <Fact label="Header" value="Authorization: Client-ID emp_mcp_..." />
+            <Fact label="Token" value="emp_mcp_..." />
           </div>
         </div>
       </div>
@@ -77,7 +77,7 @@ function Connection() {
         <Fact label="Permissions" value={meta.permissions.join(', ') || 'read-only'} />
       </div>
       <pre className="mt-4 overflow-x-auto rounded-lg border border-empire-border bg-empire-void/70 p-3 text-[11px] text-empire-text-muted">{JSON.stringify({
-        mcpServers: { empire: { url: `${origin}${meta.endpoint}`, headers: { Authorization: 'Client-ID YOUR_CLIENT_ID_TOKEN' } } },
+        mcpServers: { empire: { url: `${origin}${meta.endpoint}`, token: 'YOUR_CLIENT_ID_TOKEN' } },
       }, null, 2)}</pre>
     </GlassPanel>}
     {secret && <GlassPanel variant="gold" className="p-4">
@@ -102,11 +102,26 @@ function Questions() {
   const [scheduleTime, setScheduleTime] = useState('09:00')
   const load = useCallback(() => fetcher('/api/mcp/questions').then(setRows), [])
   useEffect(() => { load().catch(() => {}) }, [load])
-  async function add() { await post('/api/mcp/questions', { title, prompt, responsibilityArea: 'Operations', frequency: 'weekly', weekday, scheduleTime, requiredEvidence: ['links', 'attachments'] }); await load() }
-  async function toggle(row: Question) { await patch(`/api/mcp/questions/${row.id}`, { enabled: !row.enabled }); await load() }
+  const [busyId, setBusyId] = useState<string | null>(null)
+  async function add() {
+    setBusyId('new')
+    try { await post('/api/mcp/questions', { title, prompt, responsibilityArea: 'Operations', frequency: 'weekly', weekday, scheduleTime, requiredEvidence: ['links', 'attachments'] }); await load() }
+    finally { setBusyId(null) }
+  }
+  async function toggle(row: Question) {
+    setBusyId(row.id)
+    try { await patch(`/api/mcp/questions/${row.id}`, { enabled: !row.enabled }); await load() }
+    finally { setBusyId(null) }
+  }
+  async function remove(row: Question) {
+    if (!window.confirm(`Delete weekly request "${row.title}"?`)) return
+    setBusyId(row.id)
+    try { await del(`/api/mcp/questions/${row.id}`); await load() }
+    finally { setBusyId(null) }
+  }
   return <div className="space-y-4">
-    <GlassPanel className="p-5"><h2 className="font-empire text-lg text-empire-text">Configure recurring question</h2><div className="mt-3 grid gap-3"><input className={field} value={title} onChange={e => setTitle(e.target.value)} /><textarea className={field} value={prompt} onChange={e => setPrompt(e.target.value)} /><div className="grid gap-3 sm:grid-cols-2"><select className={field} value={weekday} onChange={e => setWeekday(Number(e.target.value))}>{WEEKDAYS.map((day, index) => <option key={day} value={index}>{day}</option>)}</select><input className={field} type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} /></div><div><LiquidMetalButton size="sm" onClick={add}>Add question</LiquidMetalButton></div></div></GlassPanel>
-    {rows.map(row => <GlassPanel key={row.id} className="flex items-center gap-3 p-4"><div className="flex-1"><p className="text-sm font-semibold text-empire-text">{row.title}</p><p className="text-xs text-empire-text-muted">{row.prompt}</p><p className="mt-1 text-[11px] uppercase tracking-widest text-empire-gold">{WEEKDAYS[row.weekday] ?? 'Monday'} · {row.scheduleTime || '09:00'}</p></div><button onClick={() => toggle(row)} className={`rounded-full px-2 py-1 text-[10px] uppercase ${row.enabled ? 'rag-green' : 'rag-pending'}`}>{row.enabled ? 'Enabled' : 'Disabled'}</button></GlassPanel>)}
+    <GlassPanel className="p-5"><h2 className="font-empire text-lg text-empire-text">Configure recurring question</h2><div className="mt-3 grid gap-3"><input className={field} value={title} onChange={e => setTitle(e.target.value)} placeholder="Weekly progress update" /><textarea className={field} value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="What should the worker ask every week?" /><div className="grid gap-3 sm:grid-cols-2"><select className={field} value={weekday} onChange={e => setWeekday(Number(e.target.value))}>{WEEKDAYS.map((day, index) => <option key={day} value={index}>{day}</option>)}</select><input className={field} type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} /></div><div><LiquidMetalButton size="sm" onClick={add} disabled={busyId === 'new'}>{busyId === 'new' ? 'Adding...' : 'Add question'}</LiquidMetalButton></div></div></GlassPanel>
+    {rows.map(row => <GlassPanel key={row.id} className="flex flex-wrap items-center gap-3 p-4"><div className="min-w-[14rem] flex-1"><p className="text-sm font-semibold text-empire-text">{row.title}</p><p className="text-xs text-empire-text-muted">{row.prompt}</p><p className="mt-1 text-[11px] uppercase tracking-widest text-empire-gold">{WEEKDAYS[row.weekday] ?? 'Monday'} · {row.scheduleTime || '09:00'}</p></div><div className="flex items-center gap-2"><button onClick={() => toggle(row)} disabled={busyId === row.id} className={`rounded-full px-2 py-1 text-[10px] uppercase transition-all duration-200 hover:-translate-y-0.5 ${row.enabled ? 'rag-green' : 'rag-pending'}`}>{busyId === row.id ? 'Saving...' : row.enabled ? 'Enabled' : 'Disabled'}</button><button onClick={() => remove(row)} disabled={busyId === row.id} className="rounded-full border border-empire-border px-2 py-1 text-[10px] uppercase text-empire-text-muted transition-all duration-200 hover:-translate-y-0.5 hover:border-empire-gold/40 hover:text-empire-text">Delete</button></div></GlassPanel>)}
     <GenerateReport />
   </div>
 }

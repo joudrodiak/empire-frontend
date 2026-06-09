@@ -29,7 +29,7 @@ export function UnitMedallion({
   const inner = Math.round(size * 0.5)
   return (
     <span
-      className={`medallion ${tone === 'steel' ? 'medallion-steel' : ''} ${className}`}
+      className={`medallion transition-transform duration-300 hover:-translate-y-0.5 hover:rotate-[2deg] ${tone === 'steel' ? 'medallion-steel' : ''} ${className}`}
       style={{ width: size, height: size }}
       aria-hidden
     >

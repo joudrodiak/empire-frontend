@@ -4,6 +4,7 @@ import '@aejkatappaja/phantom-ui/ssr.css'
 import { DockNav } from '@/components/templates/DockNav'
 import { AuthProvider } from '@/lib/auth'
 import { AuthGate } from '@/components/templates/AuthGate'
+import { ReleaseNotesModal } from '@/components/templates/ReleaseNotesModal'
 
 export const metadata: Metadata = {
   title: 'Empire OS - Company intelligence app',
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {/* pb leaves room for the floating bottom dock */}
             <div className="pb-28">{children}</div>
             <DockNav />
+            <ReleaseNotesModal />
           </AuthGate>
         </AuthProvider>
       </body>

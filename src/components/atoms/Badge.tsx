@@ -11,7 +11,7 @@ const TONE: Record<string, string> = {
 }
 
 export function Badge({ children, tone = 'muted' }: { children: React.ReactNode; tone?: keyof typeof TONE }) {
-  return <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border', TONE[tone])}>{children}</span>
+  return <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-sm', TONE[tone])}>{children}</span>
 }
 
 const RAG_DOT: Record<string, string> = {
@@ -34,7 +34,7 @@ export function RagBadge({ status }: { status: string }) {
 
 export function HeaderBadge({ children, accent = '#c9a233' }: { children: React.ReactNode; accent?: string }) {
   return (
-    <span className="px-3 py-1 rounded-full text-xs border" style={{ color: accent, borderColor: `${accent}55`, background: `${accent}12` }}>
+    <span className="rounded-full border px-3 py-1 text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-sm" style={{ color: accent, borderColor: `${accent}55`, background: `linear-gradient(135deg, ${accent}18, ${accent}08)` }}>
       {children}
     </span>
   )

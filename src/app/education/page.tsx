@@ -17,7 +17,7 @@ export default function EducationPage() {
     return EDUCATION_DOCS.filter(doc => {
       const inCategory = category === 'All' || doc.category === category
       if (!needle) return inCategory
-      const haystack = [doc.title, doc.category, doc.summary, ...doc.learn, ...doc.tags].join(' ').toLowerCase()
+      const haystack = [doc.title, doc.category, doc.summary, doc.outcome, ...doc.steps, ...doc.tags].join(' ').toLowerCase()
       return inCategory && haystack.includes(needle)
     })
   }, [category, query])
@@ -30,9 +30,9 @@ export default function EducationPage() {
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-empire-gold/25 bg-empire-gold/10 px-3 py-1 text-[10px] uppercase tracking-widest text-empire-gold">
               <EmpireIcon name="book" size={12} /> Education
             </div>
-            <h1 className="font-empire text-3xl tracking-wide text-empire-gold md:text-5xl">Feature Library</h1>
+            <h1 className="font-empire text-3xl tracking-wide text-empire-gold md:text-5xl">Operating Guides</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-empire-text-muted">
-              Search the operating manual for Empire OS features, domain workspaces, governance flows, and MCP-controlled platform tools.
+              Search step-by-step workflows for Empire OS units, domain workspaces, governance flows, and MCP-controlled platform tools.
             </p>
           </div>
 
@@ -67,7 +67,7 @@ export default function EducationPage() {
           ))}
         </nav>
 
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-label="Feature documentation">
+        <section className="grid grid-cols-1 gap-4 xl:grid-cols-2" aria-label="Feature documentation">
           {docs.map(doc => (
             <GlassPanel key={doc.id} variant="glass" className="rounded-xl p-5">
               <div className="flex items-start gap-4">
@@ -80,14 +80,17 @@ export default function EducationPage() {
                     <span className="rounded-full border border-empire-border px-2 py-0.5 text-[10px] uppercase tracking-widest text-empire-text-dim">{doc.category}</span>
                   </div>
                   <p className="mt-2 text-sm leading-6 text-empire-text-muted">{doc.summary}</p>
-                  <ul className="mt-4 space-y-2">
-                    {doc.learn.map(item => (
-                      <li key={item} className="flex gap-2 text-xs leading-5 text-empire-text-muted">
-                        <EmpireIcon name="check" size={13} className="mt-0.5 shrink-0 text-empire-gold" />
+                  <ol className="mt-4 space-y-2.5">
+                    {doc.steps.map((item, index) => (
+                      <li key={item} className="grid grid-cols-[1.6rem_minmax(0,1fr)] gap-2.5 text-xs leading-5 text-empire-text-muted">
+                        <span className="grid h-6 w-6 place-items-center rounded-full border border-empire-gold/30 bg-empire-gold/10 font-data text-[10px] text-empire-gold">{index + 1}</span>
                         <span>{item}</span>
                       </li>
                     ))}
-                  </ul>
+                  </ol>
+                  <div className="mt-4 rounded-lg border border-empire-gold/20 bg-empire-gold/5 px-3 py-2 text-xs leading-5 text-empire-text-muted">
+                    <span className="font-semibold text-empire-gold">Outcome:</span> {doc.outcome}
+                  </div>
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-empire-border pt-3">
                     <div className="flex flex-wrap gap-1.5">
                       {doc.tags.slice(0, 4).map(tag => (

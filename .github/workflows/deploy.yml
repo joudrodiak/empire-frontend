@@ -3,6 +3,8 @@ name: Deploy Serverless Web
 on:
   push:
     branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       stage:
@@ -16,18 +18,26 @@ permissions:
   contents: read
 
 concurrency:
-  group: web-${{ inputs.stage || 'DEV' }}
+  group: web-${{ github.event_name == 'workflow_dispatch' && inputs.stage || 'PROD' }}
   cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.stage || 'DEV' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || 'PROD' }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Resolve stage
-        run: echo "STAGE=$(echo '${{ inputs.stage || 'DEV' }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            stage="${{ inputs.stage }}"
+          else
+            stage="PROD"
+          fi
+          echo "STAGE=$(echo "$stage" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v4
         with:
@@ -36,6 +46,8 @@ jobs:
 
       - run: npm ci
       - run: npm test
+      - name: Generate release manifest
+        run: node scripts/generate-release-manifest.mjs
       - name: Build static application
         run: npm run build:static
         env:

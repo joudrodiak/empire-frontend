@@ -23,8 +23,8 @@ export function EmptyState({ icon = 'circle', title, hint, action }: {
 }) {
   const name: IconName = KNOWN.has(icon as string) ? (icon as IconName) : 'circle'
   return (
-    <div className="flex flex-col items-center justify-center text-center py-12 px-6">
-      <div className="w-12 h-12 rounded-xl grid place-items-center border border-empire-border bg-empire-elevated/40 text-empire-text-muted mb-3">
+    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+      <div className="mb-3 grid h-12 w-12 place-items-center rounded-xl border border-empire-gold/25 bg-empire-gold/10 text-empire-gold shadow-[0_12px_34px_rgba(201,162,51,0.12)]">
         <EmpireIcon name={name} size={22} />
       </div>
       <p className="text-sm font-medium text-empire-text">{title}</p>

@@ -71,6 +71,8 @@ html {
 
 body {
   background:
+    radial-gradient(circle at 18% 8%, rgba(201, 162, 51, 0.13), transparent 26rem),
+    radial-gradient(circle at 86% 18%, rgba(244, 239, 227, 0.055), transparent 22rem),
     linear-gradient(180deg, rgb(var(--e-bg)) 0%, rgb(var(--e-void)) 100%);
   color: rgb(var(--e-text));
   font-family: 'IBM Plex Sans', system-ui, sans-serif;
@@ -111,13 +113,15 @@ body {
 
 /* Reusable form inputs */
 .empire-input {
-  @apply bg-empire-elevated border border-empire-border rounded px-3 py-2 text-sm text-empire-text placeholder:text-empire-text-dim focus:outline-none focus:border-empire-gold/40;
+  @apply bg-empire-elevated/80 border border-empire-border rounded-lg px-3 py-2 text-sm text-empire-text placeholder:text-empire-text-dim outline-none transition-all duration-200 focus:border-empire-gold/60 focus:ring-2 focus:ring-empire-gold/10;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 0 rgba(0,0,0,0.24);
 }
 .empire-label {
   @apply text-xs text-empire-text-muted uppercase tracking-widest;
 }
 .empire-btn-primary {
-  @apply px-4 py-2 bg-empire-gold text-empire-void text-xs uppercase tracking-widest rounded font-semibold hover:bg-empire-gold/80 transition-colors;
+  @apply px-4 py-2 bg-empire-gold text-empire-void text-xs uppercase tracking-widest rounded-lg font-semibold transition-all duration-200 hover:bg-empire-gold/90 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-empire-gold/30 active:translate-y-0;
+  box-shadow: 0 10px 28px rgba(201,162,51,0.18), inset 0 1px 0 rgba(255,255,255,0.38);
 }
 
 /* ============================================================
@@ -136,18 +140,45 @@ body {
      reference recipe (rgba white / radius 16 / blur / 1px white border / soft
      shadow), inverted for a dark UI. */
   background:
+    radial-gradient(circle at 18% 0%, rgba(201, 162, 51, 0.105), transparent 18rem),
     linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02) 42%),
     rgb(var(--glass-bg) / var(--glass-bg-a));
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   box-shadow:
-    0 4px 30px rgba(0, 0, 0, 0.35),
+    0 12px 38px rgba(0, 0, 0, 0.38),
+    0 1px 0 rgba(255, 255, 255, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.22);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
   backdrop-filter: blur(16px) saturate(150%);
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease, background 0.22s ease;
 }
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.055) 38%, rgba(201,162,51,0.09) 50%, transparent 64%),
+    linear-gradient(180deg, rgba(255,255,255,0.06), transparent 32%);
+  transform: translateX(-120%);
+  transition: transform 0.7s cubic-bezier(.2,.8,.2,1);
+}
+.glass:hover {
+  border-color: rgba(201, 162, 51, 0.34);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.44),
+    0 0 0 1px rgba(201, 162, 51, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+.glass:hover::before { transform: translateX(120%); }
 html.light .glass {
   background:
+    radial-gradient(circle at 18% 0%, rgba(201, 162, 51, 0.10), transparent 18rem),
     linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.30) 42%),
     rgb(var(--glass-bg) / var(--glass-bg-a));
   border: 1px solid rgba(255, 255, 255, 0.5);
@@ -157,12 +188,29 @@ html.light .glass {
 }
 /* Brighter gold-frost variant for floating chrome (dock / brand). */
 .glass-gold {
-  background: linear-gradient(135deg, rgba(26, 26, 46, 0.62), rgba(13, 13, 26, 0.62));
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 22% 0%, rgba(201, 162, 51, 0.20), transparent 16rem),
+    linear-gradient(135deg, rgba(26, 26, 46, 0.68), rgba(13, 13, 26, 0.68));
   border-radius: 10px;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(201, 162, 51, 0.12);
+  box-shadow: 0 16px 52px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(201, 162, 51, 0.18);
   -webkit-backdrop-filter: blur(18px) saturate(150%);
   backdrop-filter: blur(18px) saturate(150%);
   border: 1px solid rgba(201, 162, 51, 0.28);
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+}
+.glass-gold::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,0.07), transparent 36%);
+}
+.glass-gold:hover {
+  border-color: rgba(201, 162, 51, 0.44);
+  box-shadow: 0 18px 58px rgba(0, 0, 0, 0.62), 0 0 0 1px rgba(201,162,51,0.10), inset 0 1px 0 rgba(201, 162, 51, 0.20);
 }
 /* Opaque sibling of .glass-gold for popovers that mount INSIDE another
    backdrop-filtered element (e.g. the company switcher inside the sticky,
@@ -181,11 +229,11 @@ html.light .glass-solid {
 }
 /* Edgeless (no visible hard edge) floating box for the bottom dock. */
 .glass-edgeless {
-  background: rgba(13, 13, 26, 0.5);
+  background: linear-gradient(135deg, rgba(20, 20, 36, 0.66), rgba(8, 8, 16, 0.54));
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   backdrop-filter: blur(20px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(201, 162, 51, 0.13);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.64), inset 0 1px 0 rgba(255,255,255,0.08);
   border-radius: 9999px;
 }
 
@@ -232,6 +280,15 @@ html.light .glass-edgeless {
 @keyframes lm-sheen {
   0%   { background-position: 0 0, 0% 0; }
   100% { background-position: 0 0, 200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass, .glass-gold, .empire-btn-primary {
+    transition-duration: 0.01ms !important;
+  }
+  .glass::before {
+    display: none;
+  }
 }
 /* Dark/steel metal variant for secondary actions. */
 .liquid-metal-steel {

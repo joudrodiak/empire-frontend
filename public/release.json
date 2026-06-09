@@ -1,0 +1,14 @@
+{
+  "version": "v1.1.0",
+  "appVersion": "1.1.0",
+  "title": "Empire OS v1.1.0",
+  "notes": [
+    "Production deployment pipeline now publishes the live site from main and published releases.",
+    "Release updates are shown after login so operators see what changed before they start work.",
+    "Education guides now focus on step-by-step unit and feature workflows."
+  ],
+  "sha": "local",
+  "branch": "local",
+  "source": "",
+  "publishedAt": "2026-06-09T15:07:41.167Z"
+}

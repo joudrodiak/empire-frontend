@@ -25,7 +25,7 @@ export function GlassPanel({
 } & React.HTMLAttributes<HTMLElement>) {
   const cls = variant === 'gold' ? 'glass-gold' : variant === 'edgeless' ? 'glass-edgeless' : 'glass'
   return (
-    <Tag className={`${cls} ${className}`} {...rest}>
+    <Tag className={`${cls} motion-safe:duration-200 ${className}`} {...rest}>
       {children}
     </Tag>
   )

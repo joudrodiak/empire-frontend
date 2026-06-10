@@ -33,76 +33,135 @@ export default function McpPage() {
   )
 }
 
+// OAuth clients (claude.ai, Claude Desktop) authorize via /authorize and never
+// see a token; manual clients (Cursor, Codex, custom) paste a generated key.
+const CLIENTS = [
+  { id: 'claude-web', label: 'claude.ai', mode: 'oauth' as const, hint: 'Web connectors — OAuth, no token pasting' },
+  { id: 'claude-desktop', label: 'Claude Desktop', mode: 'oauth' as const, hint: 'Settings → Connectors — OAuth, no token pasting' },
+  { id: 'cursor', label: 'Cursor', mode: 'token' as const, hint: 'mcp.json with a Bearer token' },
+  { id: 'codex', label: 'Codex / other', mode: 'token' as const, hint: 'Any client that sends an Authorization header' },
+]
+
 function Connection() {
   const [meta, setMeta] = useState<Meta | null>(null)
   const [rows, setRows] = useState<Credential[]>([])
   const [secret, setSecret] = useState('')
-  const [wizardSource, setWizardSource] = useState('')
+  const [step, setStep] = useState(1)
+  const [clientId, setClientId] = useState('')
+  const [testResult, setTestResult] = useState('')
   const origin = typeof window === 'undefined' ? '' : window.location.origin
+  const client = CLIENTS.find(c => c.id === clientId)
   const load = useCallback(() => Promise.all([fetcher('/api/mcp/meta').then(setMeta), fetcher('/api/mcp/credentials').then(setRows)]), [])
   useEffect(() => {
     load().catch(() => {})
     try {
-      const source = new URLSearchParams(window.location.search).get('connect')
-      if (source && ['codex', 'claude'].includes(source.toLowerCase())) setWizardSource(source.toLowerCase())
+      const source = String(new URLSearchParams(window.location.search).get('connect') || '').toLowerCase()
+      if (source === 'claude') { setClientId('claude-web'); setStep(2) }
+      else if (source === 'codex') { setClientId('codex'); setStep(2) }
     } catch { /* noop */ }
   }, [load])
-  // After a wizard key is issued, poll until the platform actually calls the
-  // endpoint (lastUsedAt flips) so the user gets a real connection confirmation.
+  // Step 3 polls until the platform actually calls the worker (lastUsedAt
+  // flips on the first authenticated /connect) — a REAL confirmation, not a
+  // guess. Works for both OAuth and pasted-token paths.
   const confirmed = rows.some(r => !r.revokedAt && r.lastUsedAt)
   useEffect(() => {
-    if (!secret || confirmed) return
+    if (step !== 3 || confirmed) return
     const timer = setInterval(() => { load().catch(() => {}) }, 4000)
     return () => clearInterval(timer)
-  }, [secret, confirmed, load])
+  }, [step, confirmed, load])
   async function create() {
-    const name = wizardSource ? `${wizardSource === 'claude' ? 'Claude' : 'Codex'} wizard key` : 'Wizard key'
-    const r = await post('/api/mcp/credentials', { name })
+    const r = await post('/api/mcp/credentials', { name: `${client?.label || 'Wizard'} key` })
     setSecret(r.secret)
     await load()
   }
+  // End-to-end self-test: a JSON-RPC ping through the public endpoint with the
+  // freshly issued key — exactly what the external client will do.
+  async function testCall() {
+    setTestResult('…')
+    try {
+      const res = await fetch(`${origin}/api/mcp/connect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+      })
+      setTestResult(res.ok ? 'PASS — endpoint answered the authenticated ping.' : `FAIL — HTTP ${res.status}`)
+      await load()
+    } catch (e: any) { setTestResult(`FAIL — ${e?.message || 'network error'}`) }
+  }
   async function revoke(id: string) { await del(`/api/mcp/credentials/${id}`); await load() }
+  const stepChip = (n: number, label: string) => (
+    <button key={n} onClick={() => { if (n < step || (n === 2 && clientId)) setStep(n) }}
+      className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-widest transition-all duration-200 ${step === n ? 'border-empire-gold/50 bg-empire-gold/10 text-empire-gold' : n < step ? 'border-empire-border text-empire-text-muted hover:border-empire-gold/30' : 'border-empire-border text-empire-text-dim'}`}>
+      {n}. {label}
+    </button>
+  )
   return <div className="space-y-4">
-    {wizardSource && meta && <GlassPanel variant="gold" className="p-5">
+    <GlassPanel variant="gold" className="p-5">
       <div className="flex items-start gap-3">
         <span className="mt-0.5 grid h-9 w-9 place-items-center rounded-lg border border-empire-gold/30 bg-empire-gold/10 text-empire-gold"><EmpireIcon name="link" size={16} /></span>
         <div className="min-w-0 flex-1">
-          <h2 className="font-empire text-lg text-empire-text">{wizardSource === 'codex' ? 'Codex' : 'Claude'} MCP wizard</h2>
-          <p className="mt-1 text-xs text-empire-text-muted">Confirm this connection for the platform that sent you here, generate a token, then paste only the token value into that platform.</p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <Fact label="Endpoint" value={`${origin}${meta.endpoint}`} />
-            <Fact label="Token" value="emp_mcp_..." />
-          </div>
+          <h2 className="font-empire text-lg text-empire-text">Connection wizard</h2>
+          <p className="mt-1 text-xs text-empire-text-muted">Three steps: pick the client, connect it, then watch this page confirm the first real call from the platform.</p>
+          <div className="mt-3 flex flex-wrap gap-2">{stepChip(1, 'Client')}{stepChip(2, 'Connect')}{stepChip(3, 'Verify')}</div>
         </div>
       </div>
-    </GlassPanel>}
+      {step === 1 && <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        {CLIENTS.map(c => <button key={c.id} onClick={() => { setClientId(c.id); setStep(2) }}
+          className={`rounded-lg border px-3 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-empire-gold/40 ${clientId === c.id ? 'border-empire-gold/50 bg-empire-gold/5' : 'border-empire-border'}`}>
+          <p className="text-sm text-empire-text">{c.label}</p>
+          <p className="mt-0.5 text-[11px] text-empire-text-muted">{c.hint}</p>
+        </button>)}
+      </div>}
+      {step === 2 && client?.mode === 'oauth' && <div className="mt-4 space-y-3">
+        <p className="text-xs text-empire-text-muted">
+          In {client.label}, open <span className="text-empire-text">Settings → Connectors → Add custom connector</span> and paste this URL. {client.label} discovers the OAuth flow automatically and sends you back here to approve — no token is ever pasted.
+        </p>
+        <Fact label="Connector URL" value={`${origin}/api/mcp/connect`} />
+        <p className="text-[11px] text-empire-text-dim">When the consent screen appears, hit Approve. If it ever says unauthorized, remove the connector there and add it again — approving always rotates a fresh key.</p>
+        <LiquidMetalButton size="sm" onClick={() => setStep(3)}>I added the connector — verify</LiquidMetalButton>
+      </div>}
+      {step === 2 && client?.mode === 'token' && <div className="mt-4 space-y-3">
+        <p className="text-xs text-empire-text-muted">Generate a key (shown once), then paste it into {client.label} as a Bearer Authorization header.</p>
+        {!secret && <LiquidMetalButton size="sm" onClick={create}>Generate key</LiquidMetalButton>}
+        {secret && <>
+          <div className="rounded-lg border border-empire-gold/40 bg-empire-gold/10 p-3">
+            <p className="text-xs font-semibold text-empire-text">Copy this key now. It is shown once.</p>
+            <code className="mt-1 block break-all text-xs text-empire-gold">{secret}</code>
+          </div>
+          <pre className="overflow-x-auto rounded-lg border border-empire-border bg-empire-void/70 p-3 text-[11px] text-empire-text-muted">{JSON.stringify({
+            mcpServers: { empire: { url: `${origin}/api/mcp/connect`, headers: { Authorization: `Bearer ${secret}` } } },
+          }, null, 2)}</pre>
+          <LiquidMetalButton size="sm" onClick={() => setStep(3)}>I pasted it — verify</LiquidMetalButton>
+        </>}
+      </div>}
+      {step === 2 && !client && <p className="mt-4 text-xs text-empire-text-muted">Pick a client in step 1 first.</p>}
+      {step === 3 && <div className="mt-4 space-y-3">
+        <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${confirmed ? 'border-empire-gold/40 bg-empire-gold/10 text-empire-gold' : 'border-empire-border bg-empire-elevated/40 text-empire-text-muted'}`}>
+          <EmpireIcon name={confirmed ? 'check' : 'clock'} size={14} />
+          {confirmed
+            ? 'Connection confirmed — the platform has made an authenticated call to your worker.'
+            : 'Waiting for the platform to call in… finish the connect step there and this flips automatically (checking every 4s).'}
+        </div>
+        {secret && <div className="flex items-center gap-3">
+          <LiquidMetalButton size="sm" onClick={testCall}>Run test call</LiquidMetalButton>
+          {testResult && <span className={`text-xs ${testResult.startsWith('PASS') ? 'text-empire-gold' : 'text-empire-text-muted'}`}>{testResult}</span>}
+        </div>}
+        {!confirmed && client?.mode === 'oauth' && <p className="text-[11px] text-empire-text-dim">Still unauthorized in {client.label}? Remove the connector there, re-add the URL, and approve again on the consent screen — each approval issues a fresh key.</p>}
+      </div>}
+    </GlassPanel>
     {meta && <GlassPanel className="p-5">
       <h2 className="font-empire text-lg text-empire-text">{meta.workerName}</h2>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <Fact label="Endpoint" value={`${origin}${meta.endpoint}`} />
         <Fact label="Transport" value={meta.transport} />
-        <Fact label="Authentication" value={meta.authentication} />
+        <Fact label="Authentication" value="OAuth 2.1 (claude.ai) or Bearer key" />
         <Fact label="Permissions" value={meta.permissions.join(', ') || 'read-only'} />
-      </div>
-      <pre className="mt-4 overflow-x-auto rounded-lg border border-empire-border bg-empire-void/70 p-3 text-[11px] text-empire-text-muted">{JSON.stringify({
-        mcpServers: { empire: { url: `${origin}${meta.endpoint}`, headers: { Authorization: 'Bearer emp_mcp_YOUR_TOKEN' } } },
-      }, null, 2)}</pre>
-      <p className="mt-2 text-[11px] text-empire-text-dim">Paste the token value only — the worker accepts it bare or as a Bearer header. No Client-ID prefix.</p>
-    </GlassPanel>}
-    {secret && <GlassPanel variant="gold" className="p-4">
-      <p className="text-xs font-semibold text-empire-text">Copy this key now. It is shown once.</p>
-      <code className="mt-2 block break-all text-xs text-empire-gold">{secret}</code>
-      <div className={`mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${confirmed ? 'border-empire-gold/40 bg-empire-gold/10 text-empire-gold' : 'border-empire-border bg-empire-elevated/40 text-empire-text-muted'}`}>
-        <EmpireIcon name={confirmed ? 'check' : 'clock'} size={14} />
-        {confirmed
-          ? 'Connection confirmed — the platform has reached your worker.'
-          : 'Waiting for the platform to call in… paste the token there and this will confirm automatically.'}
       </div>
     </GlassPanel>}
     <GlassPanel className="p-5">
-      <div className="mb-3 flex items-center justify-between"><h2 className="font-empire text-lg text-empire-text">Credentials</h2><LiquidMetalButton size="sm" onClick={create}>Generate wizard key</LiquidMetalButton></div>
+      <div className="mb-3 flex items-center justify-between"><h2 className="font-empire text-lg text-empire-text">Credentials</h2><LiquidMetalButton size="sm" onClick={create}>Generate key</LiquidMetalButton></div>
       <div className="space-y-2">{rows.map(r => <div key={r.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-empire-border px-3 py-2">
-        <div className="min-w-0 flex-1"><p className="text-sm text-empire-text">{r.name}</p><p className="font-data text-[10px] text-empire-text-dim">{r.keyPrefix}... · {r.revokedAt ? 'revoked' : 'active'}</p></div>
+        <div className="min-w-0 flex-1"><p className="text-sm text-empire-text">{r.name}</p><p className="font-data text-[10px] text-empire-text-dim">{r.keyPrefix}... · {r.revokedAt ? 'revoked' : r.lastUsedAt ? `active · last used ${new Date(r.lastUsedAt).toLocaleString()}` : 'active · never used'}</p></div>
         {!r.revokedAt && <button className="text-xs text-empire-red-bright" onClick={() => revoke(r.id)}>Revoke</button>}
       </div>)}</div>
     </GlassPanel>

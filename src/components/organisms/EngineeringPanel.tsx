@@ -167,6 +167,7 @@ function Services() {
   const { data, loading, reload } = useEng<Svc[]>('services')
   const [viewing, setViewing] = useState<Svc | null>(null)
   const [editing, setEditing] = useState<Svc | null>(null)
+  const [creating, setCreating] = useState(false)
   async function remove(id: string) { await del(`/api/engineering/services/${id}`).catch(console.error); reload() }
   if (loading) return <Loading />
   const rows = data || []
@@ -182,8 +183,16 @@ function Services() {
     ) },
   ]
   return (
-    <Panel title={`Service Catalog (${rows.length})`} icon="cog">
-      <DataTable columns={cols} rows={rows} empty="No services registered." />
+    <Panel
+      title={`Service Catalog (${rows.length})`}
+      icon="cog"
+      actions={
+        <button onClick={() => setCreating(true)} className="flex items-center gap-1.5 rounded border border-empire-gold/40 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-empire-gold hover:border-empire-gold/70 hover:bg-empire-gold/10">
+          <EmpireIcon name="plus" size={13} /> Add service
+        </button>
+      }
+    >
+      <DataTable columns={cols} rows={rows} empty="No services registered yet — add your first one to start logging deploys and incidents." />
 
       <Modal open={!!viewing} onClose={() => setViewing(null)} title={viewing?.name || 'Service'} icon={<EmpireIcon name="cog" size={18} />}>
         {viewing && (
@@ -199,27 +208,40 @@ function Services() {
           </div>
         )}
       </Modal>
-      <ServiceEdit service={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload() }} />
+      <ServiceForm open={!!editing || creating} service={editing} onClose={() => { setEditing(null); setCreating(false) }} onSaved={() => { setEditing(null); setCreating(false); reload() }} />
     </Panel>
   )
 }
 
-function ServiceEdit({ service, onClose, onSaved }: { service: Svc | null; onClose: () => void; onSaved: () => void }) {
+const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+
+function ServiceForm({ open, service, onClose, onSaved }: { open: boolean; service: Svc | null; onClose: () => void; onSaved: () => void }) {
   const [f, setF] = useState<Record<string, any>>({})
   const [busy, setBusy] = useState(false)
-  useEffect(() => { if (service) setF({ name: service.name, tier: service.tier, language: service.language ?? '', repo: service.repo ?? '', ownerName: service.ownerName ?? '' }) }, [service])
+  const [error, setError] = useState('')
+  useEffect(() => {
+    setError('')
+    if (service) setF({ name: service.name, tier: service.tier, language: service.language ?? '', repo: service.repo ?? '', ownerName: service.ownerName ?? '' })
+    else if (open) setF({ name: '', tier: 'standard', language: '', repo: '', ownerName: '' })
+  }, [service, open])
   const set = (k: string, v: any) => setF(p => ({ ...p, [k]: v }))
   async function save() {
-    if (!service) return
-    setBusy(true)
-    await patch(`/api/engineering/services/${service.id}`, f).catch(console.error)
-    setBusy(false); onSaved()
+    if (!String(f.name || '').trim()) { setError('Name is required.'); return }
+    setBusy(true); setError('')
+    try {
+      if (service) await patch(`/api/engineering/services/${service.id}`, f)
+      else await post('/api/engineering/services', { ...f, slug: slugify(f.name) })
+      setBusy(false); onSaved()
+    } catch (e: any) {
+      setBusy(false)
+      setError(e?.message?.includes('409') || e?.message?.includes('exists') ? 'A service with this name already exists.' : 'Could not save the service — try again.')
+    }
   }
   return (
-    <Modal open={!!service} onClose={onClose} title="Edit service" icon={<EmpireIcon name="pen" size={18} />}>
+    <Modal open={open} onClose={onClose} title={service ? 'Edit service' : 'Add service'} icon={<EmpireIcon name={service ? 'pen' : 'plus'} size={18} />}>
       <div className="space-y-3">
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Name</span>
-          <input className={modalInput} value={f.name ?? ''} onChange={e => set('name', e.target.value)} /></label>
+          <input className={modalInput} placeholder="e.g. Billing API" value={f.name ?? ''} onChange={e => set('name', e.target.value)} /></label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Tier</span>
             <select className={modalInput} value={f.tier ?? ''} onChange={e => set('tier', e.target.value)}>
@@ -231,10 +253,11 @@ function ServiceEdit({ service, onClose, onSaved }: { service: Svc | null; onClo
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Repo</span>
           <input className={modalInput} value={f.repo ?? ''} onChange={e => set('repo', e.target.value)} /></label>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Owner</span>
-          <input className={modalInput} value={f.ownerName ?? ''} onChange={e => set('ownerName', e.target.value)} /></label>
+          <input className={modalInput} placeholder="e.g. Lukas Beckers" value={f.ownerName ?? ''} onChange={e => set('ownerName', e.target.value)} /></label>
+        {error && <p className="text-xs text-empire-text" role="alert">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
-          <button onClick={save} disabled={busy} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white disabled:opacity-50" style={{ background: ACCENT }}>{busy ? 'Saving…' : 'Save'}</button>
+          <button onClick={save} disabled={busy || !String(f.name || '').trim()} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white disabled:opacity-50" style={{ background: ACCENT }}>{busy ? 'Saving…' : service ? 'Save' : 'Add service'}</button>
         </div>
       </div>
     </Modal>
@@ -292,8 +315,20 @@ function Deploys() {
           </select>
           <input className="bg-empire-bg-soft border border-empire-border rounded px-2 py-1.5 text-sm text-empire-text w-28" placeholder="author" value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} />
           <input className="bg-empire-bg-soft border border-empire-border rounded px-2 py-1.5 text-sm text-empire-text w-24" placeholder="lead hrs" value={form.leadHours} onChange={(e) => setForm({ ...form, leadHours: e.target.value })} />
-          <button disabled={busy || !form.serviceId || !form.version} onClick={submit} className="px-3 py-1.5 rounded text-sm font-medium text-white disabled:opacity-40" style={{ background: ACCENT }}>{busy ? 'Logging…' : 'Deploy'}</button>
+          <button
+            disabled={busy || !form.serviceId || !form.version.trim()}
+            onClick={submit}
+            title={!form.serviceId ? 'Pick a service first' : !form.version.trim() ? 'Enter a version' : undefined}
+            className="px-3 py-1.5 rounded text-sm font-medium text-white disabled:opacity-40"
+            style={{ background: ACCENT }}
+          >{busy ? 'Logging…' : 'Deploy'}</button>
         </div>
+        {(services || []).length === 0 && (
+          <p className="mt-2 text-xs text-empire-text-muted">No services yet — add one in the Services tab before logging a deploy.</p>
+        )}
+        {!form.serviceId && (services || []).length > 0 && (
+          <p className="mt-2 text-xs text-empire-text-dim">Select a service to enable the Deploy button.</p>
+        )}
       </Panel>
       <Panel title={`Recent Deploys (${data?.total ?? rows.length})`} icon="rocket">
         <DataTable columns={cols} rows={rows} empty="No deploys yet." />
@@ -373,8 +408,11 @@ function Incidents() {
           <select className="bg-empire-bg-soft border border-empire-border rounded px-2 py-1.5 text-sm text-empire-text" value={form.cause} onChange={(e) => setForm({ ...form, cause: e.target.value })}>
             <option value="deploy">deploy</option><option value="infra">infra</option><option value="dependency">dependency</option><option value="human">human</option><option value="unknown">unknown</option>
           </select>
-          <button disabled={busy || !form.serviceId || !form.title} onClick={submit} className="px-3 py-1.5 rounded text-sm font-medium text-white disabled:opacity-40" style={{ background: '#F4EFE3' }}>{busy ? 'Declaring…' : 'Declare'}</button>
+          <button disabled={busy || !form.serviceId || !form.title.trim()} onClick={submit} title={!form.serviceId ? 'Pick a service first' : !form.title.trim() ? 'Describe what happened' : undefined} className="px-3 py-1.5 rounded text-sm font-medium text-white disabled:opacity-40" style={{ background: '#F4EFE3' }}>{busy ? 'Declaring…' : 'Declare'}</button>
         </div>
+        {(services || []).length === 0 && (
+          <p className="mt-2 text-xs text-empire-text-muted">No services yet — add one in the Services tab before declaring an incident.</p>
+        )}
       </Panel>
       <Panel title={`Incidents (${data?.total ?? rows.length})`} icon="alert">
         <DataTable columns={cols} rows={rows} empty="No incidents — clean record." />

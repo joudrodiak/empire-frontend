@@ -7,13 +7,14 @@ import { AuthGate } from '@/components/templates/AuthGate'
 import { ReleaseNotesModal } from '@/components/templates/ReleaseNotesModal'
 
 export const metadata: Metadata = {
-  title: 'Empire OS - Company intelligence app',
+  title: 'Empire',
   description: 'Company intelligence app for mapping units, people, documents and agent context.',
 }
 
-// Set the theme class before first paint to avoid a flash. Reads the persisted
-// choice (empire-os-theme), falling back to the system preference, else dark.
-const themeBoot = `(function(){try{var t=localStorage.getItem('empire-os-theme');if(!t){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}var r=document.documentElement;r.classList.remove('light','dark');r.classList.add(t);}catch(e){}})();`
+// Set the theme + text-scale classes before first paint to avoid a flash. Reads
+// the persisted choices (empire-os-theme / empire-os-text-scale), falling back
+// to the system preference for theme and "medium" for text scale.
+const themeBoot = `(function(){try{var t=localStorage.getItem('empire-os-theme');if(!t){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}var r=document.documentElement;r.classList.remove('light','dark');r.classList.add(t);var s=localStorage.getItem('empire-os-text-scale');if(s!=='small'&&s!=='large'){s='medium';}r.classList.remove('text-scale-small','text-scale-medium','text-scale-large');r.classList.add('text-scale-'+s);}catch(e){}})();`
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

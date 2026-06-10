@@ -82,11 +82,11 @@ function Overview() {
   return (
     <div className="space-y-6">
       <Grid cols={5}>
-        <KpiCard icon="clock" label="Runway" value={`${s.runwayMonths} mo`} sub={formatCurrency(s.cash) + ' cash'} accent={s.runwayMonths >= 12 ? '#C9A233' : s.runwayMonths >= 6 ? '#C9A233' : '#F4EFE3'} />
-        <KpiCard icon="coins" label="MRR" value={formatCurrency(s.mrr)} sub={`${s.boardMetrics} board KPIs`} accent={ACCENT} />
-        <KpiCard icon="chart-line" label="MRR Growth" value={`${s.mrrGrowthPct >= 0 ? '+' : ''}${s.mrrGrowthPct}%`} sub="first → last" accent={s.mrrGrowthPct >= 0 ? '#C9A233' : '#F4EFE3'} />
-        <KpiCard icon="flame" label="Net Burn / mo" value={formatCurrency(s.netBurn)} accent="#C9A233" />
-        <KpiCard icon="flag" label="OKR Attainment" value={`${s.okrAttainment}%`} sub={`${s.atRiskCount} at risk · ${s.avgConfidence}% conf`} accent={s.okrAttainment >= 70 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="clock" label="Runway" info="How many months the company can operate at the current net burn before cash runs out." value={`${s.runwayMonths} mo`} sub={formatCurrency(s.cash) + ' cash'} accent={s.runwayMonths >= 12 ? '#C9A233' : s.runwayMonths >= 6 ? '#C9A233' : '#F4EFE3'} />
+        <KpiCard icon="coins" label="MRR" info="Monthly recurring revenue — the predictable subscription/retainer income booked each month." value={formatCurrency(s.mrr)} sub={`${s.boardMetrics} board KPIs`} accent={ACCENT} />
+        <KpiCard icon="chart-line" label="MRR Growth" info="Percentage change in MRR from the first to the most recent recorded period." value={`${s.mrrGrowthPct >= 0 ? '+' : ''}${s.mrrGrowthPct}%`} sub="first → last" accent={s.mrrGrowthPct >= 0 ? '#C9A233' : '#F4EFE3'} />
+        <KpiCard icon="flame" label="Net Burn / mo" info="Cash spent minus cash earned per month. Lower is better; negative means profitable." value={formatCurrency(s.netBurn)} accent="#C9A233" />
+        <KpiCard icon="flag" label="OKR Attainment" info="Average progress across all active objectives and key results this quarter." value={`${s.okrAttainment}%`} sub={`${s.atRiskCount} at risk · ${s.avgConfidence}% conf`} accent={s.okrAttainment >= 70 ? '#C9A233' : '#C9A233'} />
       </Grid>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Panel icon="coins" title="Cash trend">
@@ -99,9 +99,9 @@ function Overview() {
         </Panel>
       </div>
       <Grid cols={3}>
-        <KpiCard icon="check" label="KR Hit-Rate" value={`${s.krHitRate}%`} sub={`${s.krHit}/${s.krTotal} hit`} accent={s.krHitRate >= 60 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="check" label="KR Hit-Rate" info="Share of key results that reached their target." value={`${s.krHitRate}%`} sub={`${s.krHit}/${s.krTotal} hit`} accent={s.krHitRate >= 60 ? '#C9A233' : '#C9A233'} />
         <KpiCard icon="crown" label="Objectives" value={String(s.objectives)} sub={`${s.atRiskCount} at risk`} accent={ACCENT} />
-        <KpiCard icon="flag" label="Board On-Target" value={`${s.onTarget}/${s.boardMetrics}`} accent={s.onTarget >= s.boardMetrics / 2 ? '#C9A233' : '#C9A233'} />
+        <KpiCard icon="flag" label="Board On-Target" info="Board-level KPIs currently at or above their target value." value={`${s.onTarget}/${s.boardMetrics}`} accent={s.onTarget >= s.boardMetrics / 2 ? '#C9A233' : '#C9A233'} />
       </Grid>
     </div>
   )

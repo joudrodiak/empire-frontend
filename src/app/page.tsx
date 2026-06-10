@@ -195,7 +195,7 @@ export default function EmpireDashboard() {
         )}
         {activeTab === 'network' && <CompanyNetworkTab departments={departments} employees={employees} />}
         {activeTab === 'roster' && <RosterTab employees={employees} />}
-        {activeTab === 'deals' && <DealsTab deals={deals} setDeals={setDeals} />}
+        {activeTab === 'deals' && <DealsTab deals={deals} setDeals={setDeals} employees={employees} />}
         {activeTab === 'chronicle' && <ChronicleTab events={events} />}
         {activeTab === 'approvals' && <ApprovalsTab approvals={approvals} setApprovals={setApprovals} />}
       </main>
@@ -203,13 +203,35 @@ export default function EmpireDashboard() {
   )
 }
 
+function useActiveCompanyName(): string {
+  const [name, setName] = useState('Empire')
+  useEffect(() => {
+    let alive = true
+    const resolve = async () => {
+      try {
+        const rows: Array<{ slug: string; name: string }> = await fetcher('/api/companies')
+        const slug = localStorage.getItem('empire-os-active-profile')
+        const active = rows.find(c => c.slug === slug) ?? rows[0]
+        if (alive && active) setName(active.name)
+      } catch { /* keep last known name */ }
+    }
+    resolve()
+    window.addEventListener('empire-profile-change', resolve)
+    return () => { alive = false; window.removeEventListener('empire-profile-change', resolve) }
+  }, [])
+  return name
+}
+
 function CompanyNetworkTab({ departments, employees }: { departments: Department[]; employees: Employee[] }) {
+  const companyName = useActiveCompanyName()
   const [scale, setScale] = useState(1)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
   const units = departments.slice(0, 12)
   const center = { x: 50, y: 50 }
-  const radius = 39
+  // Two alternating orbit radii so neighbouring unit clusters breathe instead
+  // of packing onto one ring and overlapping each other's member/doc satellites.
+  const ringRadius = (index: number) => (index % 2 === 0 ? 33 : 41)
   const zoomBy = (delta: number) => setScale(value => Math.min(1.8, Math.max(0.68, Number((value + delta).toFixed(2)))))
   const centerMap = () => {
     setScale(1)
@@ -218,6 +240,7 @@ function CompanyNetworkTab({ departments, employees }: { departments: Department
 
   const unitNodes = units.map((dept, index) => {
     const angle = (Math.PI * 2 * index) / Math.max(units.length, 1) - Math.PI / 2
+    const radius = ringRadius(index)
     const x = center.x + Math.cos(angle) * radius
     const y = center.y + Math.sin(angle) * radius
     const members = employees.filter(e => e.department.slug === dept.slug && e.contractType !== 'ai_agent').slice(0, 3)
@@ -230,16 +253,16 @@ function CompanyNetworkTab({ departments, employees }: { departments: Department
   unitNodes.forEach((node, index) => {
     const accent = empireColor(node.dept.color)
     edges.push({ x1: center.x, y1: center.y, x2: node.x, y2: node.y, color: accent, delay: index * 70 })
-    const memberHubX = node.x + Math.cos(node.angle) * 14
-    const memberHubY = node.y + Math.sin(node.angle) * 14
-    const docHubX = node.x + Math.cos(node.angle + 0.45) * 16
-    const docHubY = node.y + Math.sin(node.angle + 0.45) * 16
+    const memberHubX = node.x + Math.cos(node.angle - 0.3) * 15
+    const memberHubY = node.y + Math.sin(node.angle - 0.3) * 15
+    const docHubX = node.x + Math.cos(node.angle + 0.55) * 17
+    const docHubY = node.y + Math.sin(node.angle + 0.55) * 17
     edges.push({ x1: node.x, y1: node.y, x2: memberHubX, y2: memberHubY, color: '#F4EFE3', delay: 180 + index * 45 })
     edges.push({ x1: node.x, y1: node.y, x2: docHubX, y2: docHubY, color: '#C9A233', delay: 240 + index * 45 })
     childNodes.push({ id: `${node.dept.id}-members`, kind: 'members', label: `${node.dept.name} members`, x: memberHubX, y: memberHubY, color: '#F4EFE3', href: `/departments/${node.dept.slug}`, delay: index * 60 })
     childNodes.push({ id: `${node.dept.id}-docs`, kind: 'documents', label: `${node.dept.name} documents`, x: docHubX, y: docHubY, color: '#C9A233', href: `/departments/${node.dept.slug}`, delay: index * 60 + 90 })
     node.members.forEach((member, memberIndex) => {
-      const spread = (memberIndex - (node.members.length - 1) / 2) * 0.28
+      const spread = (memberIndex - (node.members.length - 1) / 2) * 0.42
       const px = memberHubX + Math.cos(node.angle + spread) * 10
       const py = memberHubY + Math.sin(node.angle + spread) * 10
       edges.push({ x1: memberHubX, y1: memberHubY, x2: px, y2: py, color: '#F4EFE3', delay: 320 + index * 35 + memberIndex * 45 })
@@ -304,9 +327,10 @@ function CompanyNetworkTab({ departments, employees }: { departments: Department
               ))}
             </svg>
 
+            <div className="network-aura" style={{ left: `${center.x}%`, top: `${center.y}%` }} aria-hidden />
             <div className="network-node network-company" style={{ left: `${center.x}%`, top: `${center.y}%` }}>
-              <span className="font-empire text-lg text-empire-gold">Cregen</span>
-              <span className="network-tip">Mother node: active company</span>
+              <span className="font-empire text-lg leading-tight text-empire-gold">{companyName}</span>
+              <span className="network-tip">Mother node: {companyName}</span>
             </div>
 
             {unitNodes.map((node, index) => (
@@ -588,26 +612,37 @@ const DEAL_STATUSES = ['prospect', 'negotiating', 'closed_won', 'closed_lost'] a
 const DEAL_PAGE_SIZE = 6
 const titleCase = (s: string) => s.replace(/(^|[-_])(\w)/g, (_, __, c) => ' ' + c.toUpperCase()).trim()
 
-function DealsTab({ deals, setDeals }: { deals: Deal[]; setDeals: (d: Deal[]) => void }) {
+function DealsTab({ deals, setDeals, employees }: { deals: Deal[]; setDeals: (d: Deal[]) => void; employees: Employee[] }) {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ title: '', client: '', amount: '', notes: '' })
   const [editing, setEditing] = useState<Deal | null>(null)
   const [viewing, setViewing] = useState<Deal | null>(null)
   const [linking, setLinking] = useState<Deal | null>(null)
   const [page, setPage] = useState(1)
+  const [submitting, setSubmitting] = useState(false)
+
+  // Commission earners come from the roster: anyone with a commission rate on
+  // their profile. The picked person's own rate drives the auto-calculation —
+  // nothing is hard-coded.
+  const earners = employees.filter(e => e.commissionRate != null && e.contractType !== 'ai_agent')
+  const [earnerId, setEarnerId] = useState('')
+  const earner = earners.find(e => e.id === earnerId) ?? earners[0]
 
   // Re-pull the canonical list so cross-links / status edits reflect server truth.
   const reload = async () => { try { setDeals(await fetcher('/api/deals')) } catch (e) { console.error(e) } }
 
   async function submitDeal() {
-    if (!form.title || !form.client || !form.amount) return
-    const deal = await post('/api/deals', {
-      title: form.title, client: form.client, amount: Number(form.amount),
-      notes: form.notes, commissionRate: 20,
-    })
-    setDeals([deal, ...deals])
-    setForm({ title: '', client: '', amount: '', notes: '' })
-    setShowForm(false)
+    if (!form.title || !form.client || !form.amount || submitting) return
+    setSubmitting(true)
+    try {
+      const deal = await post('/api/deals', {
+        title: form.title, client: form.client, amount: Number(form.amount),
+        notes: form.notes, commissionRate: earner?.commissionRate ?? 0,
+      })
+      setDeals([deal, ...deals])
+      setForm({ title: '', client: '', amount: '', notes: '' })
+      setShowForm(false)
+    } catch (e) { console.error(e) } finally { setSubmitting(false) }
   }
 
   async function changeStatus(deal: Deal, status: string) {
@@ -672,9 +707,25 @@ function DealsTab({ deals, setDeals }: { deals: Deal[]; setDeals: (d: Deal[]) =>
               className="bg-empire-elevated border border-empire-border rounded px-3 py-2 text-sm text-empire-text placeholder:text-empire-text-dim focus:outline-none focus:border-empire-gold/40"
             />
           </div>
-          <div className="text-xs text-empire-text-muted">Issam commission: 20% auto-calculated</div>
-          <button onClick={submitDeal} className="px-4 py-2 bg-empire-gold text-empire-void text-xs uppercase tracking-widest rounded font-semibold hover:bg-empire-gold/80 transition-colors">
-            Log Deal
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="empire-label flex items-center gap-2">
+              Commission earner
+              <select
+                value={earner?.id ?? ''}
+                onChange={e => setEarnerId(e.target.value)}
+                className="bg-empire-elevated border border-empire-border rounded px-2 py-1.5 text-xs normal-case tracking-normal text-empire-text focus:outline-none focus:border-empire-gold/40 cursor-pointer"
+              >
+                {earners.length === 0 && <option value="">No commission profiles in roster</option>}
+                {earners.map(e => <option key={e.id} value={e.id}>{e.name} · {e.commissionRate}%</option>)}
+              </select>
+            </label>
+            <span className="text-xs text-empire-text-muted">
+              {earner ? `${earner.name.split(' ')[0]} commission: ${earner.commissionRate}% auto-calculated from their profile` : 'Add a commission rate to a roster profile to auto-calculate'}
+            </span>
+          </div>
+          <button onClick={submitDeal} disabled={submitting} className="px-4 py-2 bg-empire-gold text-empire-void text-xs uppercase tracking-widest rounded font-semibold hover:bg-empire-gold/80 transition-colors disabled:opacity-60 inline-flex items-center gap-2">
+            {submitting && <span className="h-3 w-3 animate-spin rounded-full border border-empire-void/40 border-t-empire-void" aria-hidden />}
+            {submitting ? 'Logging…' : 'Log Deal'}
           </button>
         </div>
       )}
@@ -712,7 +763,7 @@ function DealsTab({ deals, setDeals }: { deals: Deal[]; setDeals: (d: Deal[]) =>
             <div className="text-right shrink-0">
               <div className="text-empire-gold text-sm font-medium">{formatCurrency(deal.amount)}</div>
               {deal.commissionAmount && (
-                <div className="text-empire-text-muted text-xs">Issam: {formatCurrency(deal.commissionAmount)}</div>
+                <div className="text-empire-text-muted text-xs">Commission: {formatCurrency(deal.commissionAmount)}</div>
               )}
             </div>
             <RowActions
@@ -735,7 +786,7 @@ function DealsTab({ deals, setDeals }: { deals: Deal[]; setDeals: (d: Deal[]) =>
             <DealField label="Client" value={viewing.client} />
             <DealField label="Value" value={formatCurrency(viewing.amount)} />
             <DealField label="Status" value={titleCase(viewing.status)} />
-            <DealField label="Commission (Issam)" value={viewing.commissionAmount ? formatCurrency(viewing.commissionAmount) : '—'} />
+            <DealField label="Commission" value={viewing.commissionAmount ? formatCurrency(viewing.commissionAmount) : '—'} />
             <DealField label="Linked Unit" value={viewing.linkedUnitSlug ? titleCase(viewing.linkedUnitSlug) : 'Not linked'} />
             {viewing.notes && <DealField label="Notes" value={viewing.notes} />}
             <div className="flex justify-end gap-2 pt-2">

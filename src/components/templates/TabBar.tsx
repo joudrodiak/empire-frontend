@@ -33,7 +33,7 @@ export function TabBar({ tabs, active, onChange, accent = '#c9a233' }: {
         return (
           <button key={t.id} ref={node => { btnRefs.current[t.id] = node }} onClick={() => onChange(t.id)}
             className={cn(
-              'relative -mb-px flex items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-55',
+              'no-lift relative -mb-px flex items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-sm font-medium transition-all duration-200 disabled:pointer-events-none disabled:opacity-55',
               on ? 'text-empire-text' : 'text-empire-text-muted hover:text-empire-text'
             )}>
             {t.icon && (

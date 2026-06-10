@@ -216,14 +216,14 @@ function Intros() {
 }
 
 /* ---------------- Advisors (paginated + add) ---------------- */
-type Advisor = { id: string; name: string; expertise: string; firm: string | null; tier: string; status: string; equityPct: number; monthlyHours: number; sessionCount: number; openIntros: number }
+type Advisor = { id: string; name: string; expertise: string; firm: string | null; tier: string; status: string; equityPct: number; monthlyFee: number; monthlyHours: number; sessionCount: number; openIntros: number }
 type Page<T> = { data: T[]; page: number; pageSize: number; total: number; totalPages: number }
 function Advisors() {
   const [page, setPage] = useState(0)
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
   const { data, loading, reload } = useAdv<Page<Advisor>>(`advisors?pageSize=15&page=${page + 1}${q ? `&q=${encodeURIComponent(q)}` : ''}${status ? `&status=${status}` : ''}`)
-  const [form, setForm] = useState({ name: '', firm: '', expertise: 'GTM', tier: 'specialist', status: 'active', equityPct: '' })
+  const [form, setForm] = useState({ name: '', firm: '', expertise: 'GTM', tier: 'specialist', status: 'active', equityPct: '', monthlyFee: '' })
   const [busy, setBusy] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const [viewing, setViewing] = useState<Advisor | null>(null)
@@ -232,7 +232,7 @@ function Advisors() {
     if (!form.name) return
     setBusy(true)
     await post('/api/advisory/advisors', form).catch(() => {})
-    setBusy(false); setForm({ name: '', firm: '', expertise: 'GTM', tier: 'specialist', status: 'active', equityPct: '' }); setShowNew(false); setPage(0); reload()
+    setBusy(false); setForm({ name: '', firm: '', expertise: 'GTM', tier: 'specialist', status: 'active', equityPct: '', monthlyFee: '' }); setShowNew(false); setPage(0); reload()
   }
   async function remove(id: string) { await del(`/api/advisory/advisors/${id}`).catch(() => {}); reload() }
   if (loading) return <Loading />
@@ -243,6 +243,7 @@ function Advisors() {
     { key: 'tier', label: 'Tier', render: a => <Pill text={a.tier} color={TIER_COLOR[a.tier] || '#7A7468'} /> },
     { key: 'status', label: 'Status', render: a => <Pill text={a.status} color={STATUS_COLOR[a.status] || '#7A7468'} /> },
     { key: 'equityPct', label: 'Equity', align: 'right', render: a => <span className="text-empire-text">{a.equityPct}%</span> },
+    { key: 'monthlyFee', label: 'Payment', align: 'right', render: a => <span className="text-empire-text">{a.monthlyFee > 0 ? `€${a.monthlyFee.toLocaleString('nl-NL')}/mo` : '—'}</span> },
     { key: 'monthlyHours', label: 'Hrs/mo', align: 'right', render: a => <span className="text-empire-text-muted">{a.monthlyHours}</span> },
     { key: 'sessionCount', label: 'Sessions', align: 'right', render: a => <span className="text-empire-text-muted">{a.sessionCount}</span> },
     { key: 'openIntros', label: 'Open Intros', align: 'right', render: a => <span style={{ color: a.openIntros ? ACCENT : undefined }} className={a.openIntros ? '' : 'text-empire-text-dim'}>{a.openIntros}</span> },
@@ -273,6 +274,7 @@ function Advisors() {
             <select className={inputCls} value={form.tier} onChange={e => setForm({ ...form, tier: e.target.value })}><option value="strategic">strategic</option><option value="specialist">specialist</option><option value="operational">operational</option></select>
             <select className={inputCls} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option value="active">active</option><option value="onboarding">onboarding</option><option value="inactive">inactive</option><option value="alumni">alumni</option></select>
             <input className={`${inputCls} w-24`} placeholder="equity %" value={form.equityPct} onChange={e => setForm({ ...form, equityPct: e.target.value })} />
+            <input className={`${inputCls} w-28`} type="number" placeholder="€ payment /mo" value={form.monthlyFee} onChange={e => setForm({ ...form, monthlyFee: e.target.value })} />
             <button disabled={busy || !form.name} onClick={submit} className="px-3 py-1.5 rounded text-sm font-medium text-white disabled:opacity-40" style={{ background: ACCENT }}>{busy ? 'Saving…' : 'Create'}</button>
           </div>
         </Panel>
@@ -292,6 +294,7 @@ function Advisors() {
               <AdvDetail label="Tier"><Pill text={viewing.tier} color={TIER_COLOR[viewing.tier] || '#7A7468'} /></AdvDetail>
               <AdvDetail label="Status"><Pill text={viewing.status} color={STATUS_COLOR[viewing.status] || '#7A7468'} /></AdvDetail>
               <AdvDetail label="Equity">{viewing.equityPct}%</AdvDetail>
+              <AdvDetail label="Payment">{viewing.monthlyFee > 0 ? `€${viewing.monthlyFee.toLocaleString('nl-NL')}/mo` : '—'}</AdvDetail>
               <AdvDetail label="Hours / mo">{viewing.monthlyHours}</AdvDetail>
               <AdvDetail label="Sessions">{viewing.sessionCount}</AdvDetail>
               <AdvDetail label="Open Intros">{viewing.openIntros}</AdvDetail>
@@ -323,7 +326,7 @@ function AdvDetail({ label, children }: { label: string; children: React.ReactNo
 function AdvisorEditModal({ row, onClose, onSaved }: { row: Advisor; onClose: () => void; onSaved: () => void }) {
   const [f, setF] = useState({
     name: row.name, firm: row.firm ?? '', expertise: row.expertise, tier: row.tier,
-    status: row.status, equityPct: String(row.equityPct), monthlyHours: String(row.monthlyHours),
+    status: row.status, equityPct: String(row.equityPct), monthlyFee: String(row.monthlyFee ?? 0), monthlyHours: String(row.monthlyHours),
   })
   const [busy, setBusy] = useState(false)
   async function save() {
@@ -331,7 +334,7 @@ function AdvisorEditModal({ row, onClose, onSaved }: { row: Advisor; onClose: ()
     setBusy(true)
     await patch(`/api/advisory/advisors/${row.id}`, {
       name: f.name, firm: f.firm, expertise: f.expertise, tier: f.tier, status: f.status,
-      equityPct: Number(f.equityPct) || 0, monthlyHours: Number(f.monthlyHours) || 0,
+      equityPct: Number(f.equityPct) || 0, monthlyFee: Number(f.monthlyFee) || 0, monthlyHours: Number(f.monthlyHours) || 0,
     }).catch(() => {})
     setBusy(false); onSaved()
   }
@@ -345,6 +348,7 @@ function AdvisorEditModal({ row, onClose, onSaved }: { row: Advisor; onClose: ()
           <select className={inputCls} value={f.tier} onChange={e => setF({ ...f, tier: e.target.value })}><option value="strategic">strategic</option><option value="specialist">specialist</option><option value="operational">operational</option></select>
           <select className={inputCls} value={f.status} onChange={e => setF({ ...f, status: e.target.value })}><option value="active">active</option><option value="onboarding">onboarding</option><option value="inactive">inactive</option><option value="alumni">alumni</option></select>
           <input className={inputCls} type="number" placeholder="Equity %" value={f.equityPct} onChange={e => setF({ ...f, equityPct: e.target.value })} />
+          <input className={inputCls} type="number" placeholder="€ Payment / mo" value={f.monthlyFee} onChange={e => setF({ ...f, monthlyFee: e.target.value })} />
           <input className={inputCls} type="number" placeholder="Hours / mo" value={f.monthlyHours} onChange={e => setF({ ...f, monthlyHours: e.target.value })} />
         </div>
         <div className="flex justify-end gap-2 pt-1">

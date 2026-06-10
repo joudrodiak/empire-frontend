@@ -32,6 +32,7 @@ const TABS: { id: string; label: string; icon: IconName }[] = [
   { id: 'integrations', label: 'Integrations', icon: 'link' },
   { id: 'agent', label: 'Agent', icon: 'sparkle' },
   { id: 'company', label: 'Company', icon: 'briefcase' },
+  { id: 'appearance', label: 'Appearance', icon: 'eye' },
   { id: 'environment', label: 'Environment', icon: 'cog' },
 ]
 
@@ -57,6 +58,7 @@ export default function SettingsPage() {
       {tab === 'integrations' && <IntegrationsTab />}
       {tab === 'agent' && <AgentTab />}
       {tab === 'company' && <CompanyTab canManage={canManage} />}
+      {tab === 'appearance' && <AppearanceTab />}
       {tab === 'environment' && <EnvironmentTab canManage={canManage} />}
     </div>
   )
@@ -266,6 +268,61 @@ function CompanyTab({ canManage }: { canManage: boolean }) {
             </LiquidMetalButton>
           </div>
         )}
+      </div>
+    </Panel>
+  )
+}
+
+/* ── Appearance ───────────────────────────────────────────────── */
+type TextScale = 'small' | 'medium' | 'large'
+const SCALE_KEY = 'empire-os-text-scale'
+const SCALES: { id: TextScale; label: string; px: string; hint: string }[] = [
+  { id: 'small', label: 'Small', px: '15px', hint: 'Dense — more on screen' },
+  { id: 'medium', label: 'Medium', px: '16.5px', hint: 'Default — balanced reading size' },
+  { id: 'large', label: 'Large', px: '18px', hint: 'Comfort — bigger everything' },
+]
+
+function AppearanceTab() {
+  const [scale, setScale] = useState<TextScale>('medium')
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem(SCALE_KEY)
+      if (s === 'small' || s === 'large') setScale(s)
+    } catch { /* noop */ }
+  }, [])
+
+  // The whole UI is rem-based, so swapping the root font-size class rescales
+  // every surface at once (classes defined in globals.css).
+  function apply(s: TextScale) {
+    setScale(s)
+    const r = document.documentElement
+    r.classList.remove('text-scale-small', 'text-scale-medium', 'text-scale-large')
+    r.classList.add(`text-scale-${s}`)
+    try { localStorage.setItem(SCALE_KEY, s) } catch { /* noop */ }
+  }
+
+  return (
+    <Panel title="Appearance" icon="eye">
+      <div className="space-y-4">
+        <div>
+          <p className="text-sm font-semibold text-empire-text">Text size</p>
+          <p className="text-[11px] text-empire-text-muted">Scales the entire interface. Applies instantly and persists on this device.</p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {SCALES.map(s => (
+            <button
+              key={s.id}
+              onClick={() => apply(s.id)}
+              aria-pressed={scale === s.id}
+              className={`rounded-xl border p-3 text-left transition-all duration-200 hover:-translate-y-0.5 ${scale === s.id ? 'border-empire-gold/60 bg-empire-gold/10 shadow-gold-glow' : 'border-empire-border bg-empire-elevated/40 hover:border-empire-gold/40'}`}
+            >
+              <span className={`font-empire text-empire-text ${s.id === 'small' ? 'text-sm' : s.id === 'medium' ? 'text-base' : 'text-lg'}`}>Aa</span>
+              <p className="mt-1 text-xs font-semibold text-empire-text">{s.label} <span className="font-data text-[10px] text-empire-text-dim">{s.px}</span></p>
+              <p className="text-[11px] text-empire-text-muted">{s.hint}</p>
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-empire-text-dim">Dark / light theme is toggled from the dock at the bottom of the screen.</p>
       </div>
     </Panel>
   )

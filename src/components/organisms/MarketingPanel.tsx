@@ -634,10 +634,10 @@ function InfluencerEdit({ influencer, open, onClose, onSaved }: { influencer: In
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Platforms</span>
-            <div className="mt-1 flex min-h-[44px] flex-wrap gap-2 rounded-lg border border-empire-border bg-empire-elevated/50 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+            <div className="mt-1 flex min-h-[44px] flex-wrap items-center gap-2 py-1">
               {INF_PLATFORMS.map(p => (
                 <button key={p} type="button" onClick={() => togglePlatform(p)}
-                  className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-wide shadow-sm transition-all duration-200 hover:-translate-y-0.5 ${selectedPlatforms.includes(p) ? 'border-empire-gold/50 bg-empire-gold/10 text-empire-gold shadow-[0_8px_20px_rgba(201,162,51,0.14)]' : 'border-empire-border bg-empire-bg/60 text-empire-text-dim hover:border-empire-gold/35 hover:text-empire-text'}`}>
+                  className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-wide transition-all duration-200 ${selectedPlatforms.includes(p) ? 'border-empire-gold/50 bg-empire-gold/10 text-empire-gold shadow-[0_6px_16px_rgba(201,162,51,0.18)]' : 'border-empire-border bg-empire-surface/60 text-empire-text-dim shadow-[0_2px_8px_rgba(0,0,0,0.25)] hover:border-empire-gold/35 hover:text-empire-text'}`}>
                   {p}
                 </button>
               ))}

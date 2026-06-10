@@ -20,14 +20,20 @@ export function Modal({ open, onClose, title, icon, children, width = 'max-w-lg'
 }) {
   const [mounted, setMounted] = useState(false)
   const [visible, setVisible] = useState(false)
+  // Stay mounted for the duration of the exit transition so closing animates
+  // out instead of vanishing in a single frame.
+  const [render, setRender] = useState(open)
   useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
     if (open) {
+      setRender(true)
       const frame = requestAnimationFrame(() => setVisible(true))
       return () => cancelAnimationFrame(frame)
     }
     setVisible(false)
+    const timer = setTimeout(() => setRender(false), 240)
+    return () => clearTimeout(timer)
   }, [open])
 
   useEffect(() => {
@@ -40,14 +46,14 @@ export function Modal({ open, onClose, title, icon, children, width = 'max-w-lg'
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
   }, [open, onClose])
 
-  if (!open || !mounted) return null
+  if (!render || !mounted) return null
   return createPortal(
     <div
       className={`fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto overflow-x-hidden bg-black/60 p-4 backdrop-blur-sm transition-opacity duration-200 ${visible ? 'opacity-100' : 'opacity-0'}`}
       onMouseDown={onClose}
     >
       <div
-        className={`glass-gold w-full max-h-[min(760px,calc(100vh-2rem))] max-w-[calc(100vw-2rem)] overflow-hidden ${width} p-4 transition-all duration-240 sm:p-5 ${visible ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-3 scale-[0.98] opacity-0'}`}
+        className={`glass-gold w-full max-h-[min(760px,calc(100vh-2rem))] max-w-[calc(100vw-2rem)] overflow-hidden ${width} p-4 transition-all duration-[240ms] sm:p-5 ${visible ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-3 scale-[0.98] opacity-0'}`}
         onMouseDown={e => e.stopPropagation()}
       >
         <div className="mb-4 flex min-w-0 items-center gap-2.5">

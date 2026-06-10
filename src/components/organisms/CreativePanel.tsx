@@ -120,17 +120,68 @@ function Overview() {
 }
 
 /* ---------------- Pipeline ---------------- */
+// Manual entry into the asset pipeline — the same data the MCP log_studio_asset
+// tool writes. Optionally links the asset to a ticket by key (e.g. STU-3).
+function AddAssetForm({ onAdded }: { onAdded: () => void }) {
+  const { data: briefs } = useCr<Page<{ id: string; title: string }>>('briefs?pageSize=100')
+  const [form, setForm] = useState({ briefId: '', name: '', kind: 'image', stage: 'concept', reviewer: '', ticketKey: '' })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  async function submit() {
+    if (!form.briefId || !form.name.trim()) return
+    setBusy(true); setError('')
+    try {
+      await post('/api/creative/assets', { ...form, name: form.name.trim(), reviewer: form.reviewer || null, ticketKey: form.ticketKey.trim() || null })
+      setForm({ ...form, name: '', ticketKey: '' })
+      onAdded()
+    } catch {
+      setError(form.ticketKey ? `Could not add the asset — check that ticket "${form.ticketKey.trim().toUpperCase()}" exists.` : 'Could not add the asset — try again.')
+    }
+    setBusy(false)
+  }
+  const briefRows = briefs?.data || []
+  return (
+    <Panel icon="plus" title="Add asset">
+      <div className="flex flex-wrap gap-2 items-end">
+        <select className={inputCls} value={form.briefId} onChange={e => setForm({ ...form, briefId: e.target.value })}>
+          <option value="">Brief…</option>
+          {briefRows.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
+        </select>
+        <input className={`${inputCls} w-48`} placeholder="Asset name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+        <select className={inputCls} value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })}>
+          {['image', 'video', 'copy', 'design', 'motion', 'audio'].map(k => <option key={k} value={k}>{k}</option>)}
+        </select>
+        <select className={inputCls} value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })}>
+          {['concept', 'draft', 'review', 'revision', 'final'].map(k => <option key={k} value={k}>{k}</option>)}
+        </select>
+        <input className={`${inputCls} w-36`} placeholder="Reviewer" value={form.reviewer} onChange={e => setForm({ ...form, reviewer: e.target.value })} />
+        <input className={`${inputCls} w-32`} placeholder="Ticket (STU-3)" value={form.ticketKey} onChange={e => setForm({ ...form, ticketKey: e.target.value })} />
+        <button
+          disabled={busy || !form.briefId || !form.name.trim()}
+          onClick={submit}
+          title={!form.briefId ? 'Pick a brief first' : !form.name.trim() ? 'Name the asset' : undefined}
+          className="px-3 py-1.5 rounded text-sm font-medium text-white disabled:opacity-40"
+          style={{ background: ACCENT }}
+        >{busy ? 'Adding…' : 'Add asset'}</button>
+      </div>
+      {briefRows.length === 0 && <p className="mt-2 text-xs text-empire-text-muted">No briefs yet — create one in the Briefs tab before adding assets.</p>}
+      {error && <p className="mt-2 text-xs text-empire-text" role="alert">{error}</p>}
+    </Panel>
+  )
+}
+
 type Pipe = {
   byStage: { stage: string; count: number; avgVersions: number }[]
   byKind: { kind: string; count: number }[]
   byType: { type: string; count: number }[]
 }
 function Pipeline() {
-  const { data, loading } = useCr<Pipe>('pipeline')
+  const { data, loading, reload } = useCr<Pipe>('pipeline')
   if (loading) return <Loading />
   if (!data) return <EmptyState icon="sparkle" title="No pipeline data" />
   return (
     <div className="space-y-4">
+      <AddAssetForm onAdded={reload} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Panel icon="chart-bar" title="Assets by stage">
           <BarChart data={data.byStage.map(s => s.count)} labels={data.byStage.map(s => s.stage)} color={ACCENT} height={150} />
@@ -171,19 +222,20 @@ function Pipeline() {
 }
 
 /* ---------------- Reviews ---------------- */
-type Round = { id: string; assetName: string; round: number; decision: string; reviewer: string | null; notes: string | null; decidedAt: string | null }
+type Round = { id: string; assetName: string; round: number; decision: string; reviewer: string | null; ticketKey: string | null; notes: string | null; decidedAt: string | null }
 type Reviews = {
   total: number; decided: number; approved: number; changes: number; rejected: number
   approvalRate: number; changeRate: number
   breakdown: { decision: string; count: number }[]; recent: Round[]
 }
 function Reviews() {
-  const { data, loading } = useCr<Reviews>('reviews')
+  const { data, loading, reload } = useCr<Reviews>('reviews')
   if (loading) return <Loading />
   if (!data) return <EmptyState icon="check" title="No reviews" />
   const cols: Column<Round>[] = [
     { key: 'assetName', label: 'Asset', render: r => <div><div className="font-medium text-empire-text">{r.assetName}</div><div className="text-empire-text-dim text-[11px]">round {r.round} · {r.reviewer || '—'}</div></div> },
     { key: 'decision', label: 'Decision', render: r => <Pill text={r.decision.replace(/_/g, ' ')} color={DECISION_COLOR[r.decision] || '#7A7468'} /> },
+    { key: 'ticketKey', label: 'Ticket', render: r => r.ticketKey ? <span className="font-mono text-xs text-empire-gold">{r.ticketKey}</span> : <span className="text-empire-text-dim">—</span> },
     { key: 'notes', label: 'Notes', render: r => <span className="text-empire-text-muted">{r.notes || '—'}</span> },
     { key: 'decidedAt', label: 'Decided', align: 'right', render: r => <span className="text-empire-text-dim text-xs">{r.decidedAt ? new Date(r.decidedAt).toLocaleDateString() : 'pending'}</span> },
   ]
@@ -206,10 +258,52 @@ function Reviews() {
           ))}
         </div>
       </Panel>
+      <LogReviewForm onAdded={reload} />
       <Panel icon="clock" title={`Recent review rounds (${data.recent.length})`}>
         <DataTable columns={cols} rows={data.recent} empty="No review rounds." />
       </Panel>
     </div>
+  )
+}
+
+// Manual review-round entry — same data the MCP log_studio_review tool writes.
+function LogReviewForm({ onAdded }: { onAdded: () => void }) {
+  const [form, setForm] = useState({ assetName: '', round: '1', decision: 'pending', reviewer: '', ticketKey: '', notes: '' })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  async function submit() {
+    if (!form.assetName.trim()) return
+    setBusy(true); setError('')
+    try {
+      await post('/api/creative/reviews', { ...form, assetName: form.assetName.trim(), round: Number(form.round) || 1, reviewer: form.reviewer || null, ticketKey: form.ticketKey.trim() || null, notes: form.notes || null })
+      setForm({ ...form, assetName: '', notes: '', ticketKey: '' })
+      onAdded()
+    } catch {
+      setError(form.ticketKey ? `Could not log the round — check that ticket "${form.ticketKey.trim().toUpperCase()}" exists.` : 'Could not log the review round — try again.')
+    }
+    setBusy(false)
+  }
+  return (
+    <Panel icon="plus" title="Log a review round">
+      <div className="flex flex-wrap gap-2 items-end">
+        <input className={`${inputCls} w-48`} placeholder="Asset name" value={form.assetName} onChange={e => setForm({ ...form, assetName: e.target.value })} />
+        <input className={`${inputCls} w-20`} type="number" min={1} placeholder="Round" value={form.round} onChange={e => setForm({ ...form, round: e.target.value })} />
+        <select className={inputCls} value={form.decision} onChange={e => setForm({ ...form, decision: e.target.value })}>
+          {['pending', 'approved', 'changes_requested', 'rejected'].map(d => <option key={d} value={d}>{d.replace(/_/g, ' ')}</option>)}
+        </select>
+        <input className={`${inputCls} w-36`} placeholder="Reviewer" value={form.reviewer} onChange={e => setForm({ ...form, reviewer: e.target.value })} />
+        <input className={`${inputCls} w-32`} placeholder="Ticket (STU-3)" value={form.ticketKey} onChange={e => setForm({ ...form, ticketKey: e.target.value })} />
+        <input className={`${inputCls} w-56`} placeholder="Notes" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+        <button
+          disabled={busy || !form.assetName.trim()}
+          onClick={submit}
+          title={!form.assetName.trim() ? 'Name the asset first' : undefined}
+          className="px-3 py-1.5 rounded text-sm font-medium text-white disabled:opacity-40"
+          style={{ background: ACCENT }}
+        >{busy ? 'Logging…' : 'Log round'}</button>
+      </div>
+      {error && <p className="mt-2 text-xs text-empire-text" role="alert">{error}</p>}
+    </Panel>
   )
 }
 

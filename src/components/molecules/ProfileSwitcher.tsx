@@ -84,12 +84,17 @@ export function ProfileSwitcher({ compact = false }: { compact?: boolean }) {
 
   const active = companies.find(c => c.slug === activeSlug) ?? companies[0]
 
+  // The chrome carries the active company's name — not the product name.
+  useEffect(() => {
+    if (active?.name) document.title = active.name
+  }, [active?.name])
+
   return (
     <div ref={ref} className="relative select-none">
       {!compact && (
         <div className="mb-1.5 flex items-center gap-2">
           <EmpireIcon name="crown" size={16} className="text-empire-gold" />
-          <span className="font-empire text-sm uppercase tracking-[0.25em] text-empire-text">Empire OS</span>
+          <span className="font-empire text-sm uppercase tracking-[0.25em] text-empire-text">{active?.name ?? 'Empire'}</span>
         </div>
       )}
 
@@ -172,14 +177,22 @@ const label = 'mb-1 block text-[10px] uppercase tracking-widest text-empire-text
 
 /* ---------------- Onboarding wizard (§15 + final_backlog §1-6) ---------------- */
 type Unit = { id: string; name: string; slug: string; description?: string | null }
-type SeedHire = { firstName: string; lastName: string; email: string; password: string; role: string; departmentId: string; salaryAmount: string }
+type SeedHire = {
+  firstName: string; lastName: string; email: string; password: string
+  role: string; departmentId: string; salaryAmount: string
+  // optional employment contract attached in the wizard (stored until provision)
+  contractName: string; contractDataUrl: string
+  // UI: expanded form vs collapsed completed row
+  open: boolean
+}
 
 const INDUSTRIES = ['AI / Software', 'Creative / Media', 'Research & Development', 'Consulting / Advisory', 'Finance', 'E-commerce', 'Healthcare', 'Education', 'Real Estate', 'Other']
 const ACCENTS = [EMPIRE_COLORS.gold, EMPIRE_COLORS.ivory, EMPIRE_COLORS.obsidian]
 // Core units (final_backlog §2) — always enabled, locked on in the picker.
 const CORE_UNIT_SLUGS = ['executive', 'hr', 'finance', 'legal']
 const WIZARD_STEPS = ['Identity', 'Branding', 'Structure', 'Team', 'Review'] as const
-const emptyHire = (departmentId = ''): SeedHire => ({ firstName: '', lastName: '', email: '', password: '', role: '', departmentId, salaryAmount: '' })
+const emptyHire = (departmentId = ''): SeedHire => ({ firstName: '', lastName: '', email: '', password: '', role: '', departmentId, salaryAmount: '', contractName: '', contractDataUrl: '', open: true })
+const isHireValid = (h: SeedHire) => Boolean(h.firstName.trim() && h.lastName.trim() && h.email.trim() && h.password.length >= 10 && h.role.trim() && h.departmentId)
 const isCoreUnit = (u: Unit) => CORE_UNIT_SLUGS.includes(u.slug)
 
 function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; onCreated: (slug: string) => void }) {
@@ -201,6 +214,7 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
   // team
   const [units, setUnits] = useState<Unit[]>([])
   const [hires, setHires] = useState<SeedHire[]>([])
+  const [autoNext, setAutoNext] = useState(true)
   // provisioning
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<string | null>(null)
@@ -209,7 +223,7 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
   useEffect(() => { fetcher('/api/departments').then((d: Unit[]) => setUnits(d || [])).catch(() => {}) }, [])
 
   const shortLabel = short.trim() || name.trim().split(/\s+/)[0]
-  const validHires = hires.filter(h => h.firstName.trim() && h.lastName.trim() && h.email.trim() && h.password.length >= 10 && h.role.trim() && h.departmentId)
+  const validHires = hires.filter(isHireValid)
   const canNext = step !== 0 || name.trim().length > 0
   // The emblem shown everywhere: the explicit pick, else the deterministic auto one.
   const effectiveIcon: IconName = icon ?? deterministicEmblem(name.trim() || shortLabel || 'empire')
@@ -232,6 +246,19 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
   function addHire() { setHires(h => [...h, emptyHire(enabledUnits[0]?.id || '')]) }
   function updateHire(i: number, patch: Partial<SeedHire>) { setHires(h => h.map((row, idx) => idx === i ? { ...row, ...patch } : row)) }
   function removeHire(i: number) { setHires(h => h.filter((_, idx) => idx !== i)) }
+  // "Complete" collapses the form to an editable/deletable row; auto-open-next spawns the next form.
+  function completeHire(i: number) {
+    setHires(h => {
+      const next = h.map((row, idx) => idx === i ? { ...row, open: false } : row)
+      return autoNext ? [...next, emptyHire(enabledUnits[0]?.id || '')] : next
+    })
+  }
+  function attachContract(i: number, file: File | null) {
+    if (!file) { updateHire(i, { contractName: '', contractDataUrl: '' }); return }
+    const reader = new FileReader()
+    reader.onload = () => updateHire(i, { contractName: file.name, contractDataUrl: String(reader.result || '') })
+    reader.readAsDataURL(file)
+  }
 
   async function provision() {
     if (!name.trim()) { setStep(0); return }
@@ -250,11 +277,21 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
       for (let i = 0; i < validHires.length; i++) {
         const h = validHires[i]
         setProgress(`Hiring ${h.firstName} ${h.lastName} (${i + 1}/${validHires.length})…`)
-        await post('/api/employees', {
+        const emp = await post('/api/employees', {
           firstName: h.firstName.trim(), lastName: h.lastName.trim(), email: h.email.trim(), password: h.password,
           role: h.role.trim(), departmentId: h.departmentId,
           ...(h.salaryAmount.trim() && { salaryAmount: Number(h.salaryAmount) }),
         }, c.slug)
+        // Optional employment contract attached in the wizard — filed against the new hire.
+        if (h.contractDataUrl && emp?.id) {
+          setProgress(`Filing contract for ${h.firstName} ${h.lastName}…`)
+          await post('/api/contracts', {
+            type: 'employee', title: `Employment — ${h.firstName.trim()} ${h.lastName.trim()}`,
+            counterparty: `${h.firstName.trim()} ${h.lastName.trim()}`, status: 'active',
+            employeeId: emp.id, departmentId: h.departmentId, fileUrl: h.contractDataUrl,
+            notes: h.contractName ? `Attached at onboarding: ${h.contractName}` : undefined,
+          }, c.slug)
+        }
       }
       setProgress('Done.')
       onCreated(c.slug)
@@ -273,7 +310,7 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
               <button
                 type="button"
                 onClick={() => { if (i < step || (i > step && name.trim())) setStep(i) }}
-                className={`flex w-full min-w-0 items-center justify-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-widest transition-colors ${i === step ? 'border-empire-gold/50 bg-empire-gold/15 text-empire-gold' : i < step ? 'border-empire-border text-empire-text-muted hover:text-empire-text' : 'border-empire-border/60 text-empire-text-dim'}`}
+                className={`no-lift flex w-full min-w-0 items-center justify-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-widest transition-colors ${i === step ? 'border-empire-gold/50 bg-empire-gold/15 text-empire-gold' : i < step ? 'border-empire-border text-empire-text-muted hover:text-empire-text' : 'border-empire-border/60 text-empire-text-dim'}`}
               >
                 <span className={`grid h-4 w-4 place-items-center rounded-full text-[9px] ${i < step ? 'bg-empire-gold/20 text-empire-gold' : 'bg-empire-elevated/60'}`}>
                   {i < step ? <EmpireIcon name="check" size={10} /> : i + 1}
@@ -348,12 +385,12 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
                   ? `No emblem chosen — auto-assigned "${effectiveIcon}" (deterministic from the name).`
                   : 'Pick one, or use Auto for a deterministic emblem.'}
               </p>
-              <div className="grid grid-cols-6 gap-2">
+              <div className="grid grid-cols-9 gap-1.5 sm:grid-cols-12">
                 {EMBLEMS.map(ic => (
                   <button key={ic} type="button" onClick={() => setIcon(ic)}
-                    className={`grid aspect-square place-items-center rounded-lg border transition-colors ${icon === ic ? 'border-empire-gold/60 bg-empire-gold/10 text-empire-gold' : icon === null && effectiveIcon === ic ? 'border-empire-gold/30 bg-empire-gold/5 text-empire-gold/70' : 'border-empire-border text-empire-text-muted hover:text-empire-text'}`}
+                    className={`grid h-9 w-9 place-items-center rounded-lg border transition-colors ${icon === ic ? 'border-empire-gold/60 bg-empire-gold/10 text-empire-gold' : icon === null && effectiveIcon === ic ? 'border-empire-gold/30 bg-empire-gold/5 text-empire-gold/70' : 'border-empire-border text-empire-text-muted hover:text-empire-text'}`}
                     aria-label={ic}>
-                    <EmpireIcon name={ic} size={18} />
+                    <EmpireIcon name={ic} size={16} />
                   </button>
                 ))}
               </div>
@@ -410,8 +447,8 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
               Seed the starting team (optional). Each hire lands in the chosen Unit, scoped to this company. You can
               add more later from any Unit.
             </p>
-            <div className="space-y-2">
-              {hires.map((h, i) => (
+            <div className="max-h-[19rem] space-y-2 overflow-y-auto pr-1">
+              {hires.map((h, i) => h.open ? (
                 <div key={i} className="rounded-xl border border-empire-border bg-empire-surface/40 p-2.5">
                   <div className="grid grid-cols-2 gap-2">
                     <input className={field} value={h.firstName} onChange={e => updateHire(i, { firstName: e.target.value })} placeholder="First name" />
@@ -424,20 +461,56 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
                       {enabledUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                     </select>
                     <input className={field} type="number" min="0" value={h.salaryAmount} onChange={e => updateHire(i, { salaryAmount: e.target.value })} placeholder="Salary (optional)" />
+                    <label className={`${field} flex cursor-pointer items-center gap-1.5 overflow-hidden text-empire-text-dim`}>
+                      <EmpireIcon name={h.contractName ? 'check' : 'plus'} size={12} className={h.contractName ? 'shrink-0 text-empire-gold' : 'shrink-0'} />
+                      <span className="truncate text-xs">{h.contractName || 'Attach contract (optional)'}</span>
+                      <input type="file" accept=".pdf,.md,.txt,.doc,.docx" className="hidden" onChange={e => attachContract(i, e.target.files?.[0] || null)} />
+                    </label>
                   </div>
-                  <div className="mt-1.5 flex justify-end">
+                  <div className="mt-2 flex items-center justify-between gap-2">
                     <button type="button" onClick={() => removeHire(i)} className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-empire-text-dim transition-colors hover:text-empire-red-bright">
                       <EmpireIcon name="trash" size={12} /> Remove
                     </button>
+                    <button type="button" onClick={() => completeHire(i)} disabled={!isHireValid(h)}
+                      className="flex items-center gap-1.5 rounded-lg border border-empire-gold/40 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-empire-gold transition-colors hover:bg-empire-gold/10 disabled:cursor-not-allowed disabled:opacity-40">
+                      <EmpireIcon name="check" size={12} /> Complete hire
+                    </button>
                   </div>
+                </div>
+              ) : (
+                <div key={i} className="flex items-center gap-2.5 rounded-xl border border-empire-border bg-empire-surface/40 px-3 py-2 animate-fade-in">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-empire-gold/15 text-[10px] font-semibold text-empire-gold">
+                    {(h.firstName[0] || '').toUpperCase()}{(h.lastName[0] || '').toUpperCase()}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium text-empire-text">{h.firstName} {h.lastName} · <span className="text-empire-text-muted">{h.role}</span></p>
+                    <p className="truncate text-[10px] uppercase tracking-widest text-empire-text-dim">
+                      {enabledUnits.find(u => u.id === h.departmentId)?.name || '—'}{h.contractName && <> · <span className="text-empire-gold/80">contract attached</span></>}
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => updateHire(i, { open: true })} title="Edit hire"
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-empire-text-dim transition-colors hover:bg-empire-surface hover:text-empire-text">
+                    <EmpireIcon name="pen" size={13} />
+                  </button>
+                  <button type="button" onClick={() => removeHire(i)} title="Remove hire"
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-empire-text-dim transition-colors hover:bg-empire-red/10 hover:text-empire-red-bright">
+                    <EmpireIcon name="trash" size={13} />
+                  </button>
                 </div>
               ))}
               {hires.length === 0 && <p className="rounded-lg border border-dashed border-empire-border/70 px-3 py-4 text-center text-[11px] text-empire-text-dim">No hires yet — the tenant can start empty.</p>}
             </div>
-            <button type="button" onClick={addHire} disabled={!enabledUnits.length}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-empire-gold/40 px-3 py-2 text-xs text-empire-gold transition-colors hover:bg-empire-gold/10 disabled:opacity-50">
-              <EmpireIcon name="plus" size={14} /> Add hire
-            </button>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={addHire} disabled={!enabledUnits.length}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-dashed border-empire-gold/40 px-3 py-2 text-xs text-empire-gold transition-colors hover:bg-empire-gold/10 disabled:opacity-50">
+                <EmpireIcon name="plus" size={14} /> Add hire
+              </button>
+              <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-[11px] text-empire-text-muted">
+                <input type="checkbox" checked={autoNext} onChange={e => setAutoNext(e.target.checked)}
+                  className="h-3.5 w-3.5 shrink-0 accent-[#c9a233]" />
+                Auto-open next hire
+              </label>
+            </div>
           </div>
         )}
 

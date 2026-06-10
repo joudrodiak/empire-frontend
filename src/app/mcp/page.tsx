@@ -47,6 +47,14 @@ function Connection() {
       if (source && ['codex', 'claude'].includes(source.toLowerCase())) setWizardSource(source.toLowerCase())
     } catch { /* noop */ }
   }, [load])
+  // After a wizard key is issued, poll until the platform actually calls the
+  // endpoint (lastUsedAt flips) so the user gets a real connection confirmation.
+  const confirmed = rows.some(r => !r.revokedAt && r.lastUsedAt)
+  useEffect(() => {
+    if (!secret || confirmed) return
+    const timer = setInterval(() => { load().catch(() => {}) }, 4000)
+    return () => clearInterval(timer)
+  }, [secret, confirmed, load])
   async function create() {
     const name = wizardSource ? `${wizardSource === 'claude' ? 'Claude' : 'Codex'} wizard key` : 'Wizard key'
     const r = await post('/api/mcp/credentials', { name })
@@ -77,12 +85,19 @@ function Connection() {
         <Fact label="Permissions" value={meta.permissions.join(', ') || 'read-only'} />
       </div>
       <pre className="mt-4 overflow-x-auto rounded-lg border border-empire-border bg-empire-void/70 p-3 text-[11px] text-empire-text-muted">{JSON.stringify({
-        mcpServers: { empire: { url: `${origin}${meta.endpoint}`, token: 'YOUR_CLIENT_ID_TOKEN' } },
+        mcpServers: { empire: { url: `${origin}${meta.endpoint}`, headers: { Authorization: 'Bearer emp_mcp_YOUR_TOKEN' } } },
       }, null, 2)}</pre>
+      <p className="mt-2 text-[11px] text-empire-text-dim">Paste the token value only — the worker accepts it bare or as a Bearer header. No Client-ID prefix.</p>
     </GlassPanel>}
     {secret && <GlassPanel variant="gold" className="p-4">
       <p className="text-xs font-semibold text-empire-text">Copy this key now. It is shown once.</p>
       <code className="mt-2 block break-all text-xs text-empire-gold">{secret}</code>
+      <div className={`mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${confirmed ? 'border-empire-gold/40 bg-empire-gold/10 text-empire-gold' : 'border-empire-border bg-empire-elevated/40 text-empire-text-muted'}`}>
+        <EmpireIcon name={confirmed ? 'check' : 'clock'} size={14} />
+        {confirmed
+          ? 'Connection confirmed — the platform has reached your worker.'
+          : 'Waiting for the platform to call in… paste the token there and this will confirm automatically.'}
+      </div>
     </GlassPanel>}
     <GlassPanel className="p-5">
       <div className="mb-3 flex items-center justify-between"><h2 className="font-empire text-lg text-empire-text">Credentials</h2><LiquidMetalButton size="sm" onClick={create}>Generate wizard key</LiquidMetalButton></div>

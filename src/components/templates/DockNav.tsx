@@ -34,8 +34,26 @@ export function DockNav() {
   const [unitsOpen, setUnitsOpen] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
   const [units, setUnits] = useState<Unit[]>([])
+  const [unitsLeft, setUnitsLeft] = useState(0)
+  const [userLeft, setUserLeft] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
+  const pillRef = useRef<HTMLDivElement>(null)
+  const unitsBtnRef = useRef<HTMLButtonElement>(null)
+  const userBtnRef = useRef<HTMLButtonElement>(null)
   const { user, logout } = useAuth()
+
+  // Popovers anchor to their trigger button's horizontal center (clamped to the
+  // viewport) instead of the dock's right edge, so they never appear "flying".
+  const anchorLeft = (btn: HTMLButtonElement | null, popWidth: number) => {
+    if (!btn || !pillRef.current) return 0
+    const w = Math.min(popWidth, window.innerWidth * 0.92)
+    const wrapLeft = pillRef.current.getBoundingClientRect().left
+    const btnRect = btn.getBoundingClientRect()
+    const center = btnRect.left + btnRect.width / 2 - wrapLeft
+    const min = 8 - wrapLeft
+    const max = window.innerWidth - 8 - w - wrapLeft
+    return Math.max(min, Math.min(center - w / 2, max))
+  }
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setUnitsOpen(false); setUserOpen(false) } }
@@ -56,10 +74,10 @@ export function DockNav() {
 
   return (
     <div ref={ref} className="fixed inset-x-0 bottom-5 z-40 flex justify-center px-4 print:hidden">
-      <div className="relative">
+      <div ref={pillRef} className="relative">
         {/* Units launcher popover */}
         {unitsOpen && (
-          <GlassPanel variant="gold" className="absolute bottom-[calc(100%+12px)] right-0 w-[min(92vw,560px)] origin-bottom-right animate-pop-in p-3">
+          <GlassPanel variant="gold" style={{ left: unitsLeft }} className="absolute bottom-[calc(100%+12px)] w-[min(92vw,560px)] origin-bottom animate-pop-in p-3">
             <p className="px-1 pb-2 text-[10px] uppercase tracking-widest text-empire-text-muted">{TERMS.units} · {TERMS.domains}</p>
             <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
               {(units.length ? units : MICROSERVICES).map(ms => {
@@ -95,7 +113,8 @@ export function DockNav() {
           })}
 
           <button
-            onClick={() => setUnitsOpen(o => !o)}
+            ref={unitsBtnRef}
+            onClick={() => { setUnitsLeft(anchorLeft(unitsBtnRef.current, 560)); setUserOpen(false); setUnitsOpen(o => !o) }}
             className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-medium transition-colors ${onUnit || unitsOpen ? 'bg-empire-gold/15 text-empire-gold' : 'text-empire-text-muted hover:bg-empire-elevated/60 hover:text-empire-text'}`}
           >
             <EmpireIcon name="shield" size={16} />
@@ -110,7 +129,8 @@ export function DockNav() {
             <>
               <span className="mx-0.5 h-6 w-px bg-empire-border/60" aria-hidden />
               <button
-                onClick={() => setUserOpen(o => !o)}
+                ref={userBtnRef}
+                onClick={() => { setUserLeft(anchorLeft(userBtnRef.current, 256)); setUnitsOpen(false); setUserOpen(o => !o) }}
                 title={user.name}
                 className={`flex items-center gap-2 rounded-full py-1 pl-1 pr-2.5 text-xs font-medium transition-colors ${userOpen ? 'bg-empire-gold/15 text-empire-gold' : 'text-empire-text-muted hover:bg-empire-elevated/60 hover:text-empire-text'}`}
               >
@@ -124,7 +144,7 @@ export function DockNav() {
 
         {/* User menu popover (role/rank · admin · logout) */}
         {user && userOpen && (
-          <GlassPanel variant="gold" className="absolute bottom-[calc(100%+12px)] right-0 w-64 origin-bottom animate-pop-in p-2">
+          <GlassPanel variant="gold" style={{ left: userLeft }} className="absolute bottom-[calc(100%+12px)] w-64 origin-bottom animate-pop-in p-2">
             <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
               <span className="grid h-9 w-9 place-items-center rounded-full bg-empire-gold/15 font-empire text-sm text-empire-gold">{initials}</span>
               <div className="min-w-0">

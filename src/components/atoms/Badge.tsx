@@ -22,8 +22,9 @@ const RAG_DOT: Record<string, string> = {
 }
 
 export function RagBadge({ status }: { status: string }) {
-  const s = (status || 'not measured').toLowerCase()
-  const tone = s.startsWith('g') ? 'green' : s.startsWith('a') ? 'amber' : s.startsWith('r') ? 'red' : 'muted'
+  const s = status || 'TBD'
+  const k = s.toLowerCase()
+  const tone = k.startsWith('g') ? 'green' : k.startsWith('a') ? 'amber' : k.startsWith('r') ? 'red' : 'muted'
   return (
     <Badge tone={tone as any}>
       <span className={cn('w-1.5 h-1.5 rounded-full', RAG_DOT[tone])} />

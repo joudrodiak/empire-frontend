@@ -10,12 +10,12 @@ describe('Badge', () => {
 })
 
 describe('RagBadge', () => {
-  it('lowercases and shows the status', () => {
+  it('shows the status text', () => {
     render(<RagBadge status="GREEN" />)
-    expect(screen.getByText('green')).toBeInTheDocument()
+    expect(screen.getByText('GREEN')).toBeInTheDocument()
   })
-  it('falls back to not measured when empty', () => {
+  it('falls back to TBD when empty', () => {
     render(<RagBadge status="" />)
-    expect(screen.getByText('not measured')).toBeInTheDocument()
+    expect(screen.getByText('TBD')).toBeInTheDocument()
   })
 })

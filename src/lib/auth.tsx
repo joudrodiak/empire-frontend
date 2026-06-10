@@ -64,11 +64,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await fetch(`${API}/api/auth/login`, {
+    // First request of a session can hit a cold Lambda and time out at the
+    // gateway; a wrong password (4xx) fails immediately, but transient 5xx /
+    // network errors get one automatic retry so the user never sees a bogus
+    // "Login failed" on the first attempt.
+    const attempt = async () => fetch(`${API}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     })
+    let res: Response
+    try {
+      res = await attempt()
+      if (res.status >= 500) {
+        await new Promise(r => setTimeout(r, 800))
+        res = await attempt()
+      }
+    } catch {
+      await new Promise(r => setTimeout(r, 800))
+      res = await attempt()
+    }
     const body = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(body?.error || 'Login failed')
     setStoredToken(body.token)
@@ -82,6 +97,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refresh()
+    // Warm the api Lambda as soon as the app loads so the user's first real
+    // request (usually the login POST) doesn't pay the cold-start penalty.
+    fetch(`${API}/api/health`).catch(() => { /* warm-up only */ })
     // a 401 anywhere in the api layer dispatches this — force a clean logout.
     const onExpire = () => { setStoredToken(null); setUser(null) }
     if (typeof window !== 'undefined') window.addEventListener('empire-auth-expired', onExpire)

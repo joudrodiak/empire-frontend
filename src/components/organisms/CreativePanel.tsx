@@ -5,6 +5,7 @@ import { KpiCard, Panel, AreaChart, BarChart, DonutChart, ProgressBar, DataTable
 import { Pagination } from '@/components/molecules/Pagination'
 import { RowActions } from '@/components/molecules/RowActions'
 import { Modal } from '@/components/molecules/Modal'
+import { TicketSelect } from '@/components/molecules/TicketSelect'
 import { fetcher, post, patch, del } from '@/lib/api'
 import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
@@ -155,7 +156,7 @@ function AddAssetForm({ onAdded }: { onAdded: () => void }) {
           {['concept', 'draft', 'review', 'revision', 'final'].map(k => <option key={k} value={k}>{k}</option>)}
         </select>
         <input className={`${inputCls} w-36`} placeholder="Reviewer" value={form.reviewer} onChange={e => setForm({ ...form, reviewer: e.target.value })} />
-        <input className={`${inputCls} w-32`} placeholder="Ticket (STU-3)" value={form.ticketKey} onChange={e => setForm({ ...form, ticketKey: e.target.value })} />
+        <TicketSelect className={`${inputCls} w-52`} value={form.ticketKey} onChange={ticketKey => setForm({ ...form, ticketKey })} />
         <button
           disabled={busy || !form.briefId || !form.name.trim()}
           onClick={submit}
@@ -292,7 +293,7 @@ function LogReviewForm({ onAdded }: { onAdded: () => void }) {
           {['pending', 'approved', 'changes_requested', 'rejected'].map(d => <option key={d} value={d}>{d.replace(/_/g, ' ')}</option>)}
         </select>
         <input className={`${inputCls} w-36`} placeholder="Reviewer" value={form.reviewer} onChange={e => setForm({ ...form, reviewer: e.target.value })} />
-        <input className={`${inputCls} w-32`} placeholder="Ticket (STU-3)" value={form.ticketKey} onChange={e => setForm({ ...form, ticketKey: e.target.value })} />
+        <TicketSelect className={`${inputCls} w-52`} value={form.ticketKey} onChange={ticketKey => setForm({ ...form, ticketKey })} />
         <input className={`${inputCls} w-56`} placeholder="Notes" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
         <button
           disabled={busy || !form.assetName.trim()}

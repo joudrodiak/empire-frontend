@@ -300,7 +300,7 @@ function Renewals() {
 }
 
 /* ---------------- Support ---------------- */
-type Ticket = { id: string; subject: string; priority: string; status: string; csat: number | null; account: string; tier: string; openedAt: string; ageHours: number }
+type Ticket = { id: string; subject: string; priority: string; status: string; csat: number | null; ticketKey: string | null; account: string; tier: string; openedAt: string; ageHours: number }
 const TICKET_FIELDS: FieldDef[] = [
   { key: 'subject', label: 'Subject', full: true },
   { key: 'account', label: 'Account', readOnly: true },
@@ -311,6 +311,13 @@ const TICKET_FIELDS: FieldDef[] = [
 function Support() {
   const [page, setPage] = useState(0)
   const [status, setStatus] = useState('')
+  // Unit tickets for the cross-department link dropdown — picked, never typed.
+  const [unitTickets, setUnitTickets] = useState<{ value: string; label: string }[]>([])
+  useEffect(() => {
+    fetcher('/api/tickets?pageSize=100')
+      .then((r: any) => setUnitTickets((Array.isArray(r?.data) ? r.data : []).map((t: any) => ({ value: t.key, label: `${t.key} — ${t.title}` }))))
+      .catch(() => setUnitTickets([]))
+  }, [])
   const { data, loading, reload } = useCS<Page<Ticket>>(`tickets?pageSize=15&page=${page + 1}${status ? `&status=${status}` : ''}`)
   const [active, setActive] = useState<{ row: Ticket; mode: 'view' | 'edit' } | null>(null)
   async function setTicketStatus(id: string, s: string) { await patch(`/api/client-success/tickets/${id}`, { status: s }).catch(console.error); reload() }
@@ -322,6 +329,7 @@ function Support() {
     { key: 'priority', label: 'Prio', render: t => <Pill text={t.priority} color={PRIO_COLOR[t.priority] || '#7A7468'} /> },
     { key: 'subject', label: 'Subject', render: t => <div><div className="font-medium text-empire-text text-sm">{t.subject}</div><div className="text-empire-text-dim text-[11px]">{t.account}</div></div> },
     { key: 'ageHours', label: 'Age', align: 'right', render: t => <span className="text-empire-text-muted text-xs">{t.ageHours < 24 ? `${t.ageHours}h` : `${Math.round(t.ageHours / 24)}d`}</span> },
+    { key: 'ticketKey', label: 'Ticket', render: t => t.ticketKey ? <span className="font-mono text-xs text-empire-gold">{t.ticketKey}</span> : <span className="text-empire-text-dim">—</span> },
     { key: 'csat', label: 'CSAT', align: 'right', render: t => t.csat != null ? <Stars n={t.csat} color={t.csat >= 4 ? '#C9A233' : t.csat >= 3 ? '#C9A233' : '#F4EFE3'} /> : <span className="text-empire-text-dim">—</span> },
     { key: 'status', label: 'Status', align: 'right', render: t => t.status === 'resolved'
         ? <Pill text="resolved" color="#C9A233" />
@@ -347,7 +355,7 @@ function Support() {
         icon="lifebuoy"
         accent={ACCENT}
         entity={active?.row ?? null}
-        fields={TICKET_FIELDS}
+        fields={[...TICKET_FIELDS, { key: 'ticketKey', label: 'Linked unit ticket', type: 'select', options: [{ value: '', label: 'No linked ticket' }, ...unitTickets] }]}
         onClose={() => setActive(null)}
         onSave={saveEdit}
       />

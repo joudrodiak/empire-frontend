@@ -123,7 +123,7 @@ export function ragLabel(status: string) {
     case 'GREEN': return 'Thriving'
     case 'AMBER': return 'Stable'
     case 'RED': return 'Critical'
-    default: return 'Not measured'
+    default: return 'TBD'
   }
 }
 

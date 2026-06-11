@@ -65,6 +65,8 @@ type Deal = {
   currency: string
   status: string
   notes?: string | null
+  partnerId?: string | null
+  commissionRate?: number | null
   commissionAmount: number | null
   linkedUnitSlug?: string | null
   linkedEntityType?: string | null
@@ -640,7 +642,7 @@ function DealsTab({ deals, setDeals, employees }: { deals: Deal[]; setDeals: (d:
     try {
       const deal = await post('/api/deals', {
         title: form.title, client: form.client, amount: Number(form.amount),
-        notes: form.notes, commissionRate: earner?.commissionRate ?? 0,
+        notes: form.notes, partnerId: earner?.id, commissionRate: earner?.commissionRate ?? 0,
       })
       setDeals([deal, ...deals])
       setForm({ title: '', client: '', amount: '', notes: '' })
@@ -766,7 +768,9 @@ function DealsTab({ deals, setDeals, employees }: { deals: Deal[]; setDeals: (d:
             <div className="text-right shrink-0">
               <div className="text-empire-gold text-sm font-medium">{formatCurrency(deal.amount)}</div>
               {deal.commissionAmount && (
-                <div className="text-empire-text-muted text-xs">Commission: {formatCurrency(deal.commissionAmount)}</div>
+                <div className="text-empire-text-muted text-xs">
+                  Commission{(() => { const p = employees.find(e => e.id === deal.partnerId); return p ? ` (${p.name.split(' ')[0]})` : '' })()}: {formatCurrency(deal.commissionAmount)}
+                </div>
               )}
             </div>
             <RowActions
@@ -789,7 +793,8 @@ function DealsTab({ deals, setDeals, employees }: { deals: Deal[]; setDeals: (d:
             <DealField label="Client" value={viewing.client} />
             <DealField label="Value" value={formatCurrency(viewing.amount)} />
             <DealField label="Status" value={titleCase(viewing.status)} />
-            <DealField label="Commission" value={viewing.commissionAmount ? formatCurrency(viewing.commissionAmount) : '—'} />
+            <DealField label="Commission" value={viewing.commissionAmount ? `${formatCurrency(viewing.commissionAmount)}${viewing.commissionRate != null ? ` (${viewing.commissionRate}%)` : ''}` : '—'} />
+            <DealField label="Commission earner" value={(() => { const p = employees.find(e => e.id === viewing.partnerId); return p ? `${p.name} · ${p.commissionRate ?? viewing.commissionRate ?? '—'}% from profile` : 'Not assigned' })()} />
             <DealField label="Linked Unit" value={viewing.linkedUnitSlug ? titleCase(viewing.linkedUnitSlug) : 'Not linked'} />
             {viewing.notes && <DealField label="Notes" value={viewing.notes} />}
             <div className="flex justify-end gap-2 pt-2">

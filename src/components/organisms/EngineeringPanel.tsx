@@ -248,10 +248,10 @@ function ServiceForm({ open, service, onClose, onSaved }: { open: boolean; servi
               {Object.keys(TIER_COLOR).map(t => <option key={t} value={t}>{t}</option>)}
             </select></label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Stack</span>
-            <input className={modalInput} value={f.language ?? ''} onChange={e => set('language', e.target.value)} /></label>
+            <input className={modalInput} value={f.language ?? ''} placeholder="TypeScript / Node" onChange={e => set('language', e.target.value)} /></label>
         </div>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Repo</span>
-          <input className={modalInput} value={f.repo ?? ''} onChange={e => set('repo', e.target.value)} /></label>
+          <input className={modalInput} value={f.repo ?? ''} placeholder="github.com/org/repo" onChange={e => set('repo', e.target.value)} /></label>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Owner</span>
           <input className={modalInput} placeholder="e.g. Lukas Beckers" value={f.ownerName ?? ''} onChange={e => set('ownerName', e.target.value)} /></label>
         {error && <p className="text-xs text-empire-text" role="alert">{error}</p>}
@@ -510,7 +510,7 @@ function SprintEdit({ sprint, onClose, onSaved }: { sprint: Spr | null; onClose:
     <Modal open={!!sprint} onClose={onClose} title="Edit sprint" icon={<EmpireIcon name="pen" size={18} />}>
       <div className="space-y-3">
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Name</span>
-          <input className={modalInput} value={f.name ?? ''} onChange={e => set('name', e.target.value)} /></label>
+          <input className={modalInput} value={f.name ?? ''} placeholder="Sprint 24" onChange={e => set('name', e.target.value)} /></label>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Goal</span>
           <textarea className={modalInput} rows={2} value={f.goal ?? ''} onChange={e => set('goal', e.target.value)} /></label>
         <div className="grid grid-cols-3 gap-3">
@@ -519,9 +519,9 @@ function SprintEdit({ sprint, onClose, onSaved }: { sprint: Spr | null; onClose:
               {['planned', 'active', 'completed'].map(s => <option key={s} value={s}>{s}</option>)}
             </select></label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Committed</span>
-            <input type="number" className={modalInput} value={f.committedPoints ?? ''} onChange={e => set('committedPoints', e.target.value)} /></label>
+            <input type="number" className={modalInput} value={f.committedPoints ?? ''} placeholder="0" onChange={e => set('committedPoints', e.target.value)} /></label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Completed</span>
-            <input type="number" className={modalInput} value={f.completedPoints ?? ''} onChange={e => set('completedPoints', e.target.value)} /></label>
+            <input type="number" className={modalInput} value={f.completedPoints ?? ''} placeholder="0" onChange={e => set('completedPoints', e.target.value)} /></label>
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>

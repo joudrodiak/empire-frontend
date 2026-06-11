@@ -99,7 +99,7 @@ export function EntityFormModal<T extends Record<string, any>>({
                 <input
                   className={inputCls}
                   type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'}
-                  value={form[f.key] ?? ''}
+                  value={form[f.key] ?? ''} placeholder={f.label}
                   onChange={e => setForm({ ...form, [f.key]: e.target.value })}
                 />
               )}

@@ -4,6 +4,7 @@ import { cn } from '@/components/atoms/cn'
 import { Sparkline } from '@/components/atoms/Sparkline'
 import { EmpireIcon, type IconName } from '@/components/atoms/EmpireIcon'
 import { InfoTip } from '@/components/atoms/InfoTip'
+import { metricInfo } from '@/lib/metric-info'
 
 export function KpiCard({ label, value, sub, delta, deltaGood = true, spark, accent = '#c9a233', icon, info }: {
   label: string; value: string; sub?: string
@@ -13,6 +14,9 @@ export function KpiCard({ label, value, sub, delta, deltaGood = true, spark, acc
   // Optional (?) hover explanation of what this metric means.
   info?: string
 }) {
+  // Explicit info wins; otherwise fall back to the central metric dictionary
+  // so every known metric ships an explanation (backlog A17).
+  const tip = info ?? metricInfo(label)
   return (
     <div className="glass group relative flex min-h-[112px] flex-col justify-between rounded-lg p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-gold-glow">
       <div className="pointer-events-none absolute inset-x-3 top-0 h-px bg-empire-gold/45 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
@@ -20,7 +24,7 @@ export function KpiCard({ label, value, sub, delta, deltaGood = true, spark, acc
         <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-empire-text-muted min-w-0">
           {icon && <EmpireIcon name={icon} size={13} className="text-empire-text-dim group-hover:text-empire-gold/70 transition-colors shrink-0" />}
           <span className="truncate tracking-[0.12em]">{label}</span>
-          {info && <InfoTip text={info} />}
+          {tip && <InfoTip text={tip} />}
         </span>
         {delta && (
           <span className={cn('shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded',

@@ -9,6 +9,7 @@ import { TabBar } from '@/components/templates/TabBar'
 import { LiquidMetalButton } from '@/components/atoms/LiquidMetalButton'
 import { EmptyState } from '@/components/atoms/EmptyState'
 import { FileDrop } from '@/components/molecules/FileDrop'
+import { CURRENCIES, CURRENCY_KEY, currencyCode, type CurrencyCode } from '@/lib/currency'
 
 /**
  * /settings — the Empire OS configuration surface. Four lanes:
@@ -213,14 +214,14 @@ function CompanyTab({ canManage }: { canManage: boolean }) {
           </div>
         )}
         <div className="grid gap-3 sm:grid-cols-2">
-          <div><label className={label}>Name</label><input disabled={!canManage} className={field} value={form.name ?? ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-          <div><label className={label}>Short</label><input disabled={!canManage} className={field} value={form.short ?? ''} onChange={e => setForm(f => ({ ...f, short: e.target.value }))} /></div>
+          <div><label className={label}>Name</label><input disabled={!canManage} className={field} value={form.name ?? ''} placeholder="Company name" onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+          <div><label className={label}>Short</label><input disabled={!canManage} className={field} value={form.short ?? ''} placeholder="e.g. CGN" onChange={e => setForm(f => ({ ...f, short: e.target.value }))} /></div>
         </div>
-        <div><label className={label}>Tagline</label><input disabled={!canManage} className={field} value={form.tagline ?? ''} onChange={e => setForm(f => ({ ...f, tagline: e.target.value }))} /></div>
+        <div><label className={label}>Tagline</label><input disabled={!canManage} className={field} value={form.tagline ?? ''} placeholder="One line of identity" onChange={e => setForm(f => ({ ...f, tagline: e.target.value }))} /></div>
         <div className="grid gap-3 sm:grid-cols-3">
-          <div><label className={label}>Type</label><input disabled={!canManage} className={field} value={form.type ?? ''} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} /></div>
-          <div><label className={label}>HQ</label><input disabled={!canManage} className={field} value={form.hq ?? ''} onChange={e => setForm(f => ({ ...f, hq: e.target.value }))} /></div>
-          <div><label className={label}>Founded</label><input disabled={!canManage} className={field} value={form.founded ?? ''} onChange={e => setForm(f => ({ ...f, founded: e.target.value }))} /></div>
+          <div><label className={label}>Type</label><input disabled={!canManage} className={field} value={form.type ?? ''} placeholder="Subsidiary" onChange={e => setForm(f => ({ ...f, type: e.target.value }))} /></div>
+          <div><label className={label}>HQ</label><input disabled={!canManage} className={field} value={form.hq ?? ''} placeholder="Amsterdam" onChange={e => setForm(f => ({ ...f, hq: e.target.value }))} /></div>
+          <div><label className={label}>Founded</label><input disabled={!canManage} className={field} value={form.founded ?? ''} placeholder="2024" onChange={e => setForm(f => ({ ...f, founded: e.target.value }))} /></div>
         </div>
         <div className="rounded-xl border border-empire-border bg-empire-surface/40 p-3">
           <div className="mb-2 flex items-center justify-between gap-3">
@@ -284,12 +285,19 @@ const SCALES: { id: TextScale; label: string; px: string; hint: string }[] = [
 
 function AppearanceTab() {
   const [scale, setScale] = useState<TextScale>('medium')
+  const [currency, setCurrency] = useState<CurrencyCode>('EUR')
   useEffect(() => {
     try {
       const s = localStorage.getItem(SCALE_KEY)
       if (s === 'small' || s === 'large') setScale(s)
     } catch { /* noop */ }
+    setCurrency(currencyCode())
   }, [])
+
+  function applyCurrency(code: CurrencyCode) {
+    setCurrency(code)
+    try { localStorage.setItem(CURRENCY_KEY, code) } catch { /* noop */ }
+  }
 
   // The whole UI is rem-based, so swapping the root font-size class rescales
   // every surface at once (classes defined in globals.css).
@@ -319,6 +327,23 @@ function AppearanceTab() {
               <span className={`font-empire text-empire-text ${s.id === 'small' ? 'text-sm' : s.id === 'medium' ? 'text-base' : 'text-lg'}`}>Aa</span>
               <p className="mt-1 text-xs font-semibold text-empire-text">{s.label} <span className="font-data text-[10px] text-empire-text-dim">{s.px}</span></p>
               <p className="text-[11px] text-empire-text-muted">{s.hint}</p>
+            </button>
+          ))}
+        </div>
+        <div className="border-t border-empire-border pt-4">
+          <p className="text-sm font-semibold text-empire-text">Currency</p>
+          <p className="text-[11px] text-empire-text-muted">Symbol shown inside money fields across the platform. Persists on this device.</p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {CURRENCIES.map(c => (
+            <button
+              key={c.code}
+              onClick={() => applyCurrency(c.code)}
+              aria-pressed={currency === c.code}
+              className={`rounded-xl border p-3 text-left transition-all duration-200 hover:-translate-y-0.5 ${currency === c.code ? 'border-empire-gold/60 bg-empire-gold/10 shadow-gold-glow' : 'border-empire-border bg-empire-elevated/40 hover:border-empire-gold/40'}`}
+            >
+              <span className="font-empire text-base text-empire-text">{c.symbol}</span>
+              <p className="mt-1 text-xs font-semibold text-empire-text">{c.label}</p>
             </button>
           ))}
         </div>

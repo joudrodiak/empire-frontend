@@ -1,5 +1,6 @@
 'use client'
 import React, { useEffect, useState } from 'react'
+import { ChartEmpty } from './ChartEmpty'
 
 /**
  * DonutChart — dimensional ring with a soft inner shadow, glossy segment caps,
@@ -15,7 +16,12 @@ export function DonutChart({
   valueFormat?: (total: number) => string
   gap?: number
 }) {
-  const total = segments.reduce((s, x) => s + x.value, 0) || 1
+  const empty = segments.length === 0 || segments.every(s => !s.value)
+  // Segment filter (backlog C1): clicking a legend row excludes/includes that
+  // segment; arcs stay index-aligned by treating excluded values as 0.
+  const [off, setOff] = useState<Set<number>>(new Set())
+  const eff = segments.map((s, i) => (off.has(i) ? { ...s, value: 0 } : s))
+  const total = eff.reduce((s, x) => s + x.value, 0) || 1
   const id = React.useId()
   const r = size / 2 - thickness / 2 - 2, cx = size / 2, cy = size / 2, C = 2 * Math.PI * r
   const [drawn, setDrawn] = useState(false)
@@ -25,13 +31,15 @@ export function DonutChart({
   useEffect(() => { const t = requestAnimationFrame(() => setDrawn(true)); return () => cancelAnimationFrame(t) }, [])
 
   let offset = 0
-  const arcs = segments.map((s, i) => {
+  const arcs = eff.map((s, i) => {
     const frac = s.value / total
     const len = frac * C
     const seg = { ...s, i, frac, len, dash: offset }
     offset += len
     return seg
   })
+
+  if (empty) return <ChartEmpty height={size} icon="chart-bar" />
 
   return (
     <div className="flex items-center gap-5">
@@ -41,12 +49,6 @@ export function DonutChart({
             <filter id={`${id}sh`} x="-30%" y="-30%" width="160%" height="160%">
               <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#000" floodOpacity="0.45" />
             </filter>
-            {arcs.map((s) => (
-              <linearGradient key={s.i} id={`${id}g${s.i}`} x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor={s.color} stopOpacity="1" />
-                <stop offset="100%" stopColor={s.color} stopOpacity="0.72" />
-              </linearGradient>
-            ))}
           </defs>
           {/* track */}
           <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgb(var(--e-elevated))" strokeWidth={thickness}
@@ -59,7 +61,7 @@ export function DonutChart({
               <circle
                 key={s.i}
                 cx={cx} cy={cy} r={r} fill="none"
-                stroke={`url(#${id}g${s.i})`}
+                stroke={s.color}
                 strokeWidth={on ? thickness + 3 : thickness}
                 strokeDasharray={`${Math.max(0, visible - gap)} ${C - Math.max(0, visible - gap)}`}
                 strokeDashoffset={-s.dash}
@@ -87,19 +89,30 @@ export function DonutChart({
         </div>
       </div>
       <div className="space-y-1.5">
-        {segments.map((s, i) => (
-          <div
-            key={i}
-            className="flex cursor-default items-center gap-2 text-xs transition-opacity"
-            style={{ opacity: hover !== null && hover !== i ? 0.4 : 1 }}
-            onMouseEnter={() => setHover(i)}
-            onMouseLeave={() => setHover(null)}
-          >
-            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: s.color, boxShadow: `0 0 6px ${s.color}66` }} />
-            <span className="text-empire-text-muted">{s.label}</span>
-            <span className="ml-auto font-semibold tabular-nums text-empire-text">{Math.round((s.value / total) * 100)}%</span>
-          </div>
-        ))}
+        {segments.map((s, i) => {
+          const isOff = off.has(i)
+          return (
+            <button
+              key={i}
+              type="button"
+              aria-pressed={!isOff}
+              title={isOff ? `Include ${s.label}` : `Exclude ${s.label}`}
+              className="flex w-full cursor-pointer items-center gap-2 text-left text-xs transition-opacity"
+              style={{ opacity: isOff ? 0.35 : hover !== null && hover !== i ? 0.4 : 1 }}
+              onClick={() => setOff(prev => {
+                const next = new Set(prev)
+                if (next.has(i)) next.delete(i); else next.add(i)
+                return next
+              })}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+            >
+              <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: s.color, boxShadow: isOff ? 'none' : `0 0 6px ${s.color}66` }} />
+              <span className={`text-empire-text-muted ${isOff ? 'line-through' : ''}`}>{s.label}</span>
+              <span className="ml-auto font-semibold tabular-nums text-empire-text">{Math.round((eff[i].value / total) * 100)}%</span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )

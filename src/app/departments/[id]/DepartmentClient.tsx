@@ -33,6 +33,8 @@ import { StructurePanel } from '@/components/organisms/StructurePanel'
 import { NotificationsPanel } from '@/components/organisms/NotificationsPanel'
 import { formatDistanceToNow, format } from 'date-fns'
 import { empireColor, empireTint } from '@/lib/theme'
+import { AffixInput } from '@/components/molecules/AffixInput'
+import { DatePicker } from '@/components/molecules/DatePicker'
 
 type Dept = {
   id: string; name: string; slug: string; description: string
@@ -608,9 +610,9 @@ function RosterEmployeeModal({ dept, allDepts, employee, onClose, onSaved }: {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="empire-label">First name *</label><input className="empire-input w-full mt-1" value={f.firstName} onChange={e => setF({ ...f, firstName: e.target.value })} /></div>
-            <div><label className="empire-label">Last name *</label><input className="empire-input w-full mt-1" value={f.lastName} onChange={e => setF({ ...f, lastName: e.target.value })} /></div>
-            <div><label className="empire-label">Email *</label><input type="email" className="empire-input w-full mt-1" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} /></div>
+            <div><label className="empire-label">First name *</label><input className="empire-input w-full mt-1" value={f.firstName} placeholder="First name" onChange={e => setF({ ...f, firstName: e.target.value })} /></div>
+            <div><label className="empire-label">Last name *</label><input className="empire-input w-full mt-1" value={f.lastName} placeholder="Last name" onChange={e => setF({ ...f, lastName: e.target.value })} /></div>
+            <div><label className="empire-label">Email *</label><input type="email" className="empire-input w-full mt-1" value={f.email} placeholder="name@company.com" onChange={e => setF({ ...f, email: e.target.value })} /></div>
             <div>
               <label className="empire-label">Temporary password *</label>
               <PasswordInput minLength={10} inputClassName="empire-input w-full mt-1" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} />
@@ -643,15 +645,15 @@ function RosterEmployeeModal({ dept, allDepts, employee, onClose, onSaved }: {
           </div>
           <div>
             <label className="empire-label">Level</label>
-            <input className="empire-input w-full mt-1" type="number" min={1} value={f.level} onChange={e => setF({ ...f, level: e.target.value })} />
+            <input className="empire-input w-full mt-1" type="number" min={1} value={f.level} placeholder="1" onChange={e => setF({ ...f, level: e.target.value })} />
           </div>
           <div>
             <label className="empire-label">Salary (€)</label>
-            <input className="empire-input w-full mt-1" type="number" placeholder="0" value={f.salaryAmount} onChange={e => setF({ ...f, salaryAmount: e.target.value })} />
+            <AffixInput money className="empire-input w-full mt-1" type="number" placeholder="0" value={f.salaryAmount} onChange={e => setF({ ...f, salaryAmount: e.target.value })} />
           </div>
           <div>
             <label className="empire-label">Commission (0–1)</label>
-            <input className="empire-input w-full mt-1" type="number" step="0.01" placeholder="0.10" value={f.commissionRate} onChange={e => setF({ ...f, commissionRate: e.target.value })} />
+            <AffixInput pct className="empire-input w-full mt-1" type="number" step="0.01" placeholder="0.10" value={f.commissionRate} onChange={e => setF({ ...f, commissionRate: e.target.value })} />
           </div>
           <div>
             <label className="empire-label">FTE (0.1–1)</label>
@@ -660,7 +662,7 @@ function RosterEmployeeModal({ dept, allDepts, employee, onClose, onSaved }: {
           {f.contractType === 'contractor' && (
             <div>
               <label className="empire-label">Contract ends</label>
-              <input className="empire-input w-full mt-1" type="date" value={f.contractEndsAt} onChange={e => setF({ ...f, contractEndsAt: e.target.value })} />
+              <DatePicker className="empire-input w-full mt-1" value={f.contractEndsAt} onChange={e => setF({ ...f, contractEndsAt: e.target.value })} />
             </div>
           )}
         </div>
@@ -837,7 +839,7 @@ function FollowUpsTab({ followUps, dept, allDepts, onUpdate }: {
             </div>
             <div>
               <label className="empire-label">Due Date</label>
-              <input type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} className="empire-input w-full mt-1" />
+              <DatePicker value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} className="empire-input w-full mt-1" />
             </div>
           </div>
           <div>
@@ -980,7 +982,7 @@ function EditFollowUpModal({ followUp, onClose, onSaved }: {
       <div className="space-y-3">
         <div>
           <label className="empire-label">Title</label>
-          <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="empire-input w-full mt-1" />
+          <input value={form.title} placeholder="Follow-up title" onChange={e => setForm({ ...form, title: e.target.value })} className="empire-input w-full mt-1" />
         </div>
         <div>
           <label className="empire-label">Description</label>
@@ -995,7 +997,7 @@ function EditFollowUpModal({ followUp, onClose, onSaved }: {
           </div>
           <div>
             <label className="empire-label">Due Date</label>
-            <input type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} className="empire-input w-full mt-1" />
+            <DatePicker value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} className="empire-input w-full mt-1" />
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-1">
@@ -1100,7 +1102,7 @@ function DeptSpecificTab({ dept, entries, category, label, allDepts, onUpdate }:
             {cfg.showAmount && (
               <div>
                 <label className="empire-label">Amount (€)</label>
-                <input type="number" placeholder="0" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} className="empire-input w-full mt-1" />
+                <AffixInput money type="number" placeholder="0" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} className="empire-input w-full mt-1" />
               </div>
             )}
             <div>
@@ -1110,8 +1112,8 @@ function DeptSpecificTab({ dept, entries, category, label, allDepts, onUpdate }:
             <div>
               <label className="empire-label">Start → End</label>
               <div className="flex gap-2 mt-1">
-                <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="empire-input flex-1" />
-                <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="empire-input flex-1" />
+                <DatePicker value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="empire-input flex-1" />
+                <DatePicker value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="empire-input flex-1" />
               </div>
             </div>
           </div>

@@ -1,5 +1,7 @@
 'use client'
 import React, { useEffect, useState } from 'react'
+import { ChartEmpty } from './ChartEmpty'
+import { RangeChips } from './RangeChips'
 
 /**
  * AreaChart — smoothed (bezier) line with a soft luminous glow and a draw-in
@@ -8,15 +10,25 @@ import React, { useEffect, useState } from 'react'
  * legend. Pure SVG, no chart library. Public props unchanged.
  */
 export function AreaChart({
-  series, height = 200, color = '#c9a233', labels, compare, compareColor = '#F4EFE3',
-  valueFormat, seriesLabel = 'Value', compareLabel = 'Compare',
+  series: fullSeries, height = 200, color = '#c9a233', labels: fullLabels, compare: fullCompare, compareColor = '#F4EFE3',
+  valueFormat, seriesLabel = 'Value', compareLabel = 'Compare', filterable = true,
 }: {
   series: number[]; height?: number; color?: string; labels?: string[]
   compare?: number[]; compareColor?: string
   valueFormat?: (v: number) => string
   seriesLabel?: string; compareLabel?: string
+  /** Show the "last N points" range filter chips (backlog C1). */
+  filterable?: boolean
 }) {
   const W = 100, id = React.useId()
+  // Range filter (backlog C1): slice the tail of the pre-aggregated series.
+  const [range, setRange] = useState<number | null>(null)
+  const n = range !== null && range < fullSeries.length ? range : null
+  const series = n ? fullSeries.slice(-n) : fullSeries
+  const labels = n && fullLabels ? fullLabels.slice(-n) : fullLabels
+  const compare = n && fullCompare ? fullCompare.slice(-n) : fullCompare
+  const allFull = fullCompare ? [...fullSeries, ...fullCompare] : fullSeries
+  const empty = fullSeries.length === 0 || allFull.every(v => !v)
   const all = compare ? [...series, ...compare] : series
   const min = Math.min(...all), max = Math.max(...all), rng = max - min || 1
   const fmt = valueFormat ?? ((v: number) => String(Math.round(v * 100) / 100))
@@ -51,16 +63,14 @@ export function AreaChart({
     setHover(Math.max(0, Math.min(series.length - 1, Math.round(ratio * (series.length - 1)))))
   }
 
+  if (empty) return <ChartEmpty height={height} icon="chart-line" />
+
   return (
     <div>
+      {filterable && <RangeChips length={fullSeries.length} value={range} onChange={v => { setHover(null); setRange(v) }} />}
       <div className="relative" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
         <svg width="100%" height={height} viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none" className="overflow-visible">
           <defs>
-            <linearGradient id={`${id}f`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity="0.45" />
-              <stop offset="55%" stopColor={color} stopOpacity="0.12" />
-              <stop offset="100%" stopColor={color} stopOpacity="0.02" />
-            </linearGradient>
             <filter id={`${id}g`} x="-20%" y="-40%" width="140%" height="180%">
               <feGaussianBlur stdDeviation="2.2" result="b" />
               <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
@@ -70,21 +80,46 @@ export function AreaChart({
             <line key={i} x1="0" x2={W} y1={(height / ticks) * i} y2={(height / ticks) * i}
               stroke="#2a2a38" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
           ))}
-          <path d={`${d} L${W},${height} L0,${height} Z`} fill={`url(#${id}f)`}
+          {/* Flat translucent fill — linear gradients are banned platform-wide. */}
+          <path d={`${d} L${W},${height} L0,${height} Z`} fill={color} fillOpacity="0.12"
             style={{ opacity: drawn ? 1 : 0, transition: 'opacity 0.8s ease 0.2s' }} />
           {compare && <path d={smooth(compare)} fill="none" stroke={compareColor} strokeWidth="1.5" strokeDasharray="3 2" vectorEffect="non-scaling-stroke" opacity="0.85" />}
           <path d={d} fill="none" stroke={color} strokeWidth="2.25" strokeLinecap="round" vectorEffect="non-scaling-stroke"
             filter={`url(#${id}g)`} pathLength={1}
             style={{ strokeDasharray: 1, strokeDashoffset: drawn ? 0 : 1, transition: 'stroke-dashoffset 1.1s cubic-bezier(0.4,0,0.2,1)' }} />
           {hover !== null && (
-            <>
-              <line x1={x(hover)} x2={x(hover)} y1="0" y2={height} stroke={color} strokeOpacity="0.35" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-              <circle cx={x(hover)} cy={y(series[hover])} r="4.5" fill={color} fillOpacity="0.25" vectorEffect="non-scaling-stroke" />
-              <circle cx={x(hover)} cy={y(series[hover])} r="3" fill={color} stroke="#fff" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-              {compare && <circle cx={x(hover)} cy={y(compare[hover])} r="3" fill={compareColor} stroke="#fff" strokeWidth="1" vectorEffect="non-scaling-stroke" />}
-            </>
+            <line x1={x(hover)} x2={x(hover)} y1="0" y2={height} stroke={color} strokeOpacity="0.35" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           )}
         </svg>
+        {/* Hover dots live in HTML, not SVG: preserveAspectRatio="none" stretches
+            the x-axis, so viewBox-unit <circle>s render as ovals. */}
+        {hover !== null && (
+          <>
+            <span
+              aria-hidden
+              className="pointer-events-none absolute h-[7px] w-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+              style={{
+                left: `${(x(hover) / W) * 100}%`,
+                top: y(series[hover]),
+                background: color,
+                border: '1px solid #fff',
+                boxShadow: `0 0 0 4px color-mix(in srgb, ${color} 25%, transparent)`,
+              }}
+            />
+            {compare && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute h-[7px] w-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+                style={{
+                  left: `${(x(hover) / W) * 100}%`,
+                  top: y(compare[hover]),
+                  background: compareColor,
+                  border: '1px solid #fff',
+                }}
+              />
+            )}
+          </>
+        )}
         {hover !== null && (
           <div
             className="chart-tip"

@@ -99,15 +99,15 @@ export function InteractionsPanel({ departmentSlug, accent = '#C9A233' }: { depa
             </div>
             <div>
               <label className="empire-label">CSAT (1–5)</label>
-              <input type="number" min={1} max={5} value={form.satisfaction} onChange={e => setForm({ ...form, satisfaction: e.target.value })} className="empire-input w-full mt-1" />
+              <input type="number" min={1} max={5} value={form.satisfaction} placeholder="4" onChange={e => setForm({ ...form, satisfaction: e.target.value })} className="empire-input w-full mt-1" />
             </div>
             <div>
               <label className="empire-label">Response (sec)</label>
-              <input type="number" value={form.responseTimeSec} onChange={e => setForm({ ...form, responseTimeSec: e.target.value })} className="empire-input w-full mt-1" />
+              <input type="number" value={form.responseTimeSec} placeholder="300" onChange={e => setForm({ ...form, responseTimeSec: e.target.value })} className="empire-input w-full mt-1" />
             </div>
             <div>
               <label className="empire-label">Resolution (sec)</label>
-              <input type="number" value={form.resolutionTimeSec} onChange={e => setForm({ ...form, resolutionTimeSec: e.target.value })} className="empire-input w-full mt-1" />
+              <input type="number" value={form.resolutionTimeSec} placeholder="3600" onChange={e => setForm({ ...form, resolutionTimeSec: e.target.value })} className="empire-input w-full mt-1" />
             </div>
           </div>
           <label className="flex items-center gap-2 text-xs text-empire-text-muted">

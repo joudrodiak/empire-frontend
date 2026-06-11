@@ -9,6 +9,7 @@ import { fetcher, post, patch, del, formatCurrency } from '@/lib/api'
 import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
+import { AffixInput } from '@/components/molecules/AffixInput'
 
 // Advisory — board of advisors & strategic network. Active advisors, advisory
 // equity granted & vested, committed hours, session cadence + value rating, and
@@ -273,8 +274,8 @@ function Advisors() {
             <select className={inputCls} value={form.expertise} onChange={e => setForm({ ...form, expertise: e.target.value })}><option value="GTM">GTM</option><option value="Finance">Finance</option><option value="Product">Product</option><option value="Legal">Legal</option><option value="Technical">Technical</option><option value="Industry">Industry</option></select>
             <select className={inputCls} value={form.tier} onChange={e => setForm({ ...form, tier: e.target.value })}><option value="strategic">strategic</option><option value="specialist">specialist</option><option value="operational">operational</option></select>
             <select className={inputCls} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option value="active">active</option><option value="onboarding">onboarding</option><option value="inactive">inactive</option><option value="alumni">alumni</option></select>
-            <input className={`${inputCls} w-24`} placeholder="equity %" value={form.equityPct} onChange={e => setForm({ ...form, equityPct: e.target.value })} />
-            <input className={`${inputCls} w-28`} type="number" placeholder="€ payment /mo" value={form.monthlyFee} onChange={e => setForm({ ...form, monthlyFee: e.target.value })} />
+            <AffixInput pct className={`${inputCls} w-24`} placeholder="equity %" value={form.equityPct} onChange={e => setForm({ ...form, equityPct: e.target.value })} />
+            <AffixInput money className={`${inputCls} w-28`} type="number" placeholder="€ payment /mo" value={form.monthlyFee} onChange={e => setForm({ ...form, monthlyFee: e.target.value })} />
             <button disabled={busy || !form.name} onClick={submit} className="px-3 py-1.5 rounded text-sm font-medium text-white disabled:opacity-40" style={{ background: ACCENT }}>{busy ? 'Saving…' : 'Create'}</button>
           </div>
         </Panel>
@@ -347,8 +348,8 @@ function AdvisorEditModal({ row, onClose, onSaved }: { row: Advisor; onClose: ()
           <select className={inputCls} value={f.expertise} onChange={e => setF({ ...f, expertise: e.target.value })}><option value="GTM">GTM</option><option value="Finance">Finance</option><option value="Product">Product</option><option value="Legal">Legal</option><option value="Technical">Technical</option><option value="Industry">Industry</option></select>
           <select className={inputCls} value={f.tier} onChange={e => setF({ ...f, tier: e.target.value })}><option value="strategic">strategic</option><option value="specialist">specialist</option><option value="operational">operational</option></select>
           <select className={inputCls} value={f.status} onChange={e => setF({ ...f, status: e.target.value })}><option value="active">active</option><option value="onboarding">onboarding</option><option value="inactive">inactive</option><option value="alumni">alumni</option></select>
-          <input className={inputCls} type="number" placeholder="Equity %" value={f.equityPct} onChange={e => setF({ ...f, equityPct: e.target.value })} />
-          <input className={inputCls} type="number" placeholder="€ Payment / mo" value={f.monthlyFee} onChange={e => setF({ ...f, monthlyFee: e.target.value })} />
+          <AffixInput pct className={inputCls} type="number" placeholder="Equity %" value={f.equityPct} onChange={e => setF({ ...f, equityPct: e.target.value })} />
+          <AffixInput money className={inputCls} type="number" placeholder="€ Payment / mo" value={f.monthlyFee} onChange={e => setF({ ...f, monthlyFee: e.target.value })} />
           <input className={inputCls} type="number" placeholder="Hours / mo" value={f.monthlyHours} onChange={e => setF({ ...f, monthlyHours: e.target.value })} />
         </div>
         <div className="flex justify-end gap-2 pt-1">

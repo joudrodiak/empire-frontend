@@ -10,6 +10,7 @@ import { fetcher, post, patch, del } from '@/lib/api'
 import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
+import { DatePicker } from '@/components/molecules/DatePicker'
 
 // Creative — the studio operating system. Throughput, turnaround, on-time rate,
 // approval rate, pipeline by stage, briefs by type and backlog all derive from
@@ -381,7 +382,7 @@ function Briefs() {
             <select className={inputCls} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}><option value="campaign">campaign</option><option value="brand">brand</option><option value="product">product</option><option value="social">social</option><option value="web">web</option><option value="video">video</option></select>
             <select className={inputCls} value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}><option value="low">low</option><option value="normal">normal</option><option value="high">high</option><option value="urgent">urgent</option></select>
             <select className={inputCls} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option value="intake">intake</option><option value="in_progress">in progress</option><option value="in_review">in review</option><option value="approved">approved</option><option value="delivered">delivered</option></select>
-            <input type="date" className={inputCls} value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} />
+            <DatePicker className={inputCls} value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} />
             <button disabled={busy || !form.title} onClick={submit} className="px-3 py-1.5 rounded text-sm font-medium text-white disabled:opacity-40" style={{ background: ACCENT }}>{busy ? 'Saving…' : 'Create'}</button>
           </div>
         </Panel>
@@ -442,7 +443,7 @@ function BriefEditModal({ row, onClose, onSaved }: { row: Brief; onClose: () => 
           <select className={inputCls} value={f.type} onChange={e => setF({ ...f, type: e.target.value })}><option value="campaign">campaign</option><option value="brand">brand</option><option value="product">product</option><option value="social">social</option><option value="web">web</option><option value="video">video</option></select>
           <select className={inputCls} value={f.priority} onChange={e => setF({ ...f, priority: e.target.value })}><option value="low">low</option><option value="normal">normal</option><option value="high">high</option><option value="urgent">urgent</option></select>
           <select className={inputCls} value={f.status} onChange={e => setF({ ...f, status: e.target.value })}><option value="intake">intake</option><option value="in_progress">in progress</option><option value="in_review">in review</option><option value="approved">approved</option><option value="delivered">delivered</option><option value="archived">archived</option></select>
-          <input className={inputCls} type="date" value={f.dueDate} onChange={e => setF({ ...f, dueDate: e.target.value })} />
+          <DatePicker className={inputCls} value={f.dueDate} onChange={e => setF({ ...f, dueDate: e.target.value })} />
         </div>
         <div className="flex justify-end gap-2 pt-1">
           <button onClick={onClose} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>

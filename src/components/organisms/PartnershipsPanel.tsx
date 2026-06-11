@@ -9,6 +9,7 @@ import { EntityFormModal, type FieldDef } from '@/components/molecules/EntityFor
 import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
+import { AffixInput } from '@/components/molecules/AffixInput'
 
 type Page<T> = { data: T[]; page: number; pageSize: number; total: number; totalPages: number }
 
@@ -165,9 +166,9 @@ function Partners() {
             <input className={`${inputCls} w-48`} placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
             <select className={inputCls} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}><option value="reseller">reseller</option><option value="technology">technology</option><option value="agency">agency</option><option value="referral">referral</option><option value="oem">oem</option></select>
             <select className={inputCls} value={form.tier} onChange={e => setForm({ ...form, tier: e.target.value })}><option value="platinum">platinum</option><option value="gold">gold</option><option value="silver">silver</option><option value="bronze">bronze</option></select>
-            <input className={`${inputCls} w-28`} placeholder="sourced ARR" value={form.sourcedArr} onChange={e => setForm({ ...form, sourcedArr: e.target.value })} />
-            <input className={`${inputCls} w-28`} placeholder="influenced" value={form.influencedArr} onChange={e => setForm({ ...form, influencedArr: e.target.value })} />
-            <input className={`${inputCls} w-20`} placeholder="fee %" value={form.referralFeePct} onChange={e => setForm({ ...form, referralFeePct: e.target.value })} />
+            <AffixInput money className={`${inputCls} w-28`} placeholder="sourced ARR" value={form.sourcedArr} onChange={e => setForm({ ...form, sourcedArr: e.target.value })} />
+            <AffixInput money className={`${inputCls} w-28`} placeholder="influenced" value={form.influencedArr} onChange={e => setForm({ ...form, influencedArr: e.target.value })} />
+            <AffixInput pct className={`${inputCls} w-20`} placeholder="fee %" value={form.referralFeePct} onChange={e => setForm({ ...form, referralFeePct: e.target.value })} />
             <input className={`${inputCls} w-20`} placeholder="reps" value={form.certifiedReps} onChange={e => setForm({ ...form, certifiedReps: e.target.value })} />
             <input className={`${inputCls} w-36`} placeholder="manager" value={form.managerName} onChange={e => setForm({ ...form, managerName: e.target.value })} />
             <button disabled={busy || !form.name} onClick={submit} className="px-3 py-1.5 rounded text-sm font-medium text-white disabled:opacity-40" style={{ background: ACCENT }}>{busy ? 'Saving…' : 'Create'}</button>

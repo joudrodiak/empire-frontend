@@ -77,7 +77,10 @@ export function DockNav() {
       <div ref={pillRef} className="relative">
         {/* Units launcher popover */}
         {unitsOpen && (
-          <GlassPanel variant="gold" style={{ left: unitsLeft }} className="absolute bottom-[calc(100%+12px)] w-[min(92vw,560px)] origin-bottom animate-pop-in p-3">
+          // position must be inline: .glass-gold sets `position: relative` after
+          // Tailwind utilities, so the `absolute` class alone loses the cascade —
+          // an in-flow popover inflates the bottom-pinned dock container.
+          <GlassPanel variant="gold" style={{ position: 'absolute', left: unitsLeft }} className="absolute bottom-[calc(100%+12px)] w-[min(92vw,560px)] origin-bottom animate-pop-in p-3">
             <p className="px-1 pb-2 text-[10px] uppercase tracking-widest text-empire-text-muted">{TERMS.units} · {TERMS.domains}</p>
             <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
               {(units.length ? units : MICROSERVICES).map(ms => {
@@ -144,7 +147,7 @@ export function DockNav() {
 
         {/* User menu popover (role/rank · admin · logout) */}
         {user && userOpen && (
-          <GlassPanel variant="gold" style={{ left: userLeft }} className="absolute bottom-[calc(100%+12px)] w-64 origin-bottom animate-pop-in p-2">
+          <GlassPanel variant="gold" style={{ position: 'absolute', left: userLeft }} className="absolute bottom-[calc(100%+12px)] w-64 origin-bottom animate-pop-in p-2">
             <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
               <span className="grid h-9 w-9 place-items-center rounded-full bg-empire-gold/15 font-empire text-sm text-empire-gold">{initials}</span>
               <div className="min-w-0">

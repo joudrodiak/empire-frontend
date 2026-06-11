@@ -9,6 +9,7 @@ import { Modal } from '@/components/molecules/Modal'
 import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon, asIconName } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
+import { AffixInput } from '@/components/molecules/AffixInput'
 
 // Small read-only key/value row for view modals.
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -275,7 +276,7 @@ function CampaignEdit({ campaign, onClose, onSaved }: { campaign: Camp | null; o
     <Modal open={!!campaign} onClose={onClose} title="Edit campaign" icon={<EmpireIcon name="pen" size={18} />}>
       <div className="space-y-3">
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Name</span>
-          <input className={modalInput} value={f.name ?? ''} onChange={e => set('name', e.target.value)} /></label>
+          <input className={modalInput} value={f.name ?? ''} placeholder="Campaign name" onChange={e => set('name', e.target.value)} /></label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Channel</span>
             <select className={modalInput} value={f.channel ?? ''} onChange={e => set('channel', e.target.value)}>
@@ -287,11 +288,11 @@ function CampaignEdit({ campaign, onClose, onSaved }: { campaign: Camp | null; o
             </select></label>
         </div>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Owner</span>
-          <input className={modalInput} value={f.ownerName ?? ''} onChange={e => set('ownerName', e.target.value)} /></label>
+          <input className={modalInput} value={f.ownerName ?? ''} placeholder="Owner name" onChange={e => set('ownerName', e.target.value)} /></label>
         <div className="grid grid-cols-3 gap-3">
           {(['budget', 'spend', 'leads', 'conversions', 'revenue'] as const).map(k => (
             <label key={k} className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted capitalize">{k}</span>
-              <input type="number" className={modalInput} value={f[k] ?? ''} onChange={e => set(k, e.target.value)} /></label>
+              <input type="number" className={modalInput} value={f[k] ?? ''} placeholder="0" onChange={e => set(k, e.target.value)} /></label>
           ))}
         </div>
         <div className="flex justify-end gap-2 pt-2">
@@ -409,9 +410,9 @@ function LeadEdit({ lead, onClose, onSaved }: { lead: Lead | null; onClose: () =
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Name</span>
-            <input className={modalInput} value={f.name ?? ''} onChange={e => set('name', e.target.value)} /></label>
+            <input className={modalInput} value={f.name ?? ''} placeholder="Lead name" onChange={e => set('name', e.target.value)} /></label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Company</span>
-            <input className={modalInput} value={f.company ?? ''} onChange={e => set('company', e.target.value)} /></label>
+            <input className={modalInput} value={f.company ?? ''} placeholder="Company name" onChange={e => set('company', e.target.value)} /></label>
         </div>
         <div className="grid grid-cols-3 gap-3">
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Stage</span>
@@ -419,12 +420,12 @@ function LeadEdit({ lead, onClose, onSaved }: { lead: Lead | null; onClose: () =
               {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
             </select></label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Score</span>
-            <input type="number" className={modalInput} value={f.score ?? ''} onChange={e => set('score', e.target.value)} /></label>
+            <input type="number" className={modalInput} value={f.score ?? ''} placeholder="0–100" onChange={e => set('score', e.target.value)} /></label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">ACV</span>
-            <input type="number" className={modalInput} value={f.value ?? ''} onChange={e => set('value', e.target.value)} /></label>
+            <AffixInput money type="number" className={modalInput} value={f.value ?? ''} placeholder="0.00" onChange={e => set('value', e.target.value)} /></label>
         </div>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Owner</span>
-          <input className={modalInput} value={f.ownerName ?? ''} onChange={e => set('ownerName', e.target.value)} /></label>
+          <input className={modalInput} value={f.ownerName ?? ''} placeholder="Owner name" onChange={e => set('ownerName', e.target.value)} /></label>
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
           <button onClick={save} disabled={busy} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white disabled:opacity-50" style={{ background: ACCENT }}>{busy ? 'Saving…' : 'Save'}</button>
@@ -628,20 +629,20 @@ function InfluencerEdit({ influencer, open, onClose, onSaved }: { influencer: In
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Name</span>
-            <input className={modalInput} value={f.title} onChange={e => set('title', e.target.value)} /></label>
+            <input className={modalInput} value={f.title} placeholder="Influencer name" onChange={e => set('title', e.target.value)} /></label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Handle</span>
-            <input className={modalInput} value={f.handle} onChange={e => set('handle', e.target.value)} placeholder="@handle" /></label>
+            <AffixInput prefix="@" className={modalInput} value={f.handle} onChange={e => set('handle', e.target.value)} placeholder="@handle" /></label>
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Platforms</span>
-            <div className="mt-1 flex min-h-[44px] flex-wrap items-center gap-2 py-1">
-              {INF_PLATFORMS.map(p => (
-                <button key={p} type="button" onClick={() => togglePlatform(p)}
-                  className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-wide transition-all duration-200 ${selectedPlatforms.includes(p) ? 'border-empire-gold/50 bg-empire-gold/10 text-empire-gold shadow-[0_6px_16px_rgba(201,162,51,0.18)]' : 'border-empire-border bg-empire-surface/60 text-empire-text-dim shadow-[0_2px_8px_rgba(0,0,0,0.25)] hover:border-empire-gold/35 hover:text-empire-text'}`}>
-                  {p}
-                </button>
-              ))}
-            </div></div>
+        <div className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Platforms</span>
+          <div className="mt-1 flex flex-wrap items-center gap-2 py-1">
+            {INF_PLATFORMS.map(p => (
+              <button key={p} type="button" onClick={() => togglePlatform(p)}
+                className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-wide transition-all duration-200 hover:-translate-y-0.5 ${selectedPlatforms.includes(p) ? 'border-empire-gold/50 bg-empire-gold/10 text-empire-gold shadow-[0_6px_16px_rgba(201,162,51,0.18)]' : 'border-empire-border bg-empire-surface/60 text-empire-text-dim shadow-[0_2px_8px_rgba(0,0,0,0.25)] hover:border-empire-gold/35 hover:text-empire-text'}`}>
+                {p}
+              </button>
+            ))}
+          </div></div>
+        <div className="grid grid-cols-2 gap-3">
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Tier</span>
             <select className={modalInput} value={f.tier} onChange={e => set('tier', e.target.value)}>
               {INF_TIERS.map(t => <option key={t} value={t}>{t}</option>)}
@@ -653,11 +654,11 @@ function InfluencerEdit({ influencer, open, onClose, onSaved }: { influencer: In
         </div>
         <div className="grid grid-cols-3 gap-3">
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Followers</span>
-            <input type="number" className={modalInput} value={f.followers} onChange={e => set('followers', e.target.value)} /></label>
+            <input type="number" className={modalInput} value={f.followers} placeholder="0" onChange={e => set('followers', e.target.value)} /></label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Engagement</span>
-            <span className="mt-1 flex items-center rounded border border-empire-border bg-empire-bg"><input type="number" className={`${modalInput} mt-0 border-0 bg-transparent`} value={f.engagementRate} onChange={e => set('engagementRate', e.target.value)} placeholder="3.2" /><span className="pr-2 text-xs text-empire-text-dim">%</span></span></label>
+            <AffixInput pct type="number" className={modalInput} value={f.engagementRate} onChange={e => set('engagementRate', e.target.value)} placeholder="3.2" /></label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Deal</span>
-            <span className="mt-1 flex items-center rounded border border-empire-border bg-empire-bg"><span className="pl-2 text-xs text-empire-text-dim">€</span><input type="number" className={`${modalInput} mt-0 border-0 bg-transparent`} value={f.dealValue} onChange={e => set('dealValue', e.target.value)} placeholder="2500" /></span></label>
+            <AffixInput money type="number" className={modalInput} value={f.dealValue} onChange={e => set('dealValue', e.target.value)} placeholder="2500" /></label>
         </div>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Notes</span>
           <textarea className={modalInput} rows={2} value={f.description} onChange={e => set('description', e.target.value)} placeholder="Campaign context, deliverables, contacts…" /></label>
@@ -990,7 +991,7 @@ function SocialAccountEdit({ account, open, onClose, onSaved }: { account: Socia
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Platform</span>
             <select className={modalInput} value={f.platform} onChange={e => set('platform', e.target.value)}>{SOCIAL_PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}</select></label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Handle</span>
-            <input className={modalInput} value={f.handle} onChange={e => set('handle', e.target.value)} placeholder="@cregen" /></label>
+            <AffixInput prefix="@" className={modalInput} value={f.handle} onChange={e => set('handle', e.target.value)} placeholder="@cregen" /></label>
         </div>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Display name</span>
           <input className={modalInput} value={f.displayName} onChange={e => set('displayName', e.target.value)} placeholder="Cregen" /></label>
@@ -1048,7 +1049,7 @@ function SocialSnapshotForm({ account, open, onClose, onSaved }: { account: Soci
         <div className="grid grid-cols-3 gap-3">
           {(['followers', 'reach', 'impressions', 'engagements', 'posts', 'clicks'] as const).map(k => (
             <label key={k} className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted capitalize">{k}</span>
-              <input type="number" className={modalInput} value={f[k]} onChange={e => set(k, e.target.value)} /></label>
+              <input type="number" className={modalInput} value={f[k]} placeholder="0" onChange={e => set(k, e.target.value)} /></label>
           ))}
         </div>
         <div className="flex justify-end gap-2 pt-2">

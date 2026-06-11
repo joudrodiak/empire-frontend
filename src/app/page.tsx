@@ -20,6 +20,7 @@ import { UnitMedallion } from '@/components/atoms/UnitMedallion'
 import { ProfileSwitcher } from '@/components/molecules/ProfileSwitcher'
 import { TERMS } from '@/lib/terms'
 import { empireColor, empireTint } from '@/lib/theme'
+import { AffixInput } from '@/components/molecules/AffixInput'
 
 type Department = {
   id: string
@@ -317,7 +318,9 @@ function CompanyNetworkTab({ departments, employees }: { departments: Department
                   vectorEffect="non-scaling-stroke"
                   fill="none"
                   stroke={edge.color}
-                  strokeWidth={edge.x1 === center.x && edge.y1 === center.y ? 0.2 : 0.11}
+                  // non-scaling-stroke makes strokeWidth screen pixels, not viewBox
+                  // units — sub-pixel values (0.2) antialias into broken dots.
+                  strokeWidth={edge.x1 === center.x && edge.y1 === center.y ? 1.6 : 1}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   shapeRendering="geometricPrecision"
@@ -693,7 +696,7 @@ function DealsTab({ deals, setDeals, employees }: { deals: Deal[]; setDeals: (d:
               onChange={e => setForm({ ...form, client: e.target.value })}
               className="bg-empire-elevated border border-empire-border rounded px-3 py-2 text-sm text-empire-text placeholder:text-empire-text-dim focus:outline-none focus:border-empire-gold/40"
             />
-            <input
+            <AffixInput money
               placeholder="Deal value (€)"
               type="number"
               value={form.amount}
@@ -844,15 +847,15 @@ function DealEditModal({ deal, onClose, onSaved }: { deal: Deal; onClose: () => 
   return (
     <Modal open onClose={onClose} title={`Edit — ${deal.title}`} icon={<EmpireIcon name="pen" size={18} />}>
       <div className="space-y-3">
-        <label className="empire-label">Title<input className={inputCls + ' mt-1'} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
-        <label className="empire-label">Client<input className={inputCls + ' mt-1'} value={form.client} onChange={e => setForm({ ...form, client: e.target.value })} /></label>
-        <label className="empire-label">Value (€)<input type="number" className={inputCls + ' mt-1'} value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} /></label>
+        <label className="empire-label">Title<input className={inputCls + ' mt-1'} value={form.title} placeholder="Deal title" onChange={e => setForm({ ...form, title: e.target.value })} /></label>
+        <label className="empire-label">Client<input className={inputCls + ' mt-1'} value={form.client} placeholder="Client name" onChange={e => setForm({ ...form, client: e.target.value })} /></label>
+        <label className="empire-label">Value (€)<AffixInput money type="number" className={inputCls + ' mt-1'} value={form.amount} placeholder="0.00" onChange={e => setForm({ ...form, amount: e.target.value })} /></label>
         <label className="empire-label">Status
           <select className={inputCls + ' mt-1'} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
             {DEAL_STATUSES.map(s => <option key={s} value={s}>{titleCase(s)}</option>)}
           </select>
         </label>
-        <label className="empire-label">Notes<input className={inputCls + ' mt-1'} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></label>
+        <label className="empire-label">Notes<input className={inputCls + ' mt-1'} value={form.notes} placeholder="Optional notes" onChange={e => setForm({ ...form, notes: e.target.value })} /></label>
         <div className="flex justify-end gap-2 pt-1">
           <button onClick={onClose} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
           <button onClick={save} disabled={busy} className="empire-btn-primary disabled:opacity-50">{busy ? 'Saving…' : 'Save'}</button>

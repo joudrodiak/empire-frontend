@@ -10,6 +10,8 @@ import { FileDrop } from '@/components/molecules/FileDrop'
 import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
+import { AffixInput } from '@/components/molecules/AffixInput'
+import { DatePicker } from '@/components/molecules/DatePicker'
 
 // Read-only key/value row for view modals.
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -529,17 +531,17 @@ function InvoiceGenerator({ open, onClose }: { open: boolean; onClose: () => voi
         <div className="space-y-3">
           <FileDrop value={logo} onChange={setLogo} label="Company logo for invoice top-left" allowUrl={false} />
           <div className="grid grid-cols-2 gap-3">
-            <label className="block"><span className="empire-label">Company</span><input className={modalInput} value={f.company} onChange={e => set('company', e.target.value)} /></label>
-            <label className="block"><span className="empire-label">Invoice no.</span><input className={modalInput} value={f.invoiceNo} onChange={e => set('invoiceNo', e.target.value)} /></label>
-            <label className="block"><span className="empire-label">Date</span><input type="date" className={modalInput} value={f.date} onChange={e => set('date', e.target.value)} /></label>
-            <label className="block"><span className="empire-label">Due date</span><input type="date" className={modalInput} value={f.dueDate} onChange={e => set('dueDate', e.target.value)} /></label>
+            <label className="block"><span className="empire-label">Company</span><input className={modalInput} value={f.company} placeholder="Acme B.V." onChange={e => set('company', e.target.value)} /></label>
+            <label className="block"><span className="empire-label">Invoice no.</span><input className={modalInput} value={f.invoiceNo} placeholder="INV-2026-001" onChange={e => set('invoiceNo', e.target.value)} /></label>
+            <label className="block"><span className="empire-label">Date</span><DatePicker className={modalInput} value={f.date} onChange={e => set('date', e.target.value)} /></label>
+            <label className="block"><span className="empire-label">Due date</span><DatePicker className={modalInput} value={f.dueDate} onChange={e => set('dueDate', e.target.value)} /></label>
           </div>
           <label className="block"><span className="empire-label">Bill to</span><textarea className={modalInput} rows={3} value={f.billTo} onChange={e => set('billTo', e.target.value)} placeholder="Client name&#10;Address&#10;VAT / tax id" /></label>
-          <label className="block"><span className="empire-label">Line item</span><input className={modalInput} value={f.item} onChange={e => set('item', e.target.value)} /></label>
+          <label className="block"><span className="empire-label">Line item</span><input className={modalInput} value={f.item} placeholder="Consulting services — May" onChange={e => set('item', e.target.value)} /></label>
           <div className="grid grid-cols-3 gap-3">
-            <label className="block"><span className="empire-label">Qty</span><input type="number" className={modalInput} value={f.quantity} onChange={e => set('quantity', e.target.value)} /></label>
-            <label className="block"><span className="empire-label">Unit price</span><input type="number" className={modalInput} value={f.unitPrice} onChange={e => set('unitPrice', e.target.value)} /></label>
-            <label className="block"><span className="empire-label">Tax %</span><input type="number" className={modalInput} value={f.taxRate} onChange={e => set('taxRate', e.target.value)} /></label>
+            <label className="block"><span className="empire-label">Qty</span><input type="number" className={modalInput} value={f.quantity} placeholder="1" onChange={e => set('quantity', e.target.value)} /></label>
+            <label className="block"><span className="empire-label">Unit price</span><AffixInput money type="number" className={modalInput} value={f.unitPrice} placeholder="0.00" onChange={e => set('unitPrice', e.target.value)} /></label>
+            <label className="block"><span className="empire-label">Tax %</span><AffixInput pct type="number" className={modalInput} value={f.taxRate} placeholder="21" onChange={e => set('taxRate', e.target.value)} /></label>
           </div>
           <button onClick={printInvoice} className="w-full rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-black" style={{ background: ACCENT }}>Print / save PDF</button>
         </div>
@@ -823,13 +825,13 @@ function SpendEdit({ spend, creating, departmentSlug, onClose, onSaved }: { spen
         </div>
         <div className="grid grid-cols-3 gap-3">
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Amount</span>
-            <input type="number" step="0.01" className={modalInput} value={f.amount} onChange={e => set('amount', e.target.value)} /></label>
+            <AffixInput money type="number" step="0.01" className={modalInput} value={f.amount} placeholder="0.00" onChange={e => set('amount', e.target.value)} /></label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Currency</span>
             <select className={modalInput} value={f.currency} onChange={e => set('currency', e.target.value)}>
               <option value="EUR">EUR</option><option value="AED">AED</option><option value="USD">USD</option>
             </select></label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Spent on</span>
-            <input type="date" className={modalInput} value={f.spentAt} onChange={e => set('spentAt', e.target.value)} /></label>
+            <DatePicker className={modalInput} value={f.spentAt} onChange={e => set('spentAt', e.target.value)} /></label>
         </div>
         <div className="grid grid-cols-3 gap-3">
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Category</span>
@@ -841,20 +843,20 @@ function SpendEdit({ spend, creating, departmentSlug, onClose, onSaved }: { spen
               {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
             </select></label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Unit</span>
-            <input className={modalInput} value={f.unitSlug} onChange={e => set('unitSlug', e.target.value)} /></label>
+            <input className={modalInput} value={f.unitSlug} placeholder="unit-slug" onChange={e => set('unitSlug', e.target.value)} /></label>
         </div>
         <div className="grid grid-cols-3 gap-3">
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Tax amount</span>
-            <input type="number" step="0.01" className={modalInput} value={f.taxAmount} onChange={e => set('taxAmount', e.target.value)} placeholder="VAT portion" /></label>
+            <AffixInput money type="number" step="0.01" className={modalInput} value={f.taxAmount} onChange={e => set('taxAmount', e.target.value)} placeholder="VAT portion" /></label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Tax rate %</span>
-            <input type="number" step="0.1" className={modalInput} value={f.taxRate} onChange={e => set('taxRate', e.target.value)} placeholder="21" /></label>
+            <AffixInput pct type="number" step="0.1" className={modalInput} value={f.taxRate} onChange={e => set('taxRate', e.target.value)} placeholder="21" /></label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Requested by</span>
             <input className={modalInput} value={f.requestedBy} onChange={e => set('requestedBy', e.target.value)} placeholder="Name" /></label>
         </div>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Justification</span>
           <input className={modalInput} value={f.justification} onChange={e => set('justification', e.target.value)} placeholder="Why this spend" /></label>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Notes</span>
-          <input className={modalInput} value={f.notes} onChange={e => set('notes', e.target.value)} /></label>
+          <input className={modalInput} value={f.notes} placeholder="Optional notes" onChange={e => set('notes', e.target.value)} /></label>
         <FileDrop value={receipt.data} onChange={onReceipt} label="Receipt (PDF or image — stored in our DB)" allowUrl={false} />
         <div className="flex justify-end gap-2 pt-1">
           <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
@@ -967,8 +969,8 @@ function DutchFilingCenter() {
   return <Panel title="Dutch filing forms" icon="document">
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-2">
-        <label className="text-xs text-empire-text-muted">VAT quarter<input className={`${modalInput} mt-1 w-28`} value={period} onChange={e => setPeriod(e.target.value)} /></label>
-        <label className="text-xs text-empire-text-muted">Aangifte year<input className={`${modalInput} mt-1 w-24`} value={year} onChange={e => setYear(e.target.value)} /></label>
+        <label className="text-xs text-empire-text-muted">VAT quarter<input className={`${modalInput} mt-1 w-28`} value={period} placeholder="Q1" onChange={e => setPeriod(e.target.value)} /></label>
+        <label className="text-xs text-empire-text-muted">Aangifte year<input className={`${modalInput} mt-1 w-24`} value={year} placeholder="2026" onChange={e => setYear(e.target.value)} /></label>
         <button className="empire-btn-primary" onClick={load}>Build forms</button>
       </div>
       {[vat, vpb].filter(Boolean).map(form => <div key={form!.type} className="rounded-lg border border-empire-border p-3">
@@ -978,7 +980,7 @@ function DutchFilingCenter() {
       </div>)}
       <div className="grid gap-2 border-t border-empire-border pt-3 sm:grid-cols-[1fr_10rem_auto]">
         <input type="email" className={modalInput} placeholder="Reminder email" value={recipient} onChange={e => setRecipient(e.target.value)} />
-        <input type="date" className={modalInput} value={dueDate} onChange={e => setDueDate(e.target.value)} />
+        <DatePicker className={modalInput} value={dueDate} onChange={e => setDueDate(e.target.value)} />
         <button className="empire-btn-primary" onClick={remind} disabled={!recipient || !dueDate}>Schedule reminder</button>
       </div>
       {msg && <p className="text-xs text-empire-green-bright">{msg}</p>}
@@ -1125,7 +1127,7 @@ function Ledger({ departmentSlug }: { departmentSlug: string }) {
       {showForm && (
         <div className="bg-empire-surface border border-empire-gold/20 rounded-lg p-5 space-y-4">
           <div className="grid grid-cols-3 gap-4">
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="empire-input" />
+            <DatePicker value={date} onChange={e => setDate(e.target.value)} className="empire-input" />
             <input placeholder="Memo (e.g. Stripe payout)" value={memo} onChange={e => setMemo(e.target.value)} className="empire-input col-span-2" />
           </div>
           <div className="space-y-2">
@@ -1297,7 +1299,7 @@ function AccountCreate({ open, onClose, onSaved }: { open: boolean; onClose: () 
               <input className={modalInput} value={f.subtype} onChange={e => setF(p => ({ ...p, subtype: e.target.value }))} placeholder="cash, loan, cogs..." />
             )}</label>
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Sort order</span>
-            <input type="number" className={modalInput} value={f.sortOrder} onChange={e => setF(p => ({ ...p, sortOrder: e.target.value }))} /></label>
+            <input type="number" className={modalInput} value={f.sortOrder} placeholder="0" onChange={e => setF(p => ({ ...p, sortOrder: e.target.value }))} /></label>
         </div>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Description</span>
           <textarea className={modalInput} rows={2} value={f.description} onChange={e => setF(p => ({ ...p, description: e.target.value }))} /></label>
@@ -1326,7 +1328,7 @@ function AccountEdit({ account, onClose, onSaved }: { account: Account | null; o
     <Modal open={!!account} onClose={onClose} title="Edit account" icon={<EmpireIcon name="pen" size={18} />}>
       <div className="space-y-3">
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Name</span>
-          <input className={modalInput} value={f.name} onChange={e => setF(p => ({ ...p, name: e.target.value }))} /></label>
+          <input className={modalInput} value={f.name} placeholder="Account name" onChange={e => setF(p => ({ ...p, name: e.target.value }))} /></label>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Subtype</span>
           {account?.type === 'expense' || account?.type === 'asset' ? (
             <div className="grid grid-cols-2 overflow-hidden rounded border border-empire-border">
@@ -1334,10 +1336,10 @@ function AccountEdit({ account, onClose, onSaved }: { account: Account | null; o
               <button type="button" onClick={() => setF(p => ({ ...p, subtype: 'fixed_asset' }))} className={`px-3 py-2 text-xs uppercase tracking-widest ${f.subtype === 'fixed_asset' ? 'bg-empire-gold/20 text-empire-gold' : 'text-empire-text-muted'}`}>CapEx</button>
             </div>
           ) : (
-            <input className={modalInput} value={f.subtype} onChange={e => setF(p => ({ ...p, subtype: e.target.value }))} />
+            <input className={modalInput} value={f.subtype} placeholder="e.g. current_asset" onChange={e => setF(p => ({ ...p, subtype: e.target.value }))} />
           )}</label>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Sort order</span>
-          <input type="number" className={modalInput} value={f.sortOrder} onChange={e => setF(p => ({ ...p, sortOrder: e.target.value }))} /></label>
+          <input type="number" className={modalInput} value={f.sortOrder} placeholder="0" onChange={e => setF(p => ({ ...p, sortOrder: e.target.value }))} /></label>
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
           <button onClick={save} disabled={busy || !f.name} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-black disabled:opacity-50" style={{ background: ACCENT }}>{busy ? 'Saving…' : 'Save'}</button>

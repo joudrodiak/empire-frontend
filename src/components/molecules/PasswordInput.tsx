@@ -11,6 +11,7 @@ export function PasswordInput({ inputClassName, className, ...props }: Props) {
   return (
     <div className={className || 'relative'}>
       <input
+        placeholder="••••••••"
         {...props}
         type={visible ? 'text' : 'password'}
         className={`${inputClassName || ''} pr-10`}

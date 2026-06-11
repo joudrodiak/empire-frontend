@@ -53,7 +53,11 @@ export function Modal({ open, onClose, title, icon, children, width = 'max-w-lg'
       onMouseDown={onClose}
     >
       <div
-        className={`glass-gold w-full max-h-[min(760px,calc(100vh-2rem))] max-w-[calc(100vw-2rem)] overflow-hidden ${width} p-4 transition-all duration-[240ms] sm:p-5 ${visible ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-3 scale-[0.98] opacity-0'}`}
+        // Only ONE max-width utility may live here: a viewport clamp like
+        // max-w-[calc(100vw-2rem)] conflicts with the caller's `width` class and
+        // wins by stylesheet order, blowing dialogs up to full screen. The
+        // overlay's p-4 already guarantees the dialog stays inside the viewport.
+        className={`glass-gold w-full max-h-[min(760px,calc(100vh-2rem))] overflow-hidden ${width} p-4 transition-all duration-[240ms] sm:p-5 ${visible ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-3 scale-[0.98] opacity-0'}`}
         onMouseDown={e => e.stopPropagation()}
       >
         <div className="mb-4 flex min-w-0 items-center gap-2.5">

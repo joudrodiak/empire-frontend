@@ -14,17 +14,23 @@ function path(data: number[], w: number, h: number, pad = 2) {
 
 export function Sparkline({ data, color = '#c9a233', height = 28 }: { data: number[]; color?: string; height?: number }) {
   const W = 100, id = React.useId()
+  // No data yet (backlog C2): render a dim dashed baseline instead of a broken path.
+  if (data.length === 0) {
+    return (
+      <svg width="100%" height={height} viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none" role="img" aria-label="No trend data yet">
+        <line x1="0" y1={height / 2} x2={W} y2={height / 2} stroke={color} strokeOpacity="0.25" strokeWidth="1" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />
+      </svg>
+    )
+  }
   const d = path(data, W, height)
   return (
     <svg width="100%" height={height} viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none" role="img" aria-label="Trend sparkline">
-      <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor={color} stopOpacity="0.42" /><stop offset="100%" stopColor={color} stopOpacity="0" />
-      </linearGradient>
-      <filter id={`${id}-glow`} x="-20%" y="-80%" width="140%" height="220%">
+      <defs><filter id={`${id}-glow`} x="-20%" y="-80%" width="140%" height="220%">
         <feGaussianBlur stdDeviation="1.4" result="blur" />
         <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
       </filter></defs>
-      <path d={`${d} L${W},${height} L0,${height} Z`} fill={`url(#${id})`} />
+      {/* Flat translucent fill — linear gradients are banned platform-wide. */}
+      <path d={`${d} L${W},${height} L0,${height} Z`} fill={color} fillOpacity="0.14" />
       <path d={d} fill="none" stroke={color} strokeOpacity="0.34" strokeWidth="4" vectorEffect="non-scaling-stroke" filter={`url(#${id}-glow)`} />
       <path d={d} fill="none" stroke={color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
     </svg>

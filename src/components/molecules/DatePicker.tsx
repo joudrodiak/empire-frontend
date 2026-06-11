@@ -1,0 +1,171 @@
+'use client'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { EmpireIcon } from '@/components/atoms/EmpireIcon'
+
+/**
+ * DatePicker (backlog A12) — fully styled glass calendar replacing native
+ * `<input type="date">`. Input-compatible API: `value` is an ISO yyyy-mm-dd
+ * string and `onChange` receives `{ target: { value } }`, so call sites swap
+ * the tag name and keep their handlers. The popup renders in a portal with
+ * the platform glass recipe so modals never clip it.
+ */
+type Props = {
+  value?: string
+  onChange?: (e: { target: { value: string } }) => void
+  className?: string
+  disabled?: boolean
+  placeholder?: string
+  id?: string
+  name?: string
+}
+
+const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
+function toISO(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function parseISO(s?: string): Date | null {
+  if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null
+  const d = new Date(`${s}T00:00:00`)
+  return isNaN(d.getTime()) ? null : d
+}
+
+export function DatePicker({ value, onChange, className, disabled, placeholder = 'Select date', id, name }: Props) {
+  const selected = parseISO(value)
+  const [open, setOpen] = useState(false)
+  const [view, setView] = useState(() => selected ?? new Date())
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number; up: boolean }>({ top: 0, left: 0, up: false })
+
+  useEffect(() => {
+    if (!open) return
+    const r = btnRef.current?.getBoundingClientRect()
+    if (r) {
+      const POPUP_H = 332
+      const up = r.bottom + POPUP_H + 8 > window.innerHeight && r.top > POPUP_H
+      setPos({ top: up ? r.top - POPUP_H - 8 : r.bottom + 8, left: Math.min(r.left, window.innerWidth - 292), up })
+    }
+    const close = (e: MouseEvent) => {
+      if (popRef.current?.contains(e.target as Node) || btnRef.current?.contains(e.target as Node)) return
+      setOpen(false)
+    }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc) }
+  }, [open])
+
+  useEffect(() => { if (open) setView(selected ?? new Date()) }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const grid = useMemo(() => {
+    const first = new Date(view.getFullYear(), view.getMonth(), 1)
+    const offset = (first.getDay() + 6) % 7 // Monday-first
+    const start = new Date(first)
+    start.setDate(first.getDate() - offset)
+    return Array.from({ length: 42 }, (_, i) => {
+      const d = new Date(start)
+      d.setDate(start.getDate() + i)
+      return d
+    })
+  }, [view])
+
+  const todayISO = toISO(new Date())
+  const selISO = selected ? toISO(selected) : null
+
+  function pick(d: Date) {
+    onChange?.({ target: { value: toISO(d) } })
+    setOpen(false)
+  }
+
+  const fmt = selected
+    ? selected.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : null
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        id={id}
+        name={name}
+        disabled={disabled}
+        onClick={() => setOpen(o => !o)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className={`${className ?? 'empire-input'} flex items-center justify-between gap-2 text-left ${disabled ? 'cursor-not-allowed opacity-55' : 'cursor-pointer'}`}
+      >
+        <span className={`truncate ${fmt ? 'text-empire-text' : 'text-empire-text-dim'}`}>{fmt ?? placeholder}</span>
+        <EmpireIcon name="calendar" size={14} className="shrink-0 text-empire-text-dim" />
+      </button>
+      {open && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={popRef}
+          role="dialog"
+          aria-label="Choose date"
+          className="glass fixed z-[120] w-[284px] rounded-xl border border-empire-border p-3 shadow-gold-border"
+          style={{ top: pos.top, left: pos.left, animation: 'dp-pop-in 240ms cubic-bezier(0.22,1,0.36,1)' }}
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <button type="button" onClick={() => setView(v => new Date(v.getFullYear(), v.getMonth() - 1, 1))}
+              aria-label="Previous month"
+              className="rounded-md p-1.5 text-empire-text-dim transition-colors duration-200 hover:bg-empire-elevated/60 hover:text-empire-gold">
+              <EmpireIcon name="chevron-left" size={14} />
+            </button>
+            <span className="font-empire text-sm tracking-wide text-empire-text">{MONTHS[view.getMonth()]} <span className="text-empire-text-muted">{view.getFullYear()}</span></span>
+            <button type="button" onClick={() => setView(v => new Date(v.getFullYear(), v.getMonth() + 1, 1))}
+              aria-label="Next month"
+              className="rounded-md p-1.5 text-empire-text-dim transition-colors duration-200 hover:bg-empire-elevated/60 hover:text-empire-gold">
+              <EmpireIcon name="chevron-right" size={14} />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5">
+            {WEEKDAYS.map(w => (
+              <span key={w} className="py-1 text-center text-[10px] uppercase tracking-widest text-empire-text-dim">{w}</span>
+            ))}
+            {grid.map((d, i) => {
+              const iso = toISO(d)
+              const inMonth = d.getMonth() === view.getMonth()
+              const isSel = iso === selISO
+              const isToday = iso === todayISO
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => pick(d)}
+                  aria-label={iso}
+                  aria-pressed={isSel}
+                  className={[
+                    'h-8 rounded-md text-xs tabular-nums transition-all duration-200',
+                    isSel
+                      ? 'bg-empire-gold font-semibold text-empire-void shadow-gold-glow'
+                      : isToday
+                        ? 'border border-empire-gold/50 text-empire-gold hover:bg-empire-gold/10'
+                        : inMonth
+                          ? 'text-empire-text hover:bg-empire-elevated/70 hover:text-empire-gold'
+                          : 'text-empire-text-dim/60 hover:bg-empire-elevated/40',
+                  ].join(' ')}
+                >
+                  {d.getDate()}
+                </button>
+              )
+            })}
+          </div>
+          <div className="mt-2 flex items-center justify-between border-t border-empire-border pt-2">
+            <button type="button" onClick={() => { onChange?.({ target: { value: '' } }); setOpen(false) }}
+              className="rounded-md px-2 py-1 text-[11px] uppercase tracking-widest text-empire-text-muted transition-colors duration-200 hover:text-empire-text">
+              Clear
+            </button>
+            <button type="button" onClick={() => pick(new Date())}
+              className="rounded-md px-2 py-1 text-[11px] uppercase tracking-widest text-empire-gold transition-colors duration-200 hover:bg-empire-gold/10">
+              Today
+            </button>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
+  )
+}

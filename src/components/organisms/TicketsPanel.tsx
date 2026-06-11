@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/atoms/EmptyState'
 import { EmpireIcon, type IconName } from '@/components/atoms/EmpireIcon'
 import { AreaChart } from '@/components/organisms/charts/AreaChart'
 import { format } from 'date-fns'
+import { DatePicker } from '@/components/molecules/DatePicker'
 
 // A Jira-shaped issue. Mirrors the API `Ticket` model (routes/tickets.ts).
 export type Ticket = {
@@ -977,7 +978,7 @@ function TicketForm({ departmentSlug, ticket, people, sprints, defaultSprintId, 
           </div>
           <div>
             <label className="empire-label">Story points</label>
-            <input type="number" min={0} value={f.storyPoints} onChange={e => setF({ ...f, storyPoints: e.target.value })} className="empire-input w-full mt-1" />
+            <input type="number" min={0} value={f.storyPoints} placeholder="3" onChange={e => setF({ ...f, storyPoints: e.target.value })} className="empire-input w-full mt-1" />
           </div>
           <div>
             <label className="empire-label">Assignee — earns XP when done</label>
@@ -1002,7 +1003,7 @@ function TicketForm({ departmentSlug, ticket, people, sprints, defaultSprintId, 
           </div>
           <div>
             <label className="empire-label">Due date</label>
-            <input type="date" value={f.dueDate} onChange={e => setF({ ...f, dueDate: e.target.value })} className="empire-input w-full mt-1" />
+            <DatePicker value={f.dueDate} onChange={e => setF({ ...f, dueDate: e.target.value })} className="empire-input w-full mt-1" />
           </div>
         </div>
         <input placeholder="Labels (comma-separated)" value={f.labels} onChange={e => setF({ ...f, labels: e.target.value })} className="empire-input w-full" />
@@ -1078,15 +1079,15 @@ function SprintManager({ departmentSlug, sprints, onChanged, onClose }: {
               </div>
               <div>
                 <label className="empire-label">Committed points</label>
-                <input type="number" min={0} value={f.committedPoints} onChange={e => setF({ ...f, committedPoints: e.target.value })} className="empire-input w-full mt-1" />
+                <input type="number" min={0} value={f.committedPoints} placeholder="0" onChange={e => setF({ ...f, committedPoints: e.target.value })} className="empire-input w-full mt-1" />
               </div>
               <div>
                 <label className="empire-label">Start *</label>
-                <input type="date" value={f.startDate} onChange={e => setF({ ...f, startDate: e.target.value })} className="empire-input w-full mt-1" />
+                <DatePicker value={f.startDate} onChange={e => setF({ ...f, startDate: e.target.value })} className="empire-input w-full mt-1" />
               </div>
               <div>
                 <label className="empire-label">End *</label>
-                <input type="date" value={f.endDate} onChange={e => setF({ ...f, endDate: e.target.value })} className="empire-input w-full mt-1" />
+                <DatePicker value={f.endDate} onChange={e => setF({ ...f, endDate: e.target.value })} className="empire-input w-full mt-1" />
               </div>
             </div>
             <div className="flex gap-2">

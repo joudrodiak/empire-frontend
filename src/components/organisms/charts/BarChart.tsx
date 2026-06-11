@@ -1,5 +1,7 @@
 'use client'
 import React, { useEffect, useState } from 'react'
+import { ChartEmpty } from './ChartEmpty'
+import { RangeChips } from './RangeChips'
 
 /**
  * BarChart — dimensional gold bars (top highlight + inner shadow + cast base
@@ -7,11 +9,19 @@ import React, { useEffect, useState } from 'react'
  * floating glass info blob with the value (and label/legend when provided).
  * Pure CSS/SVG, no chart library. Public props unchanged.
  */
-export function BarChart({ data, height = 200, color = '#c9a233', labels, valueFormat, legend }: {
+export function BarChart({ data: fullData, height = 200, color = '#c9a233', labels: fullLabels, valueFormat, legend, filterable = true }: {
   data: number[]; height?: number; color?: string; labels?: string[]
   valueFormat?: (v: number) => string
   legend?: { label: string; color: string }[]
+  /** Show the "last N points" range filter chips (backlog C1). */
+  filterable?: boolean
 }) {
+  // Range filter (backlog C1): slice the tail of the pre-aggregated data.
+  const [range, setRange] = useState<number | null>(null)
+  const n = range !== null && range < fullData.length ? range : null
+  const data = n ? fullData.slice(-n) : fullData
+  const labels = n && fullLabels ? fullLabels.slice(-n) : fullLabels
+  const empty = fullData.length === 0 || fullData.every(v => !v)
   const max = Math.max(...data, 1)
   const [hover, setHover] = useState<number | null>(null)
   const [mounted, setMounted] = useState(false)
@@ -19,8 +29,11 @@ export function BarChart({ data, height = 200, color = '#c9a233', labels, valueF
 
   useEffect(() => { const t = requestAnimationFrame(() => setMounted(true)); return () => cancelAnimationFrame(t) }, [])
 
+  if (empty) return <ChartEmpty height={height} icon="chart-bar" />
+
   return (
     <div>
+      {filterable && <RangeChips length={fullData.length} value={range} onChange={v => { setHover(null); setRange(v) }} />}
       <div className="relative flex items-end gap-1.5" style={{ height }}>
         {/* faint gridlines for depth */}
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between">

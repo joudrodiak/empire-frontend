@@ -9,6 +9,7 @@ import { fetcher, post, patch, del, formatCurrency } from '@/lib/api'
 import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon, type IconName } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
+import { AffixInput } from '@/components/molecules/AffixInput'
 
 // Executive — the crown dept. The C-suite cockpit. Runway, MRR & MRR growth, net
 // burn, OKR attainment and KR hit-rate all derive from /api/executive/*.
@@ -315,7 +316,7 @@ function ObjectiveEditModal({ row, onClose, onSaved }: { row: ObjRow; onClose: (
           <input className={inputCls} placeholder="Quarter" value={f.quarter} onChange={e => setF({ ...f, quarter: e.target.value })} />
           <select className={inputCls} value={f.category} onChange={e => setF({ ...f, category: e.target.value })}><option value="growth">growth</option><option value="product">product</option><option value="financial">financial</option><option value="people">people</option><option value="operational">operational</option></select>
           <select className={inputCls} value={f.status} onChange={e => setF({ ...f, status: e.target.value })}><option value="on_track">on track</option><option value="at_risk">at risk</option><option value="off_track">off track</option><option value="done">done</option></select>
-          <input className={inputCls} type="number" placeholder="Progress %" value={f.progressPct} onChange={e => setF({ ...f, progressPct: e.target.value })} />
+          <AffixInput pct className={inputCls} type="number" placeholder="Progress %" value={f.progressPct} onChange={e => setF({ ...f, progressPct: e.target.value })} />
           <input className={inputCls} type="number" placeholder="Confidence %" value={f.confidence} onChange={e => setF({ ...f, confidence: e.target.value })} />
         </div>
         <div className="flex justify-end gap-2 pt-1">

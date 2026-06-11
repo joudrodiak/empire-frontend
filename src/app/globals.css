@@ -106,6 +106,55 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* Alive background (backlog A3): two huge blurred solid-color orbs drift very
+   slowly behind every page so the void feels ambient, not static. Solid fills
+   + blur — NOT gradients (banned platform-wide). Fixed + transform-only so it
+   never causes layout/paint work; hidden for reduced-motion users. */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(110px);
+  will-change: transform;
+}
+body::before {
+  width: 44vw;
+  height: 44vw;
+  top: -14vw;
+  left: -10vw;
+  background: rgba(201, 162, 51, 0.05); /* empire gold */
+  animation: ambient-drift-a 90s ease-in-out infinite alternate;
+}
+body::after {
+  width: 38vw;
+  height: 38vw;
+  bottom: -16vw;
+  right: -8vw;
+  background: rgba(244, 239, 227, 0.03); /* empire ivory */
+  animation: ambient-drift-b 110s ease-in-out infinite alternate;
+}
+@keyframes dp-pop-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes ambient-drift-a {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(9vw, 6vh, 0) scale(1.12); }
+  to { transform: translate3d(3vw, 12vh, 0) scale(0.96); }
+}
+@keyframes ambient-drift-b {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-8vw, -7vh, 0) scale(1.1); }
+  to { transform: translate3d(-2vw, -13vh, 0) scale(0.94); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after { animation: none; }
+}
+
 .font-empire {
   font-family: 'Cinzel', 'Georgia', serif;
 }
@@ -155,13 +204,42 @@ button:disabled {
   pointer-events: none;
 }
 
+/* ---- Dropdowns (backlog A11) ------------------------------------------------
+ * Every <select> on the platform: flat glass trigger, gold chevron indicator,
+ * dark native menu (color-scheme) with elevated option rows. No gradients. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  color-scheme: dark;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23c9a233' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 12px 12px;
+  padding-right: 2rem;
+}
+select:focus {
+  border-color: rgba(201, 162, 51, 0.6);
+}
+select option,
+select optgroup {
+  background-color: rgb(var(--e-elevated));
+  color: rgb(var(--e-text));
+  padding: 0.4rem 0.6rem;
+}
+select option:checked {
+  background-color: rgba(201, 162, 51, 0.22);
+  color: #f4efe3;
+}
+select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
 select.empire-input,
 .empire-select,
 select.bg-empire-bg-soft,
 select.bg-empire-surface\/60 {
-  appearance: none;
   background-color: rgb(var(--e-elevated) / 0.82);
-  background-image: none;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 24px rgba(0,0,0,0.18);
 }
 
@@ -183,7 +261,6 @@ select.bg-empire-surface\/60 {
   background-color: rgb(var(--glass-bg) / var(--glass-bg-a));
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  position: relative;
   isolation: isolate;
   overflow: hidden;
   box-shadow:
@@ -219,9 +296,14 @@ html.light .glass {
     0 4px 30px rgba(120, 100, 40, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
+/* Glass surfaces need a positioning context for their ::before/::after sheen
+   layers, but it MUST be declared at zero specificity: these classes are
+   emitted after Tailwind's utilities, so a plain `position: relative` here
+   silently beats `fixed`/`absolute` on glass popovers (date-picker calendar,
+   dock menus) and strands them at their static position off-screen. */
+:where(.glass, .glass-gold) { position: relative; }
 /* Brighter gold-frost variant for floating chrome (dock / brand). */
 .glass-gold {
-  position: relative;
   isolation: isolate;
   overflow: hidden;
   background-color: rgba(18, 18, 31, 0.82);
@@ -390,10 +472,11 @@ html.light .glass-edgeless {
 /* Company intelligence network. */
 .network-edge {
   /* No drop-shadow filter here: SVG filters rasterize the stroke, which is what
-     made the lines look pixelated with visible edges once the map was zoomed. */
+     made the lines look pixelated with visible edges once the map was zoomed.
+     No stroke-dash draw-in either: Chromium computes dash patterns in screen
+     space under vector-effect: non-scaling-stroke, ignoring pathLength, which
+     left every edge permanently dotted. Fade-in only — solid, crisp lines. */
   opacity: 0;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
   animation: network-edge-draw 900ms ease forwards;
 }
 .network-canvas {
@@ -499,7 +582,7 @@ html.light .glass-edgeless {
   transform: translate(-50%, -112%);
 }
 @keyframes network-edge-draw {
-  to { opacity: 0.74; stroke-dashoffset: 0; }
+  to { opacity: 0.74; }
 }
 @keyframes network-node-in {
   to { opacity: 1; transform: translate(-50%, -50%) scale(1); }

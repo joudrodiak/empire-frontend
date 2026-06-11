@@ -335,7 +335,7 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
             <div><label className={label}>Company name</label><input className={field} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Cregen Ventures" autoFocus /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={label}>Type</label><input className={field} value={type} onChange={e => setType(e.target.value)} placeholder="Subsidiary" /></div>
-              <div><label className={label}>Founded</label><input className={field} value={founded} onChange={e => setFounded(e.target.value)} /></div>
+              <div><label className={label}>Founded</label><input className={field} value={founded} placeholder="2024" onChange={e => setFounded(e.target.value)} /></div>
             </div>
             <div>
               <label className={label}>Industry</label>
@@ -501,8 +501,11 @@ function CompanyOnboardingWizard({ onClose, onCreated }: { onClose: () => void; 
               {hires.length === 0 && <p className="rounded-lg border border-dashed border-empire-border/70 px-3 py-4 text-center text-[11px] text-empire-text-dim">No hires yet — the tenant can start empty.</p>}
             </div>
             <div className="flex items-center gap-3">
-              <button type="button" onClick={addHire} disabled={!enabledUnits.length}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-dashed border-empire-gold/40 px-3 py-2 text-xs text-empire-gold transition-colors hover:bg-empire-gold/10 disabled:opacity-50">
+              {/* One hire at a time: while a form is still open (not yet "Complete
+                  hire"-d), adding another is blocked so half-filled hires can't pile up. */}
+              <button type="button" onClick={addHire} disabled={!enabledUnits.length || hires.some(h => h.open)}
+                title={hires.some(h => h.open) ? 'Complete the open hire first' : undefined}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-dashed border-empire-gold/40 px-3 py-2 text-xs text-empire-gold transition-colors hover:bg-empire-gold/10 disabled:cursor-not-allowed disabled:opacity-50">
                 <EmpireIcon name="plus" size={14} /> Add hire
               </button>
               <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-[11px] text-empire-text-muted">

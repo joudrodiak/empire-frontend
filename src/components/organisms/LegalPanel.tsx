@@ -333,7 +333,7 @@ function Generate({ onSaved }: { onSaved: (id?: string) => void }) {
                     {v.type === 'textarea'
                       ? <textarea className={inputCls} rows={2} value={params[v.key] ?? ''} onChange={e => set(v.key, e.target.value)} />
                       : <input className={inputCls} type={v.type === 'number' ? 'number' : v.type === 'date' ? 'date' : 'text'}
-                          value={params[v.key] ?? ''} onChange={e => set(v.key, v.type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value)} />}
+                          value={params[v.key] ?? ''} placeholder={v.label} onChange={e => set(v.key, v.type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value)} />}
                   </label>
                 ))}
               </div>
@@ -493,14 +493,14 @@ function TemplateEditModal({ tpl, mode, open, onClose, onSaved }: { tpl: Templat
         )}
         <div className="grid grid-cols-2 gap-3">
           <label className="block"><span className="empire-label">Name</span>
-            <input className="empire-input w-full mt-1" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></label>
+            <input className="empire-input w-full mt-1" value={f.name} placeholder="Template name" onChange={e => setF({ ...f, name: e.target.value })} /></label>
           <label className="block"><span className="empire-label">Type</span>
-            <input className="empire-input w-full mt-1" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} /></label>
+            <input className="empire-input w-full mt-1" value={f.category} placeholder="nda" onChange={e => setF({ ...f, category: e.target.value })} /></label>
         </div>
         <label className="block"><span className="empire-label">Jurisdiction</span>
-          <input className="empire-input w-full mt-1" value={f.jurisdiction} onChange={e => setF({ ...f, jurisdiction: e.target.value })} /></label>
+          <input className="empire-input w-full mt-1" value={f.jurisdiction} placeholder="Netherlands" onChange={e => setF({ ...f, jurisdiction: e.target.value })} /></label>
         <label className="block"><span className="empire-label">Description</span>
-          <input className="empire-input w-full mt-1" value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>
+          <input className="empire-input w-full mt-1" value={f.description} placeholder="What this template is for" onChange={e => setF({ ...f, description: e.target.value })} /></label>
         <label className="block"><span className="empire-label">Body (markdown)</span>
           <textarea className="empire-input w-full mt-1 font-mono text-xs" rows={10} value={f.bodyMarkdown} onChange={e => setF({ ...f, bodyMarkdown: e.target.value })} /></label>
         <p className="text-[11px] text-empire-text-muted">
@@ -734,16 +734,16 @@ function EditPanel({ doc, onDone, setBusy, busy }: { doc: Doc; onDone: (d: Doc) 
       <div className="text-[11px] uppercase tracking-wide mb-3" style={{ color: ACCENT }}>Edit terms & regenerate · resets signatures</div>
       <div className="grid grid-cols-2 gap-3">
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Title</span>
-          <input className={inputCls} value={title} onChange={e => setTitle(e.target.value)} /></label>
+          <input className={inputCls} value={title} placeholder="Document title" onChange={e => setTitle(e.target.value)} /></label>
         <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Counterparty</span>
-          <input className={inputCls} value={counterparty} onChange={e => setCounterparty(e.target.value)} /></label>
+          <input className={inputCls} value={counterparty} placeholder="Counterparty name" onChange={e => setCounterparty(e.target.value)} /></label>
         {vars.map(v => (
           <label key={v.key} className={v.type === 'textarea' ? 'block col-span-2' : 'block'}>
             <span className="text-[11px] uppercase tracking-wide text-empire-text-muted">{v.label}</span>
             {v.type === 'textarea'
               ? <textarea className={inputCls} rows={2} value={params[v.key] ?? ''} onChange={e => set(v.key, e.target.value)} />
               : <input className={inputCls} type={v.type === 'number' ? 'number' : v.type === 'date' ? 'date' : 'text'}
-                  value={params[v.key] ?? ''} onChange={e => set(v.key, v.type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value)} />}
+                  value={params[v.key] ?? ''} placeholder={v.label} onChange={e => set(v.key, v.type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value)} />}
           </label>
         ))}
       </div>

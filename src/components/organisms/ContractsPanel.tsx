@@ -9,6 +9,8 @@ import { EmptyState } from '@/components/atoms/EmptyState'
 import { EmpireIcon, type IconName } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
 import { format } from 'date-fns'
+import { AffixInput } from '@/components/molecules/AffixInput'
+import { DatePicker } from '@/components/molecules/DatePicker'
 
 // A contract / legal document. Mirrors the API `Contract` model.
 export type Contract = {
@@ -85,18 +87,18 @@ function expiryState(endDate: string | null, status: string): { label: string; c
   return null
 }
 
-export function ContractsPanel({ departmentSlug, accent = '#c9a233', prefillEmployeeId, onConsumePrefill, global = false }: {
-  // Omit `departmentSlug` (or pass global) to search EVERY unit's contracts —
-  // the People Operations "Contracts" tab mounts it this way so any employee
-  // contract is findable in one place by title, party, ref, employee name or role.
+export function ContractsPanel({ departmentSlug, accent = '#c9a233', prefillEmployeeId, onConsumePrefill }: {
+  // Omit `departmentSlug` to search EVERY unit's contracts in one registry.
+  // No surface mounts it that way today: contracts live ONLY in each unit's
+  // Contracts tab (the People-Ops duplicate tab was removed deliberately —
+  // one contract registry per unit, no second copy elsewhere).
   departmentSlug?: string; accent?: string
-  // When People Ops (or any roster) jumps here to "create a contract" for a person,
-  // it passes that employee id; the form auto-opens prefilled for them.
+  // When a roster jumps here to "create a contract" for a person, it passes
+  // that employee id; the form auto-opens prefilled for them.
   prefillEmployeeId?: string | null
   onConsumePrefill?: () => void
-  global?: boolean
 }) {
-  const isGlobal = global || !departmentSlug
+  const isGlobal = !departmentSlug
   const [rows, setRows] = useState<Contract[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -649,13 +651,13 @@ function ContractForm({ departmentSlug, contract, prefillEmployeeId, onCreated, 
 
         <div>
           <label className="empire-label">Start</label>
-          <input type="date" value={f.startDate} onChange={e => setF({ ...f, startDate: e.target.value })} className="empire-input w-full mt-1" />
+          <DatePicker value={f.startDate} onChange={e => setF({ ...f, startDate: e.target.value })} className="empire-input w-full mt-1" />
         </div>
         <div>
           <label className="empire-label">End</label>
-          <input type="date" value={f.endDate} onChange={e => setF({ ...f, endDate: e.target.value })} className="empire-input w-full mt-1" />
+          <DatePicker value={f.endDate} onChange={e => setF({ ...f, endDate: e.target.value })} className="empire-input w-full mt-1" />
         </div>
-        <input placeholder="Value (number)" type="number" value={f.value} onChange={e => setF({ ...f, value: e.target.value })} className="empire-input" />
+        <AffixInput money placeholder="Value (number)" type="number" value={f.value} onChange={e => setF({ ...f, value: e.target.value })} className="empire-input" />
         <textarea placeholder="Notes" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} rows={2} className="col-span-2 empire-input resize-none" />
       </div>
 

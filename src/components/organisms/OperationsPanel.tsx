@@ -9,6 +9,7 @@ import { Modal } from '@/components/molecules/Modal'
 import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
+import { AffixInput } from '@/components/molecules/AffixInput'
 
 type Page<T> = { data: T[]; page: number; pageSize: number; total: number; totalPages: number }
 
@@ -222,7 +223,7 @@ function VendorModal({ open, onClose, initial, onSaved }: { open: boolean; onClo
           <select className={inputCls} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option value="active">active</option><option value="review">review</option><option value="churned">churned</option></select>
         </div>
         <div className="flex flex-wrap gap-2">
-          <input className={`${inputCls} w-32`} placeholder="annual cost" value={form.annualCost} onChange={e => setForm({ ...form, annualCost: e.target.value })} />
+          <AffixInput money className={`${inputCls} w-32`} placeholder="annual cost" value={form.annualCost} onChange={e => setForm({ ...form, annualCost: e.target.value })} />
           <input className={`${inputCls} w-44`} placeholder="owner" value={form.ownerName} onChange={e => setForm({ ...form, ownerName: e.target.value })} />
         </div>
         <div className="flex justify-end gap-2 pt-2">

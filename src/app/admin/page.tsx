@@ -178,7 +178,7 @@ function UserModal({ user, roles, ranks, onClose, onSaved }: {
   return (
     <Modal open onClose={onClose} title={isNew ? 'New user' : `Edit ${user!.name}`} icon={<EmpireIcon name="user" size={18} />}>
       <div className="space-y-3.5">
-        <div><label className={label}>Name</label><input className={field} value={name} onChange={e => setName(e.target.value)} /></div>
+        <div><label className={label}>Name</label><input className={field} value={name} placeholder="Full name" onChange={e => setName(e.target.value)} /></div>
         <div>
           <label className={label}>Email</label>
           <input className={field} type="email" value={email} disabled={!isNew}
@@ -320,10 +320,10 @@ function RoleModal({ role, allPerms, onClose, onSaved }: {
             <label className={label}>Key</label>
             <input className={field} value={key} disabled={!isNew} onChange={e => setKey(e.target.value)} placeholder="manager" />
           </div>
-          <div><label className={label}>Authority level</label><input className={field} type="number" value={level} onChange={e => setLevel(e.target.value)} /></div>
+          <div><label className={label}>Authority level</label><input className={field} type="number" value={level} placeholder="3" onChange={e => setLevel(e.target.value)} /></div>
         </div>
-        <div><label className={label}>Name</label><input className={field} value={name} onChange={e => setName(e.target.value)} /></div>
-        <div><label className={label}>Description</label><input className={field} value={description} onChange={e => setDescription(e.target.value)} /></div>
+        <div><label className={label}>Name</label><input className={field} value={name} placeholder="Role name" onChange={e => setName(e.target.value)} /></div>
+        <div><label className={label}>Description</label><input className={field} value={description} placeholder="What this role can do" onChange={e => setDescription(e.target.value)} /></div>
 
         {locked && <p className="rounded-lg border border-empire-border bg-empire-surface/40 px-3 py-2 text-[11px] text-empire-text-muted">System role — key is fixed; you can still tune its permissions.</p>}
 
@@ -436,10 +436,10 @@ function RankModal({ rank, onClose, onSaved }: { rank: Rank | null; onClose: () 
       <div className="space-y-3.5">
         <div className="grid grid-cols-2 gap-3">
           <div><label className={label}>Key</label><input className={field} value={key} disabled={!isNew} onChange={e => setKey(e.target.value)} placeholder="senior" /></div>
-          <div><label className={label}>Seniority order</label><input className={field} type="number" value={order} onChange={e => setOrder(e.target.value)} /></div>
+          <div><label className={label}>Seniority order</label><input className={field} type="number" value={order} placeholder="1" onChange={e => setOrder(e.target.value)} /></div>
         </div>
-        <div><label className={label}>Name</label><input className={field} value={name} onChange={e => setName(e.target.value)} /></div>
-        <div><label className={label}>Description</label><input className={field} value={description} onChange={e => setDescription(e.target.value)} /></div>
+        <div><label className={label}>Name</label><input className={field} value={name} placeholder="Rank name" onChange={e => setName(e.target.value)} /></div>
+        <div><label className={label}>Description</label><input className={field} value={description} placeholder="Short description" onChange={e => setDescription(e.target.value)} /></div>
         {err && <ErrBar msg={err} />}
         <SaveRow busy={busy} onSave={save} onClose={onClose} />
       </div>

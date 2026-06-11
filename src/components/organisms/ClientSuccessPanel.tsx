@@ -10,6 +10,7 @@ import { Modal } from '@/components/molecules/Modal'
 import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
+import { AffixInput } from '@/components/molecules/AffixInput'
 
 type Page<T> = { data: T[]; page: number; pageSize: number; total: number; totalPages: number }
 
@@ -207,8 +208,8 @@ function Accounts() {
           <div className="flex flex-wrap gap-2 items-end">
             <input className={`${inputCls} w-48`} placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
             <select className={inputCls} value={form.tier} onChange={e => setForm({ ...form, tier: e.target.value })}><option value="enterprise">enterprise</option><option value="growth">growth</option><option value="starter">starter</option></select>
-            <input className={`${inputCls} w-24`} placeholder="ARR" value={form.arr} onChange={e => setForm({ ...form, arr: e.target.value })} />
-            <input className={`${inputCls} w-24`} placeholder="prior ARR" value={form.priorArr} onChange={e => setForm({ ...form, priorArr: e.target.value })} />
+            <AffixInput money className={`${inputCls} w-24`} placeholder="ARR" value={form.arr} onChange={e => setForm({ ...form, arr: e.target.value })} />
+            <AffixInput money className={`${inputCls} w-24`} placeholder="prior ARR" value={form.priorArr} onChange={e => setForm({ ...form, priorArr: e.target.value })} />
             <input className={`${inputCls} w-20`} placeholder="seats" value={form.seats} onChange={e => setForm({ ...form, seats: e.target.value })} />
             <input className={`${inputCls} w-20`} placeholder="health" value={form.healthScore} onChange={e => setForm({ ...form, healthScore: e.target.value })} />
             <input className={`${inputCls} w-32`} placeholder="CSM" value={form.csmName} onChange={e => setForm({ ...form, csmName: e.target.value })} />

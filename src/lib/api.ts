@@ -1,3 +1,5 @@
+import { getLocaleTag } from '@/lib/i18n'
+
 const API = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
 
 // Active company (tenant) — Empire OS profiles are COMPANIES. The active company
@@ -128,5 +130,7 @@ export function ragLabel(status: string) {
 }
 
 export function formatCurrency(amount: number, currency = 'EUR') {
-  return new Intl.NumberFormat('en-EU', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount)
+  // Follows the language chosen in Settings (B1) — e.g. de-DE renders 1.234 €,
+  // ar renders Arabic-Indic digits. Falls back to en-GB before the provider boots.
+  return new Intl.NumberFormat(getLocaleTag(), { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount)
 }

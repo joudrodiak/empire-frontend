@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
+import { useI18n } from '@/lib/i18n'
 
 /**
  * DatePicker (backlog A12, L1) — fully styled glass calendar replacing native
@@ -24,9 +25,6 @@ type Props = {
   name?: string
 }
 
-const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-
 function toISO(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
@@ -36,7 +34,12 @@ function parseISO(s?: string): Date | null {
   return isNaN(d.getTime()) ? null : d
 }
 
-export function DatePicker({ value, onChange, className, disabled, placeholder = 'Select date', id, name }: Props) {
+export function DatePicker({ value, onChange, className, disabled, placeholder, id, name }: Props) {
+  const { t, tag } = useI18n()
+  // Localized month/weekday names (B1) — generated from Intl so all five
+  // languages get native labels. 2024-01-01 is a Monday (grid is Monday-first).
+  const MONTHS = useMemo(() => Array.from({ length: 12 }, (_, m) => new Intl.DateTimeFormat(tag, { month: 'long' }).format(new Date(2024, m, 1))), [tag])
+  const WEEKDAYS = useMemo(() => Array.from({ length: 7 }, (_, i) => new Intl.DateTimeFormat(tag, { weekday: 'short' }).format(new Date(2024, 0, 1 + i))), [tag])
   const selected = parseISO(value)
   const [open, setOpen] = useState(false)
   const [view, setView] = useState(() => selected ?? new Date())
@@ -99,7 +102,7 @@ export function DatePicker({ value, onChange, className, disabled, placeholder =
   const stepLabel = mode === 'days' ? 'month' : mode === 'months' ? 'year' : 'years'
 
   const fmt = selected
-    ? selected.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    ? selected.toLocaleDateString(tag, { day: '2-digit', month: 'short', year: 'numeric' })
     : null
 
   return (
@@ -115,7 +118,7 @@ export function DatePicker({ value, onChange, className, disabled, placeholder =
         aria-expanded={open}
         className={`${className ?? 'empire-input'} flex items-center justify-between gap-2 text-left ${disabled ? 'cursor-not-allowed opacity-55' : 'cursor-pointer'}`}
       >
-        <span className={`truncate ${fmt ? 'text-empire-text' : 'text-empire-text-dim'}`}>{fmt ?? placeholder}</span>
+        <span className={`truncate ${fmt ? 'text-empire-text' : 'text-empire-text-dim'}`}>{fmt ?? placeholder ?? t('common.selectDate')}</span>
         <EmpireIcon name="calendar" size={14} className="shrink-0 text-empire-text-dim" />
       </button>
       {open && typeof document !== 'undefined' && createPortal(
@@ -243,11 +246,11 @@ export function DatePicker({ value, onChange, className, disabled, placeholder =
           <div className="mt-2 flex items-center justify-between border-t border-empire-border pt-2">
             <button type="button" onClick={() => { onChange?.({ target: { value: '' } }); setOpen(false) }}
               className="rounded-md px-2 py-1 text-[11px] uppercase tracking-widest text-empire-text-muted transition-colors duration-200 hover:text-empire-text">
-              Clear
+              {t('common.clear')}
             </button>
             <button type="button" onClick={() => pick(new Date())}
               className="rounded-md px-2 py-1 text-[11px] uppercase tracking-widest text-empire-gold transition-colors duration-200 hover:bg-empire-gold/10">
-              Today
+              {t('common.today')}
             </button>
           </div>
         </div>,

@@ -10,6 +10,7 @@ import { LiquidMetalButton } from '@/components/atoms/LiquidMetalButton'
 import { EmptyState } from '@/components/atoms/EmptyState'
 import { FileDrop } from '@/components/molecules/FileDrop'
 import { CURRENCIES, CURRENCY_KEY, currencyCode, type CurrencyCode } from '@/lib/currency'
+import { LOCALES, useI18n, type MsgKey } from '@/lib/i18n'
 
 /**
  * /settings — the Empire OS configuration surface. Four lanes:
@@ -29,32 +30,33 @@ type AgentStatus = { name: string; codename: string; role: string; channels: Cha
 type EnvEntry = { key: string; label: string; doc?: string; set: boolean }
 type EnvStatus = { groups: Record<string, EnvEntry[]>; summary: { total: number; configured: number; missing: number } }
 
-const TABS: { id: string; label: string; icon: IconName }[] = [
-  { id: 'integrations', label: 'Integrations', icon: 'link' },
-  { id: 'agent', label: 'Agent', icon: 'sparkle' },
-  { id: 'company', label: 'Company', icon: 'briefcase' },
-  { id: 'appearance', label: 'Appearance', icon: 'eye' },
-  { id: 'environment', label: 'Environment', icon: 'cog' },
+const TAB_DEFS: { id: string; label: MsgKey; icon: IconName }[] = [
+  { id: 'integrations', label: 'settings.tabIntegrations', icon: 'link' },
+  { id: 'agent', label: 'settings.tabAgent', icon: 'sparkle' },
+  { id: 'company', label: 'settings.tabCompany', icon: 'briefcase' },
+  { id: 'appearance', label: 'settings.tabAppearance', icon: 'eye' },
+  { id: 'environment', label: 'settings.tabEnvironment', icon: 'cog' },
 ]
 
 export default function SettingsPage() {
   const { user, loading } = useAuth()
+  const { t } = useI18n()
   const [tab, setTab] = useState('integrations')
   const canManage = userCan(user, 'company:manage') || userCan(user, '*')
 
-  if (loading) return <div className="px-6 py-10 text-sm text-empire-text-muted">Loading…</div>
+  if (loading) return <div className="px-6 py-10 text-sm text-empire-text-muted">{t('common.loading')}</div>
 
   return (
     <div className="mx-auto max-w-5xl px-5 pb-28 pt-8">
       <header className="mb-6 animate-slide-up">
         <p className="text-[11px] uppercase tracking-[0.3em] text-empire-text-muted">Empire OS</p>
-        <h1 className="font-empire text-3xl text-empire-text">Settings</h1>
+        <h1 className="font-empire text-3xl text-empire-text">{t('settings.title')}</h1>
         <p className="mt-1 text-sm text-empire-text-muted">
-          Integrations, agent configuration, company identity and environment wiring.
+          {t('settings.subtitle')}
         </p>
       </header>
 
-      <TabBar tabs={TABS} active={tab} onChange={setTab} />
+      <TabBar tabs={TAB_DEFS.map(d => ({ ...d, label: t(d.label) }))} active={tab} onChange={setTab} />
 
       {tab === 'integrations' && <IntegrationsTab />}
       {tab === 'agent' && <AgentTab />}
@@ -277,13 +279,14 @@ function CompanyTab({ canManage }: { canManage: boolean }) {
 /* ── Appearance ───────────────────────────────────────────────── */
 type TextScale = 'small' | 'medium' | 'large'
 const SCALE_KEY = 'empire-os-text-scale'
-const SCALES: { id: TextScale; label: string; px: string; hint: string }[] = [
-  { id: 'small', label: 'Small', px: '15px', hint: 'Dense — more on screen' },
-  { id: 'medium', label: 'Medium', px: '16.5px', hint: 'Default — balanced reading size' },
-  { id: 'large', label: 'Large', px: '18px', hint: 'Comfort — bigger everything' },
+const SCALES: { id: TextScale; label: MsgKey; px: string; hint: MsgKey }[] = [
+  { id: 'small', label: 'settings.scaleSmall', px: '15px', hint: 'settings.scaleSmallHint' },
+  { id: 'medium', label: 'settings.scaleMedium', px: '16.5px', hint: 'settings.scaleMediumHint' },
+  { id: 'large', label: 'settings.scaleLarge', px: '18px', hint: 'settings.scaleLargeHint' },
 ]
 
 function AppearanceTab() {
+  const { t, locale, setLocale } = useI18n()
   const [scale, setScale] = useState<TextScale>('medium')
   const [currency, setCurrency] = useState<CurrencyCode>('EUR')
   useEffect(() => {
@@ -310,11 +313,30 @@ function AppearanceTab() {
   }
 
   return (
-    <Panel title="Appearance" icon="eye">
+    <Panel title={t('settings.tabAppearance')} icon="eye">
       <div className="space-y-4">
         <div>
-          <p className="text-sm font-semibold text-empire-text">Text size</p>
-          <p className="text-[11px] text-empire-text-muted">Scales the entire interface. Applies instantly and persists on this device.</p>
+          <p className="text-sm font-semibold text-empire-text">{t('settings.language')}</p>
+          <p className="text-[11px] text-empire-text-muted">{t('settings.languageHint')}</p>
+        </div>
+        {/* Language selector (B1) — native names so each language is findable
+            even when the UI is in a script the user can't read. */}
+        <div className="grid gap-2 sm:grid-cols-5">
+          {LOCALES.map(l => (
+            <button
+              key={l.code}
+              onClick={() => setLocale(l.code)}
+              aria-pressed={locale === l.code}
+              className={`rounded-xl border p-3 text-left transition-all duration-200 hover:-translate-y-0.5 ${locale === l.code ? 'border-empire-gold/60 bg-empire-gold/10 shadow-gold-glow' : 'border-empire-border bg-empire-elevated/40 hover:border-empire-gold/40'}`}
+            >
+              <span className="font-empire text-base text-empire-text">{l.label}</span>
+              <p className="mt-1 text-[11px] text-empire-text-muted">{l.english}{l.dir === 'rtl' ? ' · RTL' : ''}</p>
+            </button>
+          ))}
+        </div>
+        <div className="border-t border-empire-border pt-4">
+          <p className="text-sm font-semibold text-empire-text">{t('settings.textSize')}</p>
+          <p className="text-[11px] text-empire-text-muted">{t('settings.textSizeHint')}</p>
         </div>
         <div className="grid gap-2 sm:grid-cols-3">
           {SCALES.map(s => (
@@ -325,14 +347,14 @@ function AppearanceTab() {
               className={`rounded-xl border p-3 text-left transition-all duration-200 hover:-translate-y-0.5 ${scale === s.id ? 'border-empire-gold/60 bg-empire-gold/10 shadow-gold-glow' : 'border-empire-border bg-empire-elevated/40 hover:border-empire-gold/40'}`}
             >
               <span className={`font-empire text-empire-text ${s.id === 'small' ? 'text-sm' : s.id === 'medium' ? 'text-base' : 'text-lg'}`}>Aa</span>
-              <p className="mt-1 text-xs font-semibold text-empire-text">{s.label} <span className="font-data text-[10px] text-empire-text-dim">{s.px}</span></p>
-              <p className="text-[11px] text-empire-text-muted">{s.hint}</p>
+              <p className="mt-1 text-xs font-semibold text-empire-text">{t(s.label)} <span className="font-data text-[10px] text-empire-text-dim">{s.px}</span></p>
+              <p className="text-[11px] text-empire-text-muted">{t(s.hint)}</p>
             </button>
           ))}
         </div>
         <div className="border-t border-empire-border pt-4">
-          <p className="text-sm font-semibold text-empire-text">Currency</p>
-          <p className="text-[11px] text-empire-text-muted">Symbol shown inside money fields across the platform. Persists on this device.</p>
+          <p className="text-sm font-semibold text-empire-text">{t('settings.currency')}</p>
+          <p className="text-[11px] text-empire-text-muted">{t('settings.currencyHint')}</p>
         </div>
         <div className="grid gap-2 sm:grid-cols-3">
           {CURRENCIES.map(c => (
@@ -347,7 +369,7 @@ function AppearanceTab() {
             </button>
           ))}
         </div>
-        <p className="text-[11px] text-empire-text-dim">Dark / light theme is toggled from the dock at the bottom of the screen.</p>
+        <p className="text-[11px] text-empire-text-dim">{t('settings.themeNote')}</p>
       </div>
     </Panel>
   )

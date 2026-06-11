@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { LiquidMetalButton } from '@/components/atoms/LiquidMetalButton'
 import { PasswordInput } from '@/components/molecules/PasswordInput'
+import { useI18n } from '@/lib/i18n'
 
 /**
  * Empire OS login portal. Exchanges email + password for a session token
@@ -13,6 +14,7 @@ import { PasswordInput } from '@/components/molecules/PasswordInput'
  */
 export default function LoginPage() {
   const { user, loading, login } = useAuth()
+  const { t } = useI18n()
   const router = useRouter()
   const searchParams = useSearchParams()
   const requestedNext = searchParams.get('next') || '/'
@@ -32,7 +34,7 @@ export default function LoginPage() {
       await login(email.trim(), password)
       router.replace(next)
     } catch (err: any) {
-      setError(err?.message || 'Login failed')
+      setError(err?.message || t('login.failed'))
     } finally { setBusy(false) }
   }
 
@@ -47,18 +49,18 @@ export default function LoginPage() {
           </span>
           <div>
             <h1 className="font-empire text-xl tracking-[0.25em] text-empire-text uppercase">Empire OS</h1>
-            <p className="mt-1 text-xs uppercase tracking-widest text-empire-text-muted">Company intelligence app</p>
+            <p className="mt-1 text-xs uppercase tracking-widest text-empire-text-muted">{t('login.product')}</p>
           </div>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-empire-text-muted">Email</label>
+            <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-empire-text-muted">{t('login.email')}</label>
             <input type="email" autoComplete="username" required value={email}
               onChange={e => setEmail(e.target.value)} placeholder="you@company.com" className={field} />
           </div>
           <div>
-            <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-empire-text-muted">Password</label>
+            <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-empire-text-muted">{t('login.password')}</label>
             <PasswordInput autoComplete="current-password" required value={password}
               onChange={e => setPassword(e.target.value)} placeholder="••••••••" inputClassName={field} />
           </div>
@@ -72,13 +74,13 @@ export default function LoginPage() {
           <div className="pt-1">
             <LiquidMetalButton type="submit" variant="gold" icon={<EmpireIcon name="lock" size={15} />}
               className="w-full justify-center" disabled={busy}>
-              {busy ? 'Entering…' : 'Enter the Empire'}
+              {busy ? t('login.entering') : t('login.enter')}
             </LiquidMetalButton>
           </div>
         </form>
 
         <p className="mt-6 text-center text-[10px] uppercase tracking-widest text-empire-text-dim">
-          Sessions are tied to your contract &amp; role
+          {t('login.sessions')}
         </p>
       </div>
     </div>

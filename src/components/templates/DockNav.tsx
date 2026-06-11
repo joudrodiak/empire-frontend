@@ -6,10 +6,10 @@ import { EmpireIcon, type IconName } from '@/components/atoms/EmpireIcon'
 import { GlassPanel } from '@/components/atoms/GlassPanel'
 import { UnitMedallion } from '@/components/atoms/UnitMedallion'
 import { MICROSERVICES } from '@/lib/microservices'
-import { TERMS } from '@/lib/terms'
 import { ThemeToggle } from '@/components/molecules/ThemeToggle'
 import { useAuth, isAdmin } from '@/lib/auth'
 import { fetcher } from '@/lib/api'
+import { useI18n, type MsgKey } from '@/lib/i18n'
 
 /**
  * DockNav — the primary Empire OS menu, packaged in an edgeless frosted-glass
@@ -17,16 +17,16 @@ import { fetcher } from '@/lib/api'
  * Units launcher (popover grid of all units with 3D medallions). Rendered
  * globally from the root layout.
  */
-type DockItem = { label: string; icon: IconName; href: string }
+type DockItem = { label: MsgKey; icon: IconName; href: string }
 type Unit = { id: string; name: string; slug: string }
 
 const MAIN: DockItem[] = [
-  { label: 'Overview', icon: 'overview', href: '/' },
-  { label: 'Approvals', icon: 'scales', href: '/approvals' },
-  { label: 'Operator', icon: 'sparkle', href: '/agent' },
-  { label: 'MCP', icon: 'link', href: '/mcp' },
-  { label: 'Education', icon: 'book', href: '/education' },
-  { label: 'Settings', icon: 'cog', href: '/settings' },
+  { label: 'nav.overview', icon: 'overview', href: '/' },
+  { label: 'nav.approvals', icon: 'scales', href: '/approvals' },
+  { label: 'nav.operator', icon: 'sparkle', href: '/agent' },
+  { label: 'nav.mcp', icon: 'link', href: '/mcp' },
+  { label: 'nav.education', icon: 'book', href: '/education' },
+  { label: 'nav.settings', icon: 'cog', href: '/settings' },
 ]
 
 export function DockNav() {
@@ -41,6 +41,7 @@ export function DockNav() {
   const unitsBtnRef = useRef<HTMLButtonElement>(null)
   const userBtnRef = useRef<HTMLButtonElement>(null)
   const { user, logout } = useAuth()
+  const { t } = useI18n()
 
   // Popovers anchor to their trigger button's horizontal center (clamped to the
   // viewport) instead of the dock's right edge, so they never appear "flying".
@@ -81,7 +82,7 @@ export function DockNav() {
           // Tailwind utilities, so the `absolute` class alone loses the cascade —
           // an in-flow popover inflates the bottom-pinned dock container.
           <GlassPanel variant="gold" style={{ position: 'absolute', left: unitsLeft }} className="absolute bottom-[calc(100%+12px)] w-[min(92vw,560px)] origin-bottom animate-pop-in p-3">
-            <p className="px-1 pb-2 text-[10px] uppercase tracking-widest text-empire-text-muted">{TERMS.units} · {TERMS.domains}</p>
+            <p className="px-1 pb-2 text-[10px] uppercase tracking-widest text-empire-text-muted">{t('nav.units')} · {t('nav.domains')}</p>
             <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
               {(units.length ? units : MICROSERVICES).map(ms => {
                 const active = pathname === `/departments/${ms.slug}`
@@ -110,7 +111,7 @@ export function DockNav() {
                 className={`group flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-medium transition-colors ${active ? 'bg-empire-gold/15 text-empire-gold' : 'text-empire-text-muted hover:bg-empire-elevated/60 hover:text-empire-text'}`}
               >
                 <EmpireIcon name={item.icon} size={16} />
-                <span className="hidden sm:inline">{item.label}</span>
+                <span className="hidden sm:inline">{t(item.label)}</span>
               </Link>
             )
           })}
@@ -121,7 +122,7 @@ export function DockNav() {
             className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-medium transition-colors ${onUnit || unitsOpen ? 'bg-empire-gold/15 text-empire-gold' : 'text-empire-text-muted hover:bg-empire-elevated/60 hover:text-empire-text'}`}
           >
             <EmpireIcon name="shield" size={16} />
-            <span className="hidden sm:inline">{TERMS.units}</span>
+            <span className="hidden sm:inline">{t('nav.units')}</span>
             <EmpireIcon name="chevron-down" size={12} className={`transition-transform ${unitsOpen ? '' : 'rotate-180'}`} />
           </button>
 
@@ -167,12 +168,12 @@ export function DockNav() {
             {admin && (
               <Link href="/admin" onClick={() => setUserOpen(false)}
                 className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs text-empire-text-muted transition-colors hover:bg-empire-elevated/60 hover:text-empire-text">
-                <EmpireIcon name="cog" size={15} /> Admin &amp; IAM
+                <EmpireIcon name="cog" size={15} /> {t('nav.adminIam')}
               </Link>
             )}
             <button onClick={() => { setUserOpen(false); logout() }}
               className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs text-empire-text-muted transition-colors hover:bg-empire-red/10 hover:text-empire-red-bright">
-              <EmpireIcon name="lock" size={15} /> Sign out
+              <EmpireIcon name="lock" size={15} /> {t('nav.signOut')}
             </button>
           </GlassPanel>
         )}

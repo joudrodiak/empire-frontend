@@ -9,6 +9,10 @@ const nextConfig = {
   output: staticExport ? 'export' : 'standalone',
   outputFileTracingRoot: root,
   images: { unoptimized: staticExport },
+  // Local dev runs in docker and is browsed via 127.0.0.1:3001; without this
+  // Next blocks its own dev resources (HMR, RSC payloads) as cross-origin and
+  // the app silently never hydrates — eternal loading splash.
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
   ...(!staticExport && {
     async rewrites() {
       const apiOrigin = process.env.INTERNAL_API_URL

@@ -440,4 +440,22 @@ export const EDUCATION_DOCS: EducationDoc[] = [
     outcome: 'Advisor terms and contributions are explicit — no handshake deals living in someone’s head.',
     tags: ['advisory', 'council', 'advisors', 'equity', 'governance'],
   },
+  {
+    id: 'language-support',
+    title: 'Switch the Platform Language',
+    category: 'Platform',
+    icon: 'cog',
+    path: '/settings',
+    summary: 'Empire OS speaks English, Arabic, Dutch, Chinese and German — with RTL layout and native date/number/currency formats.',
+    steps: [
+      'Open Settings → Appearance.',
+      'Pick a language card — each is labeled in its own script (English · العربية · Nederlands · 中文 · Deutsch).',
+      'The interface chrome, dock, login and shared controls switch instantly; the choice persists on this device.',
+      'Choosing Arabic flips the whole layout to right-to-left, including text alignment and navigation flow.',
+      'Dates, numbers and currency amounts re-render in the selected language’s native format (e.g. 1.234 € in German).',
+      'Switch back to English the same way — language never changes your data, only its presentation.',
+    ],
+    outcome: 'Every operator reads Empire OS in their own language with correct script direction and number formats.',
+    tags: ['language', 'i18n', 'arabic', 'rtl', 'dutch', 'german', 'chinese', 'settings', 'translation'],
+  },
 ]

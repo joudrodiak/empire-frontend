@@ -487,9 +487,9 @@ function MessageLog({ canAct }: { canAct: boolean }) {
                 {canAct && (
                   <span className="flex shrink-0 items-center gap-1">
                     <button onClick={() => rate(m, 'good')} disabled={busyId === m.id} aria-label="Rate good" title="Rate good"
-                      className={`rounded-md border px-1.5 py-0.5 text-[10px] transition-colors ${m.rating === 'good' ? 'border-rag-green/60 bg-rag-green/15 text-rag-green' : 'border-empire-border text-empire-text-dim hover:border-rag-green/40 hover:text-rag-green'}`}>👍</button>
+                      className={`rounded-md border px-1.5 py-0.5 text-[10px] transition-colors ${m.rating === 'good' ? 'border-rag-green/60 bg-rag-green/15 text-rag-green' : 'border-empire-border text-empire-text-dim hover:border-rag-green/40 hover:text-rag-green'}`}><EmpireIcon name="arrow-up" size={12} /></button>
                     <button onClick={() => rate(m, 'bad')} disabled={busyId === m.id} aria-label="Rate bad" title="Rate bad"
-                      className={`rounded-md border px-1.5 py-0.5 text-[10px] transition-colors ${m.rating === 'bad' ? 'border-empire-red/60 bg-empire-red/15 text-empire-red-bright' : 'border-empire-border text-empire-text-dim hover:border-empire-red/40 hover:text-empire-red-bright'}`}>👎</button>
+                      className={`rounded-md border px-1.5 py-0.5 text-[10px] transition-colors ${m.rating === 'bad' ? 'border-empire-red/60 bg-empire-red/15 text-empire-red-bright' : 'border-empire-border text-empire-text-dim hover:border-empire-red/40 hover:text-empire-red-bright'}`}><EmpireIcon name="arrow-down" size={12} /></button>
                   </span>
                 )}
                 <StatusTag status={m.status} />

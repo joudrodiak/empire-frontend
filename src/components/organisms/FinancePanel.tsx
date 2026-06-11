@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { fetcher, post, patch, del, download } from '@/lib/api'
 import { KpiCard, Panel, AreaChart, BarChart, DonutChart, ProgressBar, DataTable, Badge, TabBar, Grid, EmptyState, type Column } from '@/lib/ui'
 import { Pagination } from '@/components/molecules/Pagination'
@@ -940,8 +940,26 @@ function TaxCenter() {
 type FilingField = { code: string; label: string; amount: number; tax?: number; source: string }
 type FilingForm = { type: string; period: string; form: FilingField[]; totals: Record<string, number>; warnings: string[] }
 
+const FILING_NAMES: Record<string, { name: string; explainer: string; bottomKey: string; bottomLabel: string }> = {
+  NL_BTW: { name: 'BTW — VAT return', explainer: 'Quarterly VAT declaration. Amounts prefill from posted revenue and approved spend.', bottomKey: 'payable', bottomLabel: 'VAT to pay this quarter' },
+  NL_VPB: { name: 'VPB — Corporate tax return', explainer: 'Annual corporate income tax (aangifte). 19% to €200k taxable profit, 25.8% above.', bottomKey: 'corporateTax', bottomLabel: 'Corporate tax for the year' },
+}
+
 function DutchFilingCenter() {
   const now = new Date()
+  const quarterOptions = useMemo(() => {
+    const opts: string[] = []
+    for (let y = now.getFullYear(); y >= now.getFullYear() - 1; y--) {
+      for (let q = 4; q >= 1; q--) {
+        if (y === now.getFullYear() && q > Math.floor(now.getMonth() / 3) + 1) continue
+        opts.push(`${y}-Q${q}`)
+      }
+    }
+    return opts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const yearOptions = useMemo(() => Array.from({ length: 4 }, (_, i) => String(now.getFullYear() - i)), []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const [period, setPeriod] = useState(`${now.getFullYear()}-Q${Math.floor(now.getMonth() / 3) + 1}`)
   const [year, setYear] = useState(String(now.getFullYear()))
   const [vat, setVat] = useState<FilingForm | null>(null)
@@ -949,41 +967,97 @@ function DutchFilingCenter() {
   const [recipient, setRecipient] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+  const [building, setBuilding] = useState(false)
 
   async function load() {
-    const [vatForm, vpbForm] = await Promise.all([
-      fetcher(`/api/finance/tax/nl-filing?period=${encodeURIComponent(period)}`),
-      fetcher(`/api/finance/tax/nl-aangifte?year=${encodeURIComponent(year)}`),
-    ])
-    setVat(vatForm); setVpb(vpbForm)
+    setBuilding(true); setErr(''); setMsg('')
+    try {
+      const [vatForm, vpbForm] = await Promise.all([
+        fetcher(`/api/finance/tax/nl-filing?period=${encodeURIComponent(period)}`),
+        fetcher(`/api/finance/tax/nl-aangifte?year=${encodeURIComponent(year)}`),
+      ])
+      setVat(vatForm); setVpb(vpbForm)
+    } catch (e) { setErr(e instanceof Error ? e.message : 'failed to build filing forms') }
+    setBuilding(false)
   }
   async function save(form: FilingForm) {
-    await post('/api/finance/tax/filings', { type: form.type, period: form.period, values: form, status: 'draft' })
-    setMsg(`${form.type} draft saved`)
+    setErr('')
+    try {
+      await post('/api/finance/tax/filings', { type: form.type, period: form.period, values: form, status: 'draft' })
+      setMsg(`${FILING_NAMES[form.type]?.name ?? form.type} draft saved for ${form.period}`)
+    } catch (e) { setErr(e instanceof Error ? e.message : 'failed to save draft') }
   }
   async function remind() {
-    await post('/api/finance/tax/reminders', { filingType: 'NL_BTW', recipient, dueDate, remindDays: [30, 14, 7, 1] })
-    setMsg('Email reminder scheduled')
+    setErr('')
+    try {
+      await post('/api/finance/tax/reminders', { filingType: 'NL_BTW', recipient, dueDate, remindDays: [30, 14, 7, 1] })
+      setMsg(`Reminders scheduled to ${recipient} — 30, 14, 7 and 1 day(s) before ${dueDate}`)
+    } catch (e) { setErr(e instanceof Error ? e.message : 'failed to schedule reminder') }
   }
 
   return <Panel title="Dutch filing forms" icon="document">
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-2">
-        <label className="text-xs text-empire-text-muted">VAT quarter<input className={`${modalInput} mt-1 w-28`} value={period} placeholder="Q1" onChange={e => setPeriod(e.target.value)} /></label>
-        <label className="text-xs text-empire-text-muted">Aangifte year<input className={`${modalInput} mt-1 w-24`} value={year} placeholder="2026" onChange={e => setYear(e.target.value)} /></label>
-        <button className="empire-btn-primary" onClick={load}>Build forms</button>
+        <label className="text-xs text-empire-text-muted">VAT quarter
+          <select className={`${modalInput} mt-1 w-32`} value={period} onChange={e => setPeriod(e.target.value)}>
+            {quarterOptions.map(q => <option key={q} value={q}>{q}</option>)}
+          </select>
+        </label>
+        <label className="text-xs text-empire-text-muted">Aangifte year
+          <select className={`${modalInput} mt-1 w-24`} value={year} onChange={e => setYear(e.target.value)}>
+            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </label>
+        <button className="empire-btn-primary" onClick={load} disabled={building}>{building ? 'Building…' : 'Build forms'}</button>
       </div>
-      {[vat, vpb].filter(Boolean).map(form => <div key={form!.type} className="rounded-lg border border-empire-border p-3">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold text-empire-text">{form!.type} · {form!.period}</h3><button className="text-xs text-empire-gold transition-all duration-200 hover:-translate-y-0.5" onClick={() => save(form!)}>Save draft</button></div>
-        <div className="space-y-1">{form!.form.map(row => <div key={row.code} className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-x-2 gap-y-1 border-t border-empire-border/40 py-2 text-xs sm:grid-cols-[3.5rem_minmax(0,1fr)_minmax(7rem,auto)]"><span className="font-data text-empire-gold">{row.code}</span><span className="min-w-0 whitespace-normal break-words leading-5 text-empire-text-muted" title={row.source}>{row.label}</span><span className="col-start-2 font-data text-empire-text sm:col-start-auto sm:text-right">{eur(row.amount)}</span></div>)}</div>
-        {form!.warnings.map(w => <p key={w} className="mt-2 text-[10px] text-rag-amber">{w}</p>)}
-      </div>)}
-      <div className="grid gap-2 border-t border-empire-border pt-3 sm:grid-cols-[1fr_10rem_auto]">
-        <input type="email" className={modalInput} placeholder="Reminder email" value={recipient} onChange={e => setRecipient(e.target.value)} />
-        <DatePicker className={modalInput} value={dueDate} onChange={e => setDueDate(e.target.value)} />
-        <button className="empire-btn-primary" onClick={remind} disabled={!recipient || !dueDate}>Schedule reminder</button>
+      {!vat && !vpb && (
+        <p className="rounded-lg border border-empire-border/70 bg-empire-elevated/20 px-3 py-2.5 text-xs leading-5 text-empire-text-muted">
+          Pick the VAT quarter and aangifte year, then <span className="text-empire-gold">Build forms</span> — both returns prefill from the posted ledger so you can review every box before filing with the Belastingdienst.
+        </p>
+      )}
+      {[vat, vpb].filter(Boolean).map(form => {
+        const meta = FILING_NAMES[form!.type]
+        const bottom = meta ? form!.totals[meta.bottomKey] : undefined
+        return <div key={form!.type} className="rounded-lg border border-empire-border p-3">
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-empire-text">{meta?.name ?? form!.type} · {form!.period}</h3>
+            <button className="text-xs text-empire-gold transition-all duration-200 hover:-translate-y-0.5" onClick={() => save(form!)}>Save draft</button>
+          </div>
+          {meta && <p className="mb-2 text-[11px] leading-4 text-empire-text-dim">{meta.explainer}</p>}
+          <div className="space-y-1">{form!.form.map(row => (
+            <div key={row.code} className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-x-2 gap-y-1 border-t border-empire-border/40 py-2 text-xs sm:grid-cols-[3.5rem_minmax(0,1fr)_minmax(7rem,auto)]">
+              <span className="font-data text-empire-gold">{row.code}</span>
+              <span className="min-w-0">
+                <span className="block whitespace-normal break-words leading-5 text-empire-text-muted">{row.label}</span>
+                <span className="block whitespace-normal break-words text-[10px] leading-4 text-empire-text-dim">{row.source}</span>
+              </span>
+              <span className="col-start-2 font-data text-empire-text sm:col-start-auto sm:text-right">{eur(row.amount)}</span>
+            </div>
+          ))}</div>
+          {meta && typeof bottom === 'number' && (
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-empire-gold/25 bg-empire-gold/5 px-3 py-2">
+              <span className="text-xs font-medium text-empire-gold">{meta.bottomLabel}</span>
+              <span className="font-data text-sm text-empire-gold">{eur(bottom)}</span>
+            </div>
+          )}
+          {form!.warnings.map(w => <p key={w} className="mt-2 text-[10px] leading-4 text-rag-amber">{w}</p>)}
+        </div>
+      })}
+      <div className="border-t border-empire-border pt-3">
+        <p className="mb-2 text-[11px] uppercase tracking-widest text-empire-text-dim">Filing deadline reminders</p>
+        <p className="mb-2 text-xs leading-5 text-empire-text-muted">Email reminders go out 30, 14, 7 and 1 day(s) before the filing due date.</p>
+        <div className="grid gap-2 sm:grid-cols-[1fr_10rem_auto]">
+          <label className="block">
+            <span className="sr-only">Reminder email</span>
+            <input type="email" id="filing-reminder-email" name="filingReminderEmail" className={modalInput} placeholder="finance@company.com" value={recipient} onChange={e => setRecipient(e.target.value)} />
+          </label>
+          <DatePicker className={modalInput} value={dueDate} onChange={e => setDueDate(e.target.value)} />
+          <button className="empire-btn-primary" onClick={remind} disabled={!recipient || !dueDate}>Schedule reminder</button>
+        </div>
       </div>
-      {msg && <p className="text-xs text-empire-green-bright">{msg}</p>}
+      {msg && <p className="text-xs text-empire-green-bright" role="status">{msg}</p>}
+      {err && <p className="text-xs text-rag-red" role="alert">{err}</p>}
     </div>
   </Panel>
 }

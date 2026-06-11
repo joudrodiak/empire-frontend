@@ -4,11 +4,15 @@ import { createPortal } from 'react-dom'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 
 /**
- * DatePicker (backlog A12) — fully styled glass calendar replacing native
+ * DatePicker (backlog A12, L1) — fully styled glass calendar replacing native
  * `<input type="date">`. Input-compatible API: `value` is an ISO yyyy-mm-dd
  * string and `onChange` receives `{ target: { value } }`, so call sites swap
  * the tag name and keep their handlers. The popup renders in a portal with
  * the platform glass recipe so modals never clip it.
+ *
+ * Clicking the header title drills up: day grid → month grid → year grid, so
+ * any year/month is reachable in two clicks instead of stepping one month at
+ * a time (L1 — "give me the ability to choose year/month").
  */
 type Props = {
   value?: string
@@ -36,6 +40,7 @@ export function DatePicker({ value, onChange, className, disabled, placeholder =
   const selected = parseISO(value)
   const [open, setOpen] = useState(false)
   const [view, setView] = useState(() => selected ?? new Date())
+  const [mode, setMode] = useState<'days' | 'months' | 'years'>('days')
   const btnRef = useRef<HTMLButtonElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ top: number; left: number; up: boolean }>({ top: 0, left: 0, up: false })
@@ -58,7 +63,7 @@ export function DatePicker({ value, onChange, className, disabled, placeholder =
     return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc) }
   }, [open])
 
-  useEffect(() => { if (open) setView(selected ?? new Date()) }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) { setView(selected ?? new Date()); setMode('days') } }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const grid = useMemo(() => {
     const first = new Date(view.getFullYear(), view.getMonth(), 1)
@@ -74,11 +79,24 @@ export function DatePicker({ value, onChange, className, disabled, placeholder =
 
   const todayISO = toISO(new Date())
   const selISO = selected ? toISO(selected) : null
+  const now = new Date()
 
   function pick(d: Date) {
     onChange?.({ target: { value: toISO(d) } })
     setOpen(false)
   }
+
+  // The chevrons step by the unit the current view shows: one month on the
+  // day grid, one year on the month grid, one 12-year block on the year grid.
+  function step(dir: -1 | 1) {
+    setView(v => mode === 'days'
+      ? new Date(v.getFullYear(), v.getMonth() + dir, 1)
+      : new Date(v.getFullYear() + dir * (mode === 'months' ? 1 : 12), v.getMonth(), 1))
+  }
+
+  const yearBase = Math.floor(view.getFullYear() / 12) * 12
+  const years = Array.from({ length: 12 }, (_, i) => yearBase + i)
+  const stepLabel = mode === 'days' ? 'month' : mode === 'months' ? 'year' : 'years'
 
   const fmt = selected
     ? selected.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -109,18 +127,32 @@ export function DatePicker({ value, onChange, className, disabled, placeholder =
           style={{ top: pos.top, left: pos.left, animation: 'dp-pop-in 240ms cubic-bezier(0.22,1,0.36,1)' }}
         >
           <div className="mb-2 flex items-center justify-between">
-            <button type="button" onClick={() => setView(v => new Date(v.getFullYear(), v.getMonth() - 1, 1))}
-              aria-label="Previous month"
+            <button type="button" onClick={() => step(-1)}
+              aria-label={`Previous ${stepLabel}`}
               className="rounded-md p-1.5 text-empire-text-dim transition-colors duration-200 hover:bg-empire-elevated/60 hover:text-empire-gold">
               <EmpireIcon name="chevron-left" size={14} />
             </button>
-            <span className="font-empire text-sm tracking-wide text-empire-text">{MONTHS[view.getMonth()]} <span className="text-empire-text-muted">{view.getFullYear()}</span></span>
-            <button type="button" onClick={() => setView(v => new Date(v.getFullYear(), v.getMonth() + 1, 1))}
-              aria-label="Next month"
+            {mode === 'years' ? (
+              <span className="font-empire text-sm tracking-wide text-empire-text">{yearBase} <span className="text-empire-text-muted">– {yearBase + 11}</span></span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setMode(m => (m === 'days' ? 'months' : 'years'))}
+                aria-label={mode === 'days' ? 'Choose month and year' : 'Choose year'}
+                className="rounded-md px-2 py-1 font-empire text-sm tracking-wide text-empire-text transition-colors duration-200 hover:bg-empire-elevated/60 hover:text-empire-gold"
+              >
+                {mode === 'days'
+                  ? <>{MONTHS[view.getMonth()]} <span className="text-empire-text-muted">{view.getFullYear()}</span></>
+                  : <>{view.getFullYear()}</>}
+              </button>
+            )}
+            <button type="button" onClick={() => step(1)}
+              aria-label={`Next ${stepLabel}`}
               className="rounded-md p-1.5 text-empire-text-dim transition-colors duration-200 hover:bg-empire-elevated/60 hover:text-empire-gold">
               <EmpireIcon name="chevron-right" size={14} />
             </button>
           </div>
+          {mode === 'days' && (
           <div className="grid grid-cols-7 gap-0.5">
             {WEEKDAYS.map(w => (
               <span key={w} className="py-1 text-center text-[10px] uppercase tracking-widest text-empire-text-dim">{w}</span>
@@ -153,6 +185,61 @@ export function DatePicker({ value, onChange, className, disabled, placeholder =
               )
             })}
           </div>
+          )}
+          {mode === 'months' && (
+          <div className="grid grid-cols-3 gap-1">
+            {MONTHS.map((m, i) => {
+              const isSel = selected && selected.getFullYear() === view.getFullYear() && selected.getMonth() === i
+              const isNow = now.getFullYear() === view.getFullYear() && now.getMonth() === i
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => { setView(v => new Date(v.getFullYear(), i, 1)); setMode('days') }}
+                  aria-label={`${m} ${view.getFullYear()}`}
+                  aria-pressed={!!isSel}
+                  className={[
+                    'h-12 rounded-md text-xs transition-all duration-200',
+                    isSel
+                      ? 'bg-empire-gold font-semibold text-empire-void shadow-gold-glow'
+                      : isNow
+                        ? 'border border-empire-gold/50 text-empire-gold hover:bg-empire-gold/10'
+                        : 'text-empire-text hover:bg-empire-elevated/70 hover:text-empire-gold',
+                  ].join(' ')}
+                >
+                  {m.slice(0, 3)}
+                </button>
+              )
+            })}
+          </div>
+          )}
+          {mode === 'years' && (
+          <div className="grid grid-cols-3 gap-1">
+            {years.map(y => {
+              const isSel = selected?.getFullYear() === y
+              const isNow = now.getFullYear() === y
+              return (
+                <button
+                  key={y}
+                  type="button"
+                  onClick={() => { setView(v => new Date(y, v.getMonth(), 1)); setMode('months') }}
+                  aria-label={`Year ${y}`}
+                  aria-pressed={!!isSel}
+                  className={[
+                    'h-12 rounded-md text-xs tabular-nums transition-all duration-200',
+                    isSel
+                      ? 'bg-empire-gold font-semibold text-empire-void shadow-gold-glow'
+                      : isNow
+                        ? 'border border-empire-gold/50 text-empire-gold hover:bg-empire-gold/10'
+                        : 'text-empire-text hover:bg-empire-elevated/70 hover:text-empire-gold',
+                  ].join(' ')}
+                >
+                  {y}
+                </button>
+              )
+            })}
+          </div>
+          )}
           <div className="mt-2 flex items-center justify-between border-t border-empire-border pt-2">
             <button type="button" onClick={() => { onChange?.({ target: { value: '' } }); setOpen(false) }}
               className="rounded-md px-2 py-1 text-[11px] uppercase tracking-widest text-empire-text-muted transition-colors duration-200 hover:text-empire-text">

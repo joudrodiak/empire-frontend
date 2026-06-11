@@ -16,6 +16,7 @@ type AgentStatus = { name: string; codename: string; role: string; channels: Cha
 type AgentMessage = {
   id: string; direction: string; channel: string; body: string; sentBy: string
   kind: string; status: string; delivery: string | null; approvalId: string | null; createdAt: string
+  rating?: string | null
 }
 type Approval = {
   id: string; requestedBy: string; title: string; description: string; category: string
@@ -26,10 +27,20 @@ type Agent = {
   id: string; name: string; codename: string | null; kind: string; role: string
   status: string; bio: string | null; departmentId: string | null
   department: Unit | null; _count?: { messages: number }; createdAt: string
+  permissions?: string[] | null
+  createdBy?: { id: string; name: string; email: string } | null
+}
+type AgentInsights = {
+  agentId: string; name: string; interactions: number; rated: number; good: number; bad: number
+  score: number | null; guidance: string
+  recentRated: { id: string; body: string; channel: string; kind: string; rating: string; ratedAt: string }[]
 }
 
 const KINDS = ['bot']
 const AGENT_STATUSES = ['active', 'paused', 'archived']
+// Mirrors the API's PERMISSIONS catalog — the keys an agent can be granted.
+// The form only offers keys the CALLER holds; the server re-validates (§H2).
+const CAPABILITY_KEYS = ['iam:manage', 'company:manage', 'finance:read', 'finance:write', 'approvals:decide', 'contracts:write', 'people:write', 'units:write', 'agent:act']
 
 const PAGE_SIZE = 10
 const field = 'w-full rounded-lg border border-empire-border bg-empire-surface/60 px-3 py-2 text-sm text-empire-text placeholder:text-empire-text-dim outline-none transition-colors focus:border-empire-gold/50'
@@ -86,7 +97,7 @@ export default function AgentPage() {
       {tab === 'capabilities' && <CapabilitiesTab canAct={canAct} />}
       {tab === 'roster' && <RosterTab canAct={canAct} />}
       {tab === 'approvals' && <ApprovalQueue canAct={canAct} canDecide={canDecide} />}
-      {tab === 'log' && <MessageLog />}
+      {tab === 'log' && <MessageLog canAct={canAct} />}
     </main>
   )
 }
@@ -438,12 +449,13 @@ function ApprovalQueue({ canAct, canDecide }: { canAct: boolean; canDecide: bool
 }
 
 /* ============================ MESSAGE LOG ============================ */
-function MessageLog() {
+function MessageLog({ canAct }: { canAct: boolean }) {
   const [rows, setRows] = useState<AgentMessage[]>([])
   const [page, setPage] = useState(0)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const [err, setErr] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setErr(null)
@@ -453,6 +465,14 @@ function MessageLog() {
     } catch (e: any) { setErr(e?.message || 'Failed to load log') }
   }, [page])
   useEffect(() => { load() }, [load])
+
+  // §H6 — rate an interaction good/bad (click again to clear). Feeds the
+  // per-agent quality history shown in the agent viewer.
+  async function rate(m: AgentMessage, rating: 'good' | 'bad') {
+    setBusyId(m.id)
+    try { await patch(`/api/agent/messages/${m.id}/rating`, { rating: m.rating === rating ? null : rating }); await load() }
+    catch (e: any) { setErr(e?.message || 'Rating failed') } finally { setBusyId(null) }
+  }
 
   return (
     <section className="animate-fade-in">
@@ -464,6 +484,14 @@ function MessageLog() {
               <div className="flex items-center gap-2">
                 <EmpireIcon name={m.kind === 'approval_request' ? 'scales' : 'sparkle'} size={14} className="shrink-0 text-empire-gold" />
                 <p className="min-w-0 flex-1 truncate text-sm text-empire-text">{m.body}</p>
+                {canAct && (
+                  <span className="flex shrink-0 items-center gap-1">
+                    <button onClick={() => rate(m, 'good')} disabled={busyId === m.id} aria-label="Rate good" title="Rate good"
+                      className={`rounded-md border px-1.5 py-0.5 text-[10px] transition-colors ${m.rating === 'good' ? 'border-rag-green/60 bg-rag-green/15 text-rag-green' : 'border-empire-border text-empire-text-dim hover:border-rag-green/40 hover:text-rag-green'}`}>👍</button>
+                    <button onClick={() => rate(m, 'bad')} disabled={busyId === m.id} aria-label="Rate bad" title="Rate bad"
+                      className={`rounded-md border px-1.5 py-0.5 text-[10px] transition-colors ${m.rating === 'bad' ? 'border-empire-red/60 bg-empire-red/15 text-empire-red-bright' : 'border-empire-border text-empire-text-dim hover:border-empire-red/40 hover:text-empire-red-bright'}`}>👎</button>
+                  </span>
+                )}
                 <StatusTag status={m.status} />
               </div>
               <p className="mt-1 pl-6 font-data text-[10px] text-empire-text-dim">
@@ -551,6 +579,7 @@ function RosterTab({ canAct }: { canAct: boolean }) {
                   {a.department
                     ? <span className="flex items-center gap-1 rounded-full border border-empire-border px-2 py-0.5 text-[10px] uppercase tracking-widest text-empire-text-muted"><EmpireIcon name="link" size={11} />{a.department.name}</span>
                     : <span className="rounded-full border border-empire-border px-2 py-0.5 text-[10px] uppercase tracking-widest text-empire-text-dim">unassigned</span>}
+                  {a.createdBy && <span className="rounded-full border border-empire-border px-2 py-0.5 text-[10px] tracking-widest text-empire-text-dim">by {a.createdBy.name}</span>}
                   {typeof a._count?.messages === 'number' && <span className="font-data text-[10px] text-empire-text-dim">{a._count.messages} msgs</span>}
                 </div>
               </div>
@@ -576,6 +605,7 @@ function RosterTab({ canAct }: { canAct: boolean }) {
 }
 
 function AgentForm({ agent, units, onClose, onDone }: { agent: Agent | null; units: Unit[]; onClose: () => void; onDone: () => void }) {
+  const { user } = useAuth()
   const [name, setName] = useState(agent?.name || '')
   const [codename, setCodename] = useState(agent?.codename || '')
   const [kind, setKind] = useState(agent?.kind || 'bot')
@@ -583,13 +613,22 @@ function AgentForm({ agent, units, onClose, onDone }: { agent: Agent | null; uni
   const [statusV, setStatusV] = useState(agent?.status || 'active')
   const [departmentId, setDepartmentId] = useState(agent?.departmentId || '')
   const [bio, setBio] = useState(agent?.bio || '')
+  const [perms, setPerms] = useState<string[]>(Array.isArray(agent?.permissions) ? agent!.permissions! : [])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
+  // You can only delegate capabilities you personally hold (§H2) — the server
+  // enforces this too; the form simply doesn't offer what would be rejected.
+  const grantable = CAPABILITY_KEYS.filter(k => userCan(user, k) || userCan(user, '*'))
+
+  function togglePerm(k: string) {
+    setPerms(p => p.includes(k) ? p.filter(x => x !== k) : [...p, k])
+  }
+
   async function submit() {
-    if (!name.trim()) return
+    if (!name.trim() || !departmentId) return
     setErr(null); setBusy(true)
-    const payload = { name, codename, kind, role, status: statusV, bio, departmentId: departmentId || null }
+    const payload = { name, codename, kind, role, status: statusV, bio, departmentId, permissions: perms }
     try {
       if (agent) await patch(`/api/agents/${agent.id}`, payload)
       else await post('/api/agents', payload)
@@ -618,22 +657,36 @@ function AgentForm({ agent, units, onClose, onDone }: { agent: Agent | null; uni
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={label}>Assigned Unit</label>
-            <select className={field} value={departmentId} onChange={e => setDepartmentId(e.target.value)}>
-              <option value="">— Unassigned —</option>
+            <label className={label}>Assigned Unit <span className="text-empire-gold">*</span></label>
+            <select className={field} value={departmentId} onChange={e => setDepartmentId(e.target.value)} required>
+              <option value="" disabled>— pick a Unit —</option>
               {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
+            {!departmentId && <p className="mt-1 text-[10px] text-empire-text-dim">Every agent operates in a specific Unit.</p>}
           </div>
           <div>
             <label className={label}>Status</label>
             <select className={field} value={statusV} onChange={e => setStatusV(e.target.value)}>{AGENT_STATUSES.map(s => <option key={s} value={s} className="capitalize">{s}</option>)}</select>
           </div>
         </div>
+        <div>
+          <label className={label}>Granted capabilities</label>
+          <p className="mb-1.5 text-[10px] text-empire-text-dim">An agent can never hold more than you do — only your own capabilities are offered.</p>
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+            {grantable.map(k => (
+              <label key={k} className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-empire-border px-2 py-1.5 text-[11px] text-empire-text transition-colors hover:border-empire-gold/40">
+                <input type="checkbox" checked={perms.includes(k)} onChange={() => togglePerm(k)} className="accent-empire-gold" />
+                <span className="font-data truncate">{k}</span>
+              </label>
+            ))}
+          </div>
+          {grantable.length === 0 && <p className="text-[11px] text-empire-text-dim">Your role holds no grantable capabilities — the agent will be read-only.</p>}
+        </div>
         <div><label className={label}>Bio</label><textarea className={`${field} min-h-[64px] resize-y`} value={bio} onChange={e => setBio(e.target.value)} placeholder="What does this operator own?" /></div>
         {err && <ErrBar msg={err} />}
         <div className="flex items-center justify-end gap-2 pt-1">
           <button onClick={onClose} className="rounded-lg px-3.5 py-2 text-xs text-empire-text-muted transition-colors hover:text-empire-text">Cancel</button>
-          <LiquidMetalButton variant="gold" size="sm" icon={<EmpireIcon name="check" size={14} />} onClick={submit} disabled={busy || !name.trim()}>
+          <LiquidMetalButton variant="gold" size="sm" icon={<EmpireIcon name="check" size={14} />} onClick={submit} disabled={busy || !name.trim() || !departmentId}>
             {busy ? 'Saving…' : agent ? 'Save' : 'Onboard'}
           </LiquidMetalButton>
         </div>
@@ -643,15 +696,53 @@ function AgentForm({ agent, units, onClose, onDone }: { agent: Agent | null; uni
 }
 
 function AgentViewer({ agent, onClose }: { agent: Agent; onClose: () => void }) {
+  const [insights, setInsights] = useState<AgentInsights | null>(null)
+  useEffect(() => { fetcher(`/api/agents/${agent.id}/insights`).then(setInsights).catch(() => {}) }, [agent.id])
+  const granted = Array.isArray(agent.permissions) ? agent.permissions : []
   return (
     <Modal open onClose={onClose} title={agent.name} icon={<EmpireIcon name={agent.kind === 'bot' ? 'sparkle' : 'user'} size={18} />}>
       <div className="space-y-3 text-sm">
         <div className="flex flex-wrap items-center gap-2"><KindTag kind={agent.kind} /><AgentStatusTag status={agent.status} />{agent.codename && <span className="text-xs text-empire-text-dim">· {agent.codename}</span>}</div>
         <Detail label="Role" value={agent.role} />
         <Detail label="Assigned Unit" value={agent.department?.name || 'Unassigned'} />
+        <Detail label="Created by" value={agent.createdBy ? agent.createdBy.name : 'System (platform template)'} />
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-empire-text-muted">Granted capabilities</p>
+          {granted.length === 0
+            ? <p className="mt-0.5 text-xs text-empire-text-dim">None — read-only agent.</p>
+            : <div className="mt-1 flex flex-wrap gap-1.5">{granted.map(p => <span key={p} className="rounded-full border border-empire-gold/40 bg-empire-gold/10 px-2 py-0.5 font-data text-[10px] text-empire-gold">{p}</span>)}</div>}
+        </div>
         {agent.bio && <Detail label="Bio" value={agent.bio} />}
         <Detail label="Messages logged" value={String(agent._count?.messages ?? 0)} />
         <Detail label="Onboarded" value={new Date(agent.createdAt).toLocaleString()} />
+
+        {/* §H6 — interaction quality history: what this agent handled well */}
+        <div className="rounded-lg border border-empire-border bg-empire-surface/40 p-3">
+          <p className="mb-1.5 flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-empire-text-muted">
+            <EmpireIcon name="sparkle" size={12} className="text-empire-gold" />Interaction quality
+          </p>
+          {!insights ? (
+            <p className="text-xs text-empire-text-dim">Loading…</p>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-empire text-lg text-empire-text">{insights.score === null ? '—' : `${insights.score}%`}</span>
+                <span className="font-data text-[11px] text-empire-text-muted">{insights.good} good · {insights.bad} bad · {insights.interactions} total</span>
+              </div>
+              <p className="mt-1 text-[11px] leading-relaxed text-empire-text-dim">{insights.guidance}</p>
+              {insights.recentRated.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {insights.recentRated.slice(0, 5).map(m => (
+                    <div key={m.id} className="flex items-center gap-2">
+                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${m.rating === 'good' ? 'bg-rag-green' : 'bg-rag-red'}`} />
+                      <p className="min-w-0 flex-1 truncate text-[11px] text-empire-text-muted">{m.body}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </Modal>
   )

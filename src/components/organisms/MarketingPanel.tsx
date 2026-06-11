@@ -24,7 +24,7 @@ const modalInput = 'w-full bg-empire-bg border border-empire-border rounded px-2
 
 type Page<T> = { data: T[]; page: number; pageSize: number; total: number; totalPages: number }
 
-// Marketing & Growth — AARRR surface backed by real campaigns, funnel snapshots
+// Marketing — AARRR surface backed by real campaigns, funnel snapshots
 // and the lead pipeline (/api/marketing/*). CAC, ROAS, CPL, channel ROI and
 // stage conversion are all derived server-side — nothing is hard-coded.
 

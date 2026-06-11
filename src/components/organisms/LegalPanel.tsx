@@ -11,7 +11,7 @@ import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
 
-// Legal & Compliance — contract boilerplate generator.
+// Legal — contract boilerplate generator.
 // Templates carry {{token}} placeholders; generating fills them and derives
 // deal pricing (numDevs × ratePerDev × (1 + markupPct/100)) entirely server-side
 // from /api/legal/*. A generated contract can be viewed, exported (Markdown /

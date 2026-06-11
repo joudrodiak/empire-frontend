@@ -179,11 +179,15 @@ type Pipe = {
 }
 function Pipeline() {
   const { data, loading, reload } = useCr<Pipe>('pipeline')
-  if (loading) return <Loading />
+  const [bump, setBump] = useState(0)
+  const refresh = useCallback(() => { reload(); setBump(b => b + 1) }, [reload])
+  // Keep the tab mounted on chart refreshes so the asset table's filters and
+  // page survive edits — only block on the very first load.
+  if (loading && !data) return <Loading />
   if (!data) return <EmptyState icon="sparkle" title="No pipeline data" />
   return (
     <div className="space-y-4">
-      <AddAssetForm onAdded={reload} />
+      <AddAssetForm onAdded={refresh} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Panel icon="chart-bar" title="Assets by stage">
           <BarChart data={data.byStage.map(s => s.count)} labels={data.byStage.map(s => s.stage)} color={ACCENT} height={150} />
@@ -219,7 +223,109 @@ function Pipeline() {
           ))}
         </div>
       </Panel>
+      <AssetsTable bump={bump} onChanged={reload} />
     </div>
+  )
+}
+
+/* ---------------- Assets (paginated, ticket-linkable) ---------------- */
+// Every asset in the pipeline is listed here so a ticket link set at creation
+// (manually or via the MCP log_studio_asset tool) stays visible, editable and
+// clearable — never a dead end.
+type AssetRow = {
+  id: string; name: string; kind: string; stage: string; versions: number
+  reviewer: string | null; ticketKey: string | null; sizeMb: number
+  createdAt: string; approvedAt: string | null; briefTitle: string | null
+}
+const ASSET_KINDS = ['image', 'video', 'copy', 'design', 'motion', 'audio']
+const ASSET_STAGES = ['concept', 'draft', 'review', 'revision', 'final']
+
+function AssetsTable({ bump, onChanged }: { bump: number; onChanged: () => void }) {
+  const [page, setPage] = useState(0)
+  const [q, setQ] = useState('')
+  const [stage, setStage] = useState('')
+  const [kind, setKind] = useState('')
+  const { data, loading, reload } = useCr<Page<AssetRow>>(`assets?pageSize=12&page=${page + 1}${q ? `&q=${encodeURIComponent(q)}` : ''}${stage ? `&stage=${stage}` : ''}${kind ? `&kind=${kind}` : ''}`)
+  const [editing, setEditing] = useState<AssetRow | null>(null)
+  useEffect(() => { if (bump > 0) reload() }, [bump, reload])
+  async function remove(id: string) { await del(`/api/creative/assets/${id}`).catch(console.error); reload(); onChanged() }
+  const rows = data?.data || []
+  const cols: Column<AssetRow>[] = [
+    { key: 'name', label: 'Asset', render: a => <div><div className="font-medium text-empire-text">{a.name}</div><div className="text-empire-text-dim text-[11px]">{a.briefTitle || '—'}</div></div> },
+    { key: 'kind', label: 'Kind', render: a => <Pill text={a.kind} color={ACCENT} /> },
+    { key: 'stage', label: 'Stage', render: a => <Pill text={a.stage} color={STAGE_COLOR[a.stage] || '#7A7468'} /> },
+    { key: 'versions', label: 'Versions', align: 'right', render: a => <span className="tabular-nums text-empire-text-muted">{a.versions}×</span> },
+    { key: 'ticketKey', label: 'Ticket', render: a => a.ticketKey ? <span className="font-mono text-xs text-empire-gold">{a.ticketKey}</span> : <span className="text-empire-text-dim">—</span> },
+    { key: 'reviewer', label: 'Reviewer', render: a => <span className="text-empire-text-muted">{a.reviewer || '—'}</span> },
+    { key: 'id', label: '', align: 'right', render: a => (
+      <RowActions onEdit={() => setEditing(a)} onDelete={() => remove(a.id)} deleteLabel={`asset “${a.name}”`} />
+    ) },
+  ]
+  return (
+    <Panel icon="overview" title={`Asset pipeline (${data?.total ?? rows.length})`}>
+      <div className="flex items-center gap-2 flex-wrap mb-3">
+        <input className={`${inputCls} w-56`} placeholder="Search assets…" value={q} onChange={e => { setQ(e.target.value); setPage(0) }} />
+        <select className={inputCls} value={stage} onChange={e => { setStage(e.target.value); setPage(0) }} aria-label="Filter by stage">
+          <option value="">All stages</option>
+          {ASSET_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <select className={inputCls} value={kind} onChange={e => { setKind(e.target.value); setPage(0) }} aria-label="Filter by kind">
+          <option value="">All kinds</option>
+          {ASSET_KINDS.map(k => <option key={k} value={k}>{k}</option>)}
+        </select>
+      </div>
+      {loading ? <Loading /> : <DataTable columns={cols} rows={rows} empty="No assets match." />}
+      {data && <Pagination page={page} pageCount={data.totalPages} total={data.total} onPage={setPage} accent={ACCENT} />}
+      {editing && (
+        <AssetEditModal
+          row={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); reload(); onChanged() }}
+        />
+      )}
+    </Panel>
+  )
+}
+
+function AssetEditModal({ row, onClose, onSaved }: { row: AssetRow; onClose: () => void; onSaved: () => void }) {
+  const [f, setF] = useState({ name: row.name, kind: row.kind, stage: row.stage, reviewer: row.reviewer || '', ticketKey: row.ticketKey || '' })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  async function save() {
+    if (!f.name.trim()) return
+    setBusy(true); setError('')
+    try {
+      await patch(`/api/creative/assets/${row.id}`, {
+        name: f.name.trim(), kind: f.kind, stage: f.stage,
+        reviewer: f.reviewer || null, ticketKey: f.ticketKey || null,
+      })
+      onSaved()
+    } catch {
+      setError('Could not save the asset — try again.')
+    }
+    setBusy(false)
+  }
+  return (
+    <Modal open onClose={onClose} title="Edit asset" icon={<EmpireIcon name="pen" size={18} />}>
+      <div className="space-y-3">
+        <input className={`${inputCls} w-full`} placeholder="Asset name" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} />
+        <div className="grid grid-cols-2 gap-3">
+          <select className={inputCls} value={f.kind} onChange={e => setF({ ...f, kind: e.target.value })} aria-label="Kind">
+            {ASSET_KINDS.map(k => <option key={k} value={k}>{k}</option>)}
+          </select>
+          <select className={inputCls} value={f.stage} onChange={e => setF({ ...f, stage: e.target.value })} aria-label="Stage">
+            {ASSET_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <input className={inputCls} placeholder="Reviewer" value={f.reviewer} onChange={e => setF({ ...f, reviewer: e.target.value })} />
+          <TicketSelect className={inputCls} value={f.ticketKey} onChange={ticketKey => setF({ ...f, ticketKey })} />
+        </div>
+        {error && <p className="text-xs text-empire-text" role="alert">{error}</p>}
+        <div className="flex justify-end gap-2 pt-1">
+          <button onClick={onClose} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
+          <button onClick={save} disabled={busy || !f.name.trim()} className="px-4 py-2 rounded text-sm font-medium text-white disabled:opacity-40" style={{ background: ACCENT }}>{busy ? 'Saving…' : 'Save changes'}</button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 
@@ -232,14 +338,19 @@ type Reviews = {
 }
 function Reviews() {
   const { data, loading, reload } = useCr<Reviews>('reviews')
+  const [editing, setEditing] = useState<Round | null>(null)
   if (loading) return <Loading />
   if (!data) return <EmptyState icon="check" title="No reviews" />
+  async function remove(id: string) { await del(`/api/creative/reviews/${id}`).catch(console.error); reload() }
   const cols: Column<Round>[] = [
     { key: 'assetName', label: 'Asset', render: r => <div><div className="font-medium text-empire-text">{r.assetName}</div><div className="text-empire-text-dim text-[11px]">round {r.round} · {r.reviewer || '—'}</div></div> },
     { key: 'decision', label: 'Decision', render: r => <Pill text={r.decision.replace(/_/g, ' ')} color={DECISION_COLOR[r.decision] || '#7A7468'} /> },
     { key: 'ticketKey', label: 'Ticket', render: r => r.ticketKey ? <span className="font-mono text-xs text-empire-gold">{r.ticketKey}</span> : <span className="text-empire-text-dim">—</span> },
     { key: 'notes', label: 'Notes', render: r => <span className="text-empire-text-muted">{r.notes || '—'}</span> },
     { key: 'decidedAt', label: 'Decided', align: 'right', render: r => <span className="text-empire-text-dim text-xs">{r.decidedAt ? new Date(r.decidedAt).toLocaleDateString() : 'pending'}</span> },
+    { key: 'id', label: '', align: 'right', render: r => (
+      <RowActions onEdit={() => setEditing(r)} onDelete={() => remove(r.id)} deleteLabel={`review round for “${r.assetName}”`} />
+    ) },
   ]
   return (
     <div className="space-y-4">
@@ -264,7 +375,55 @@ function Reviews() {
       <Panel icon="clock" title={`Recent review rounds (${data.recent.length})`}>
         <DataTable columns={cols} rows={data.recent} empty="No review rounds." />
       </Panel>
+      {editing && (
+        <RoundEditModal
+          row={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); reload() }}
+        />
+      )}
     </div>
+  )
+}
+
+function RoundEditModal({ row, onClose, onSaved }: { row: Round; onClose: () => void; onSaved: () => void }) {
+  const [f, setF] = useState({ assetName: row.assetName, round: String(row.round), decision: row.decision, reviewer: row.reviewer || '', ticketKey: row.ticketKey || '', notes: row.notes || '' })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  async function save() {
+    if (!f.assetName.trim()) return
+    setBusy(true); setError('')
+    try {
+      await patch(`/api/creative/reviews/${row.id}`, {
+        assetName: f.assetName.trim(), round: Number(f.round) || 1, decision: f.decision,
+        reviewer: f.reviewer || null, ticketKey: f.ticketKey || null, notes: f.notes || null,
+      })
+      onSaved()
+    } catch {
+      setError('Could not save the review round — try again.')
+    }
+    setBusy(false)
+  }
+  return (
+    <Modal open onClose={onClose} title="Edit review round" icon={<EmpireIcon name="pen" size={18} />}>
+      <div className="space-y-3">
+        <input className={`${inputCls} w-full`} placeholder="Asset name" value={f.assetName} onChange={e => setF({ ...f, assetName: e.target.value })} />
+        <div className="grid grid-cols-2 gap-3">
+          <input className={inputCls} type="number" min={1} placeholder="Round" value={f.round} onChange={e => setF({ ...f, round: e.target.value })} />
+          <select className={inputCls} value={f.decision} onChange={e => setF({ ...f, decision: e.target.value })} aria-label="Decision">
+            {['pending', 'approved', 'changes_requested', 'rejected'].map(d => <option key={d} value={d}>{d.replace(/_/g, ' ')}</option>)}
+          </select>
+          <input className={inputCls} placeholder="Reviewer" value={f.reviewer} onChange={e => setF({ ...f, reviewer: e.target.value })} />
+          <TicketSelect className={inputCls} value={f.ticketKey} onChange={ticketKey => setF({ ...f, ticketKey })} />
+        </div>
+        <input className={`${inputCls} w-full`} placeholder="Notes" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} />
+        {error && <p className="text-xs text-empire-text" role="alert">{error}</p>}
+        <div className="flex justify-end gap-2 pt-1">
+          <button onClick={onClose} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
+          <button onClick={save} disabled={busy || !f.assetName.trim()} className="px-4 py-2 rounded text-sm font-medium text-white disabled:opacity-40" style={{ background: ACCENT }}>{busy ? 'Saving…' : 'Save changes'}</button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 

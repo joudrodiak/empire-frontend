@@ -53,6 +53,9 @@ export function Modal({ open, onClose, title, icon, children, width = 'max-w-lg'
       onMouseDown={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         // Only ONE max-width utility may live here: a viewport clamp like
         // max-w-[calc(100vw-2rem)] conflicts with the caller's `width` class and
         // wins by stylesheet order, blowing dialogs up to full screen. The

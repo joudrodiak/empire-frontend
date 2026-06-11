@@ -619,6 +619,13 @@ function fmtHours(h: number): string {
 }
 
 type LinkRow = { linkId: string; dir: 'in' | 'out'; type: string; label: string; ticket: { id: string; key: string; title: string; status: string; type: string } }
+// Soft back-references: cross-unit entities that store this ticket's key.
+type RefRow = { refType: 'studio-asset' | 'review-round' | 'support-case'; unit: string; id: string; label: string; detail: string }
+const REF_TYPE_LABEL: Record<RefRow['refType'], string> = {
+  'studio-asset': 'Studio asset',
+  'review-round': 'Review round',
+  'support-case': 'Support case',
+}
 const LINK_TYPE_OPTS = [
   { value: 'blocks', label: 'blocks' },
   { value: 'relates', label: 'relates to' },
@@ -634,12 +641,18 @@ function TicketViewer({ t, departmentSlug, onClose, onEdit, onDeleted }: {
   const [linkTarget, setLinkTarget] = useState('')
   const [linkType, setLinkType] = useState('blocks')
   const [linking, setLinking] = useState(false)
+  const [refs, setRefs] = useState<RefRow[]>([])
 
   const loadLinks = useCallback(async () => {
     try { const d = await fetcher(`/api/tickets/${t.id}`); setLinks(d?.links ?? []) }
     catch (e) { console.error(e) }
   }, [t.id])
   useEffect(() => { loadLinks() }, [loadLinks])
+  useEffect(() => {
+    fetcher(`/api/tickets/${t.id}/references`)
+      .then(r => setRefs(r?.references ?? []))
+      .catch(() => {})
+  }, [t.id])
   useEffect(() => {
     fetcher(`/api/tickets?departmentSlug=${departmentSlug}&pageSize=200`)
       .then(r => setCandidates((r?.data ?? []).filter((x: { id: string }) => x.id !== t.id).map((x: { id: string; key: string; title: string }) => ({ id: x.id, key: x.key, title: x.title }))))
@@ -733,6 +746,25 @@ function TicketViewer({ t, departmentSlug, onClose, onEdit, onDeleted }: {
               {linking ? 'Linking…' : 'Link'}
             </button>
           </div>
+        </div>
+
+        {/* Cross-unit back-references — entities in other units that picked this
+            ticket from a dropdown (studio assets, review rounds, support cases) */}
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-empire-text-dim mb-1.5">Referenced across units</div>
+          {refs.length > 0 ? (
+            <div className="space-y-1.5">
+              {refs.map(r => (
+                <div key={`${r.refType}-${r.id}`} className="flex items-center gap-2 rounded border border-empire-border px-2.5 py-1.5">
+                  <span className="px-1.5 py-0.5 text-[9px] rounded border border-empire-gold/40 text-empire-gold uppercase tracking-wider whitespace-nowrap">{REF_TYPE_LABEL[r.refType] ?? r.refType}</span>
+                  <span className="text-xs text-empire-text truncate flex-1">{r.label}</span>
+                  <span className="text-[10px] text-empire-text-dim capitalize whitespace-nowrap">{r.detail}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-empire-text-dim">No cross-unit references — studio assets, review rounds and support cases that link {t.key} appear here.</p>
+          )}
         </div>
 
         {/* Collaboration — comments, attachments & notes (§4) */}

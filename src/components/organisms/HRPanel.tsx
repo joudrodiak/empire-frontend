@@ -9,6 +9,8 @@ import { Modal } from '@/components/molecules/Modal'
 import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
+import { AffixInput } from '@/components/molecules/AffixInput'
+import { DatePicker } from '@/components/molecules/DatePicker'
 
 type Page<T> = { data: T[]; page: number; pageSize: number; total: number; totalPages: number }
 
@@ -20,6 +22,7 @@ const ACCENT = '#C9A233'
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'peopleops', label: 'People Ops' },
+  { id: 'payroll', label: 'Payroll' },
   { id: 'points', label: 'Points' },
   { id: 'hiring', label: 'Hiring' },
   { id: 'reviews', label: 'Reviews' },
@@ -70,6 +73,7 @@ export function HRPanel() {
       <TabBar tabs={TABS} active={tab} onChange={setTab} accent={ACCENT} />
       {tab === 'overview' && <Overview />}
       {tab === 'peopleops' && <PeopleOps />}
+      {tab === 'payroll' && <Payroll />}
       {tab === 'points' && <Points />}
       {tab === 'hiring' && <Hiring />}
       {tab === 'reviews' && <Reviews />}
@@ -412,8 +416,8 @@ function ReqModal({ open, onClose, initial, onSaved }: { open: boolean; onClose:
         <div className="flex flex-wrap gap-2">
           <select className={inputCls} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option value="open">open</option><option value="interviewing">interviewing</option><option value="offer">offer</option><option value="filled">filled</option><option value="on_hold">on_hold</option></select>
           <select className={inputCls} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}><option value="new">new</option><option value="backfill">backfill</option></select>
-          <input className={`${inputCls} w-24`} placeholder="sal min" value={form.salaryMin} onChange={e => setForm({ ...form, salaryMin: e.target.value })} />
-          <input className={`${inputCls} w-24`} placeholder="sal max" value={form.salaryMax} onChange={e => setForm({ ...form, salaryMax: e.target.value })} />
+          <AffixInput money className={`${inputCls} w-24`} placeholder="sal min" value={form.salaryMin} onChange={e => setForm({ ...form, salaryMin: e.target.value })} />
+          <AffixInput money className={`${inputCls} w-24`} placeholder="sal max" value={form.salaryMax} onChange={e => setForm({ ...form, salaryMax: e.target.value })} />
         </div>
         <input className={`${inputCls} w-full`} placeholder="Hiring manager" value={form.hiringManager} onChange={e => setForm({ ...form, hiringManager: e.target.value })} />
         <div className="flex justify-end gap-2 pt-2">
@@ -572,7 +576,7 @@ function LifecycleModal({ open, onClose, initial, onSaved }: { open: boolean; on
         <div className="flex flex-wrap gap-2">
           <select className={inputCls} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>{LIFE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select>
           <select className={inputCls} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>{LIFE_STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</select>
-          <input type="date" className={inputCls} value={form.effectiveAt} onChange={e => setForm({ ...form, effectiveAt: e.target.value })} />
+          <DatePicker className={inputCls} value={form.effectiveAt} onChange={e => setForm({ ...form, effectiveAt: e.target.value })} />
         </div>
         <input className={`${inputCls} w-full`} placeholder="Title (e.g. Q3 onboarding, Promotion to Senior)" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
         {form.type === 'promotion' && (
@@ -691,5 +695,195 @@ function Points() {
         </div>
       </Panel>
     </div>
+  )
+}
+
+/* ====================================================================== */
+/* Payroll — dual-authorized payout runs (/api/hr/payroll). Every run walks
+   preparation → pending_authorization → authorized → executed → reconciled.
+   BOTH HR and Finance must sign before a run is authorized (only those two
+   units can sign — the server checks the caller's unit), and execution is
+   hard-gated on the payout date agreed with Finance. Totals derive from the
+   live roster (salary × FTE), never typed in. */
+/* ====================================================================== */
+
+type PayrollRun = {
+  id: string; period: string; agreedDate: string; status: string
+  totalAmount: number; currency: string; headcount: number; notes: string | null
+  hrApprovedAt: string | null; financeApprovedAt: string | null
+  executedAt: string | null; reconciledAt: string | null
+  hrApprovedBy: { id: string; name: string } | null
+  financeApprovedBy: { id: string; name: string } | null
+}
+const RUN_STATUS_COLOR: Record<string, string> = {
+  preparation: '#7A7468', pending_authorization: '#C9A233', authorized: '#C9A233',
+  executed: '#C9A233', reconciled: '#F4EFE3', cancelled: '#7A7468',
+}
+// The processing contract shown to operators — mirrors the server's gates.
+const PAYROLL_STAGES = [
+  { icon: 'document', title: '1 · Preparation', text: 'The run is drafted for a period; gross totals and headcount are computed from the live roster (salary × FTE). Verify joiners, leavers and salary changes, then submit for authorization.' },
+  { icon: 'shield', title: '2 · Dual authorization', text: 'ONLY HR and Finance can authorize, and BOTH must sign — each signs the side of their own unit. One signature alone never releases money; the run flips to “authorized” only when both are on record.' },
+  { icon: 'check', title: '3 · Execution on the agreed date', text: 'Payout runs only after full authorization AND once the payout date agreed with Finance has arrived — the date is a hard gate. Changing the date resets both signatures.' },
+  { icon: 'chart-line', title: '4 · Reconciliation & reporting', text: 'After execution, bank statements are matched against the run and the reconciliation report is closed, completing the audit trail tied to the agreed date.' },
+] as const
+
+function SignaturePill({ label, at, by }: { label: string; at: string | null; by: { name: string } | null }) {
+  return at ? (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border whitespace-nowrap text-empire-gold border-empire-gold/40 bg-empire-gold/10" title={`${label} signed${by ? ` by ${by.name}` : ''} on ${dateLabel(at)}`}>
+      <EmpireIcon name="check" size={10} />{label}{by ? ` · ${by.name.split(' ')[0]}` : ''}
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border whitespace-nowrap text-empire-text-dim border-empire-border bg-transparent" title={`${label} signature pending`}>
+      <EmpireIcon name="clock" size={10} />{label} pending
+    </span>
+  )
+}
+
+function Payroll() {
+  const { data: runs, loading, reload } = useHr<PayrollRun[]>('payroll')
+  const [creating, setCreating] = useState(false)
+  const [err, setErr] = useState('')
+  const rows = runs || []
+
+  // KPIs: the next agreed payout (soonest non-terminal run), signatures still
+  // outstanding across open runs, and the YTD executed volume.
+  const open = rows.filter(r => !['executed', 'reconciled', 'cancelled'].includes(r.status))
+  const next = [...open].sort((a, b) => +new Date(a.agreedDate) - +new Date(b.agreedDate))[0]
+  const pendingSigs = open.filter(r => r.status === 'pending_authorization').reduce((s, r) => s + (r.hrApprovedAt ? 0 : 1) + (r.financeApprovedAt ? 0 : 1), 0)
+  const year = String(new Date().getFullYear())
+  const executedYtd = rows.filter(r => ['executed', 'reconciled'].includes(r.status) && (r.executedAt || '').startsWith(year))
+  const ytdVolume = executedYtd.reduce((s, r) => s + r.totalAmount, 0)
+
+  async function act(id: string, action: string, body?: object) {
+    setErr('')
+    try { await post(`/api/hr/payroll/${id}/${action}`, body || {}); reload() }
+    catch (e) { setErr(e instanceof Error ? e.message : 'action failed') }
+  }
+  async function remove(id: string) {
+    setErr('')
+    try { await del(`/api/hr/payroll/${id}`); reload() }
+    catch (e) { setErr(e instanceof Error ? e.message : 'delete failed') }
+  }
+
+  const cols: Column<PayrollRun>[] = [
+    { key: 'period', label: 'Period', render: r => <div><div className="font-medium text-empire-text">{r.period}</div><div className="text-empire-text-dim text-[11px]">{r.headcount} employees</div></div> },
+    { key: 'agreedDate', label: 'Agreed date', render: r => <span className="text-empire-text-muted text-xs" title="Payout date agreed with Finance — execution is blocked before it">{dateLabel(r.agreedDate)}</span> },
+    { key: 'totalAmount', label: 'Total', align: 'right', render: r => <span className="font-data text-empire-text">{eur(r.totalAmount)}</span> },
+    { key: 'hrApprovedAt', label: 'Authorization', render: r => (
+      <span className="inline-flex flex-wrap gap-1">
+        <SignaturePill label="HR" at={r.hrApprovedAt} by={r.hrApprovedBy} />
+        <SignaturePill label="Finance" at={r.financeApprovedAt} by={r.financeApprovedBy} />
+      </span>
+    ) },
+    { key: 'status', label: 'Status', render: r => <Pill text={r.status.replace(/_/g, ' ')} color={RUN_STATUS_COLOR[r.status] || '#7A7468'} /> },
+    { key: 'id', label: '', align: 'right', render: r => <RunActions run={r} onAct={act} onDelete={remove} /> },
+  ]
+
+  return (
+    <div className="space-y-6">
+      <Grid cols={4}>
+        <KpiCard icon="calendar" label="Next agreed payout" value={next ? dateLabel(next.agreedDate) : '—'} sub={next ? `${next.period} · ${eur(next.totalAmount)}` : 'no open run'} accent={ACCENT} />
+        <KpiCard icon="shield" label="Pending signatures" value={String(pendingSigs)} sub="HR + Finance must both sign" accent={pendingSigs ? '#C9A233' : '#7A7468'} />
+        <KpiCard icon="check" label="Runs executed YTD" value={String(executedYtd.length)} accent="#C9A233" />
+        <KpiCard icon="coins" label="Paid out YTD" value={eur(ytdVolume)} accent="#C9A233" />
+      </Grid>
+
+      <Panel icon="book" title="How payroll processing works">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {PAYROLL_STAGES.map(s => (
+            <div key={s.title} className="rounded-lg border border-empire-border bg-empire-elevated/40 p-3">
+              <div className="flex items-center gap-2 text-empire-gold">
+                <EmpireIcon name={s.icon} size={14} />
+                <span className="text-[11px] uppercase tracking-widest">{s.title}</span>
+              </div>
+              <p className="text-empire-text-muted text-xs mt-2 leading-relaxed">{s.text}</p>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      {err && (
+        <div className="flex items-center gap-2 rounded border border-empire-gold/40 bg-empire-gold/10 px-3 py-2 text-xs text-empire-gold" role="alert">
+          <EmpireIcon name="alert" size={13} />{err}
+        </div>
+      )}
+
+      <Panel
+        icon="coins"
+        title={`Payroll runs (${rows.length})`}
+        actions={<button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-white" style={{ background: ACCENT }}><EmpireIcon name="plus" size={13} />New run</button>}
+      >
+        {loading ? <Loading /> : <DataTable columns={cols} rows={rows} empty="No payroll runs yet. Create the first run for this month — totals come straight from the roster." />}
+      </Panel>
+
+      <PayrollRunModal open={creating} onClose={() => setCreating(false)} onSaved={() => { setCreating(false); reload() }} />
+    </div>
+  )
+}
+
+// Per-status actions mirroring the server's lifecycle gates. Sign buttons post
+// the side being signed; the server still enforces WHO may sign (hr/finance
+// units only — an admin override is recorded in the audit log).
+function RunActions({ run, onAct, onDelete }: { run: PayrollRun; onAct: (id: string, action: string, body?: object) => void; onDelete: (id: string) => void }) {
+  const btn = 'rounded border border-empire-border px-2 py-1 text-[11px] text-empire-text-muted hover:text-empire-gold hover:border-empire-gold/50 transition-colors whitespace-nowrap'
+  const agreedPassed = new Date(run.agreedDate).setHours(0, 0, 0, 0) <= new Date().setHours(0, 0, 0, 0)
+  return (
+    <span className="inline-flex flex-wrap justify-end gap-1">
+      {run.status === 'preparation' && <>
+        <button className={btn} onClick={() => onAct(run.id, 'submit')}>Submit for authorization</button>
+        <button className={btn} onClick={() => onDelete(run.id)}>Delete draft</button>
+      </>}
+      {run.status === 'pending_authorization' && <>
+        {!run.hrApprovedAt && <button className={btn} onClick={() => onAct(run.id, 'authorize', { side: 'hr' })}>Sign HR</button>}
+        {!run.financeApprovedAt && <button className={btn} onClick={() => onAct(run.id, 'authorize', { side: 'finance' })}>Sign Finance</button>}
+        <button className={btn} onClick={() => onAct(run.id, 'cancel')}>Cancel</button>
+      </>}
+      {run.status === 'authorized' && <>
+        <button
+          className={`${btn} ${agreedPassed ? '' : 'opacity-50 cursor-not-allowed'}`}
+          title={agreedPassed ? 'Execute the payout' : `Blocked until the agreed date (${dateLabel(run.agreedDate)})`}
+          onClick={() => agreedPassed && onAct(run.id, 'execute')}
+        >Execute payout</button>
+        <button className={btn} onClick={() => onAct(run.id, 'cancel')}>Cancel</button>
+      </>}
+      {run.status === 'executed' && <button className={btn} onClick={() => onAct(run.id, 'reconcile')}>Reconcile</button>}
+      {(run.status === 'reconciled' || run.status === 'cancelled') && <span className="text-empire-text-dim text-[11px]">closed</span>}
+    </span>
+  )
+}
+
+function PayrollRunModal({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {
+  const defaultPeriod = new Date().toISOString().slice(0, 7)
+  const [form, setForm] = useState({ period: defaultPeriod, agreedDate: '', notes: '' })
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  useEffect(() => { if (open) { setForm({ period: defaultPeriod, agreedDate: '', notes: '' }); setErr('') } }, [open, defaultPeriod])
+  async function save() {
+    if (!form.period || !form.agreedDate) return
+    setBusy(true); setErr('')
+    try { await post('/api/hr/payroll', form); onSaved() }
+    catch (e) { setErr(e instanceof Error ? e.message : 'failed to create run') }
+    finally { setBusy(false) }
+  }
+  return (
+    <Modal open={open} onClose={onClose} title="New payroll run" icon={<EmpireIcon name="coins" size={18} />}>
+      <div className="space-y-3">
+        <p className="text-empire-text-muted text-xs leading-relaxed">Totals and headcount are computed from the active roster (salary × FTE) — nothing is typed in. The run starts in <span className="text-empire-gold">preparation</span> and must be dual-authorized by HR and Finance before the payout can execute on the agreed date.</p>
+        <div className="flex flex-wrap gap-2">
+          <label className="flex flex-col gap-1 text-[11px] uppercase tracking-widest text-empire-text-dim">Period
+            <input className={`${inputCls} w-36`} placeholder="2026-06" value={form.period} onChange={e => setForm({ ...form, period: e.target.value })} />
+          </label>
+          <label className="flex flex-col gap-1 text-[11px] uppercase tracking-widest text-empire-text-dim">Agreed payout date (Finance)
+            <DatePicker className={inputCls} value={form.agreedDate} onChange={e => setForm({ ...form, agreedDate: e.target.value })} />
+          </label>
+        </div>
+        <textarea className={`${inputCls} w-full min-h-[64px]`} placeholder="Notes (e.g. includes June bonuses)" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+        {err && <p className="text-xs text-empire-gold" role="alert">{err}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text disabled:opacity-50">Cancel</button>
+          <button onClick={save} disabled={busy || !form.period || !form.agreedDate} className="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-40" style={{ background: ACCENT }}>{busy ? 'Creating…' : 'Create run'}</button>
+        </div>
+      </div>
+    </Modal>
   )
 }

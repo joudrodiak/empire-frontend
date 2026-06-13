@@ -90,6 +90,8 @@ function IntegrationsTab() {
   const [accounts, setAccounts] = useState<SocialAcct[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<string>('')
+  const [tokenFor, setTokenFor] = useState<string | null>(null)
+  const [tokenVal, setTokenVal] = useState<string>('')
 
   const loadAccounts = useCallback(() => {
     fetcher('/api/marketing/social/accounts?pageSize=100').then(r => setAccounts(r?.data || [])).catch(() => setAccounts([]))
@@ -115,11 +117,44 @@ function IntegrationsTab() {
       }
       const au = await fetcher(`/api/marketing/social/oauth/${p.id}/authorize-url?accountId=${acct.id}`).catch(() => null)
       if (au?.configured && au?.url) { window.location.href = au.url; return }
-      await post(`/api/marketing/social/accounts/${acct.id}/oauth/simulate`, {})
-      await post(`/api/marketing/social/accounts/${acct.id}/sync`, {})
-      setMsg(`${p.name} connected in demo mode — add live keys in env for real metrics. It now appears in Marketing → Accounts.`)
+      // No OAuth app for this provider yet → don't fake it. Reveal the real
+      // token path: paste a provider access token and we validate it live.
+      setTokenFor(p.id); setTokenVal('')
+      setMsg(`${p.name} has no OAuth app in env. Paste a real ${p.name} access token below to connect for real, or add ${p.keys} in env for click-to-connect.`)
       loadAccounts()
     } catch { setMsg(`Could not connect ${p.name}.`) }
+    finally { setBusy(null) }
+  }
+
+  // Bearer / API-key connect — validate a pasted provider token against the live
+  // API and store it only if it returns real data. No simulation.
+  async function connectWithToken(p: SocialProvider) {
+    if (!canConnect || !tokenVal.trim()) return
+    setBusy(p.id); setMsg('')
+    try {
+      let acct = acctFor(p.id)
+      if (!acct) acct = await post('/api/marketing/social/accounts', { platform: p.id, handle: `@${p.id}`, displayName: p.name, connection: 'token' }) as SocialAcct
+      const r = await post(`/api/marketing/social/accounts/${acct.id}/connect-token`, { accessToken: tokenVal.trim() }) as any
+      setTokenFor(null); setTokenVal('')
+      setMsg(`${p.name} connected live — ${r?.metrics?.followers ?? 0} followers pulled from the provider. It now appears in Marketing → Accounts.`)
+      loadAccounts()
+    } catch (e: any) {
+      setMsg(e?.message?.includes('rejected') ? `${p.name} rejected that token — check its scopes and expiry.` : `Could not validate the ${p.name} token.`)
+    } finally { setBusy(null) }
+  }
+
+  // Demo only — explicit opt-in, never the default path.
+  async function demoConnect(p: SocialProvider) {
+    if (!canConnect) return
+    setBusy(p.id); setMsg('')
+    try {
+      let acct = acctFor(p.id)
+      if (!acct) acct = await post('/api/marketing/social/accounts', { platform: p.id, handle: `@${p.id}`, displayName: p.name, connection: 'oauth' }) as SocialAcct
+      await post(`/api/marketing/social/accounts/${acct.id}/oauth/simulate`, {})
+      await post(`/api/marketing/social/accounts/${acct.id}/sync`, {})
+      setMsg(`${p.name} connected in DEMO mode (dummy data) — not a live connection.`)
+      loadAccounts()
+    } catch { setMsg(`Could not demo-connect ${p.name}.`) }
     finally { setBusy(null) }
   }
 
@@ -175,6 +210,10 @@ function IntegrationsTab() {
             const acct = acctFor(p.id)
             const connected = acct?.status === 'connected'
             const live = providers[p.id]
+            // A connection is real when it carries a live token (oauth/token);
+            // 'simulated' scope means the demo path was used.
+            const isDemo = connected && (acct?.connection === 'simulated' || acct?.connection === 'demo')
+            const isLiveConn = connected && !isDemo
             return (
               <GlassPanel key={p.id} variant="glass" className="animate-slide-up p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -182,16 +221,26 @@ function IntegrationsTab() {
                     <span className="grid h-9 w-9 place-items-center rounded-lg border border-empire-border bg-empire-elevated/50 text-empire-gold"><EmpireIcon name={p.icon} size={16} /></span>
                     <div><p className="text-sm font-semibold text-empire-text">{p.name}</p><p className="text-[11px] text-empire-text-muted">{p.hint}</p></div>
                   </div>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-widest ${connected ? 'rag-green' : 'rag-pending'}`}>{connected ? 'Connected' : 'Not set'}</span>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-widest ${isLiveConn ? 'rag-green' : isDemo ? 'rag-pending' : 'rag-pending'}`}>{isLiveConn ? 'Live' : isDemo ? 'Demo' : 'Not set'}</span>
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-2 border-t border-empire-border/60 pt-2">
-                  <span className={`rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wider ${live ? 'rag-green' : 'rag-pending'}`}>{live ? 'Live keys' : 'Demo (simulate)'}</span>
+                  <span className={`rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wider ${live ? 'rag-green' : 'rag-pending'}`}>{live ? 'OAuth app live' : 'Bring your own token'}</span>
                   {canConnect && (
                     connected
                       ? <button onClick={() => syncNow(p)} disabled={busy === p.id} className="rounded-lg border border-empire-border bg-empire-surface px-3 py-1 text-[11px] text-empire-text transition-colors hover:border-empire-gold/30 disabled:opacity-50">{busy === p.id ? '…' : 'Sync now'}</button>
-                      : <button onClick={() => connect(p)} disabled={busy === p.id} className="empire-btn-primary text-[11px] disabled:opacity-50">{busy === p.id ? 'Connecting…' : (live ? `Authorize ${p.name}` : 'Connect (demo)')}</button>
+                      : <button onClick={() => connect(p)} disabled={busy === p.id} className="empire-btn-primary text-[11px] disabled:opacity-50">{busy === p.id ? 'Connecting…' : (live ? `Authorize ${p.name}` : `Connect ${p.name}`)}</button>
                   )}
                 </div>
+                {canConnect && tokenFor === p.id && (
+                  <div className="mt-2 space-y-2 rounded-lg border border-empire-gold/30 bg-empire-elevated/40 p-2 animate-fade-in">
+                    <textarea value={tokenVal} onChange={e => setTokenVal(e.target.value)} rows={2} placeholder={`Paste a real ${p.name} access token`} className="w-full rounded border border-empire-border bg-empire-surface px-2 py-1.5 font-data text-[11px] text-empire-text" />
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => connectWithToken(p)} disabled={busy === p.id || !tokenVal.trim()} className="empire-btn-primary text-[11px] disabled:opacity-50">{busy === p.id ? 'Validating…' : 'Validate & connect'}</button>
+                      <button onClick={() => demoConnect(p)} disabled={busy === p.id} className="rounded px-2 py-1 text-[10px] uppercase tracking-widest text-empire-text-dim hover:text-empire-text disabled:opacity-50">Demo only</button>
+                      <button onClick={() => { setTokenFor(null); setTokenVal('') }} className="rounded px-2 py-1 text-[10px] uppercase tracking-widest text-empire-text-dim hover:text-empire-text">Cancel</button>
+                    </div>
+                  </div>
+                )}
                 <p className="mt-2 font-data text-[10px] text-empire-text-dim">{p.keys}</p>
               </GlassPanel>
             )

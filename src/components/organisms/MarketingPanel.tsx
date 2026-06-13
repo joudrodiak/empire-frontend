@@ -948,12 +948,13 @@ function SocialAccountEdit({ account, open, onClose, onSaved }: { account: Socia
   const [busy, setBusy] = useState(false)
   const [oauthBusy, setOauthBusy] = useState(false)
   const [oauthNote, setOauthNote] = useState('')
+  const [tokenInput, setTokenInput] = useState('')
   // Which providers have live OAuth app credentials in env (booleans only — no
   // secret values ever cross the wire). Drives the "Live"/"Needs keys" badge.
   const [providers, setProviders] = useState<Record<string, boolean>>({})
   useEffect(() => {
     if (!open) return
-    setOauthNote('')
+    setOauthNote(''); setTokenInput('')
     setF(account ? { platform: account.platform, handle: account.handle, displayName: account.displayName ?? '', connection: account.connection === 'login_session' ? 'oauth' : account.connection, status: account.status } : empty)
     fetcher('/api/marketing/social/oauth/providers').then(setProviders).catch(() => setProviders({}))
   }, [account, open]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -975,6 +976,23 @@ function SocialAccountEdit({ account, open, onClose, onSaved }: { account: Socia
       setOauthNote(`${platform} has no OAuth app yet. Add ${platform.toUpperCase()}_OAUTH_CLIENT_ID / _CLIENT_SECRET / _REDIRECT_URI in env, then reconnect.`)
     } catch (e) { console.error(e); setOauthNote('Could not start OAuth.') } finally { setOauthBusy(false) }
   }
+  // Bearer / API-key connect — the operator pastes a real provider token (a Page
+  // access token, a long-lived user token, a YouTube key, etc.). The server
+  // validates it against the provider's live API and only then seals it as a real
+  // connection. This is the "works today without your own OAuth app" path; an
+  // invalid token is rejected by the provider, never faked.
+  async function connectToken(accountId = account?.id) {
+    if (!accountId || !tokenInput.trim()) return
+    setOauthBusy(true); setOauthNote('')
+    try {
+      const r = await post(`/api/marketing/social/accounts/${accountId}/connect-token`, { accessToken: tokenInput.trim() }) as any
+      setTokenInput('')
+      setOauthNote(`Live connection — validated against ${f.platform} (${r?.metrics?.followers ?? 0} followers). Token sealed at rest.`)
+      onSaved()
+    } catch (e: any) {
+      setOauthNote(e?.message?.includes('rejected') ? `${f.platform} rejected this token — check scopes / expiry.` : 'Could not validate the token. Check it is a current provider token with the right scopes.')
+    } finally { setOauthBusy(false) }
+  }
   // Explicit, opt-in demo connect — only for showing the dashboards on dummy
   // data when no real keys exist. Clearly labelled; never the default path.
   async function simulateConnect(accountId = account?.id) {
@@ -995,11 +1013,13 @@ function SocialAccountEdit({ account, open, onClose, onSaved }: { account: Socia
       else {
         const created = await post('/api/marketing/social/accounts', body)
         if (f.connection === 'oauth') { await connectOAuth(created.id, f.platform); return }
+        if ((f.connection === 'api_key' || f.connection === 'token') && tokenInput.trim()) { await connectToken(created.id); return }
       }
       onSaved()
     } catch (e) { console.error(e) } finally { setBusy(false) }
   }
   const showOAuth = f.connection === 'oauth'
+  const showToken = f.connection === 'api_key' || f.connection === 'token'
   return (
     <Modal open={open} onClose={onClose} title={account ? 'Edit account' : 'Connect account'} icon={<EmpireIcon name={account ? 'pen' : 'plus'} size={18} />}>
       <div className="space-y-3">
@@ -1043,9 +1063,24 @@ function SocialAccountEdit({ account, open, onClose, onSaved }: { account: Socia
             {oauthNote && <p className="text-[11px]" style={{ color: '#C9A233' }}>{oauthNote}</p>}
           </div>
         )}
+        {showToken && (
+          <div className="rounded-lg border border-empire-border bg-empire-elevated/30 p-3 space-y-2">
+            <span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Provider access token</span>
+            <p className="text-[11px] text-empire-text-dim leading-relaxed">
+              Paste a real {f.platform} access token (Page token, long-lived user token, or API key). Empire validates it against {f.platform}&apos;s live API and only stores it if it returns real data — it is sealed at rest and never shown again.
+            </p>
+            <textarea value={tokenInput} onChange={e => setTokenInput(e.target.value)} rows={2} placeholder="EAAB… / ya29.… / provider token" className={`${modalInput} font-data text-[11px]`} />
+            {account && (
+              <button onClick={() => connectToken()} disabled={oauthBusy || !tokenInput.trim()} className="rounded px-3 py-1.5 text-xs uppercase tracking-widest border border-empire-gold/40 text-empire-gold transition-all duration-200 hover:-translate-y-0.5 hover:bg-empire-gold/10 disabled:opacity-40 inline-flex items-center gap-1.5">
+                <EmpireIcon name="lock" size={12} /> {oauthBusy ? 'Validating…' : `Validate & connect ${f.platform}`}
+              </button>
+            )}
+            {oauthNote && <p className="text-[11px]" style={{ color: '#C9A233' }}>{oauthNote}</p>}
+          </div>
+        )}
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} disabled={busy || oauthBusy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted transition-all duration-200 hover:-translate-y-0.5 hover:text-empire-text">Cancel</button>
-          <button onClick={save} disabled={busy || oauthBusy || !f.handle} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50" style={{ background: ACCENT }}>{busy || oauthBusy ? 'Connecting…' : account ? 'Save' : (showOAuth ? 'Create & connect' : 'Create')}</button>
+          <button onClick={save} disabled={busy || oauthBusy || !f.handle} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50" style={{ background: ACCENT }}>{busy || oauthBusy ? 'Connecting…' : account ? 'Save' : (showOAuth || (showToken && tokenInput.trim()) ? 'Create & connect' : 'Create')}</button>
         </div>
       </div>
     </Modal>

@@ -4,9 +4,13 @@ import React from 'react'
 /**
  * EmpireIcon — the Empire's hand-drawn inline SVG line-glyph set.
  *
- * NO icon library is installed (and none may be added). Every glyph here is a
- * stroke-based path on a 24×24 grid, drawn with `currentColor` so it inherits
- * text color, and a default 1.5 stroke for the thin, heraldic Empire feel.
+ * Today every glyph is a stroke-based path on a 24×24 grid, drawn with
+ * `currentColor` so it inherits text color, and a default 1.5 stroke for the
+ * thin, heraldic Empire feel — the current house style, not a permanent ceiling.
+ * The line-glyph look is a default we can ELEVATE later (richer/filled glyphs, a
+ * curated icon set, duotone, etc.) — it is intentionally NOT a hard "no icons may
+ * ever be added" rule. Keep the `EmpireIcon` API stable so any future upgrade is
+ * a drop-in swap behind this component rather than a site-wide refactor.
  *
  * Usage:
  *   import { EmpireIcon } from '@/components/atoms/EmpireIcon'

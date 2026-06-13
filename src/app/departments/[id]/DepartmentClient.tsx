@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { fetcher, post, patch, del, download, ragColor, ragLabel, formatCurrency } from '@/lib/api'
+import { fetcher, post, patch, del, ragColor, ragLabel, formatCurrency } from '@/lib/api'
 import { useAuth, userCan } from '@/lib/auth'
 import { rankFor } from '@/lib/game-logic'
 import { EmpireIcon, asIconName, type IconName } from '@/components/atoms/EmpireIcon'
@@ -606,14 +606,13 @@ function Roster({ dept, allDepts, onUpdate, onCreateContract, accent }: { dept: 
                   )}
                 </span>
               </a>
-              <button
-                type="button"
-                onClick={() => download(`/api/agents/${a.id}/agent.md`, `${slug}.agent.md`)}
-                title="Download agent.md — the portable hat the MCP wears"
+              <a
+                href={`/agent?id=${a.id}&view=md`}
+                title="Read agent.md — the portable hat the MCP wears (opens in the operator viewer; download from there)"
                 className="px-2 py-1 bg-empire-elevated/40 border border-empire-border text-empire-text-dim text-[10px] uppercase tracking-widest rounded hover:text-empire-gold hover:border-empire-gold/30 transition-colors inline-flex items-center gap-1 flex-shrink-0"
               >
                 <EmpireIcon name="document" size={11} /> agent.md
-              </button>
+              </a>
               <a href={`/agent?id=${a.id}`}><EmpireIcon name="chevron-right" size={14} className="text-empire-text-dim flex-shrink-0" /></a>
             </div>
           )})}
@@ -1475,11 +1474,11 @@ function LeaveRequestModal({ dept, balances, onClose, onCreated }: {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block text-[10px] uppercase tracking-widest text-empire-text-muted">From</label>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full rounded-lg border border-empire-border bg-empire-surface/60 px-3 py-2 text-sm text-empire-text outline-none focus:border-empire-gold/50" />
+            <DatePicker value={startDate} onChange={e => setStartDate(e.target.value)} className="empire-input w-full" />
           </div>
           <div>
             <label className="mb-1 block text-[10px] uppercase tracking-widest text-empire-text-muted">To</label>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full rounded-lg border border-empire-border bg-empire-surface/60 px-3 py-2 text-sm text-empire-text outline-none focus:border-empire-gold/50" />
+            <DatePicker value={endDate} onChange={e => setEndDate(e.target.value)} className="empire-input w-full" />
           </div>
         </div>
         {type === 'vacation' && chosen && (

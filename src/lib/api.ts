@@ -81,6 +81,15 @@ export async function fetcher(path: string) {
   return res.json()
 }
 
+// Fetch a text/plain or text/markdown body (e.g. agent.md) with the tenant +
+// auth headers attached, returned as a raw string for in-app rendering — the
+// read-in-place counterpart to download().
+export async function fetchText(path: string) {
+  const res = await fetch(`${API}${path}`, { headers: companyHeaders() })
+  await ensureOk(res)
+  return res.text()
+}
+
 export async function post(path: string, body: unknown, companySlug?: string) {
   const base: Record<string, string> = { 'Content-Type': 'application/json' }
   if (companySlug) base['x-company-slug'] = companySlug

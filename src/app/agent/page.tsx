@@ -1,7 +1,7 @@
 'use client'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useAuth, userCan } from '@/lib/auth'
-import { fetcher, post, patch, del } from '@/lib/api'
+import { fetcher, post, patch, del, fetchText, download } from '@/lib/api'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { GlassPanel } from '@/components/atoms/GlassPanel'
 import { LiquidMetalButton } from '@/components/atoms/LiquidMetalButton'
@@ -519,9 +519,25 @@ function RosterTab({ canAct }: { canAct: boolean }) {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Agent | null>(null)
   const [viewing, setViewing] = useState<Agent | null>(null)
+  const [viewMd, setViewMd] = useState(false)
   // C1 — deep-link from a unit's "Manage operators": ?unit=<slug> opens the
   // create form already bound to that unit, so the operator lands in it.
   const [presetUnitId, setPresetUnitId] = useState<string>('')
+
+  // Deep-link from a unit's agent row: clicking an operator (or its agent.md
+  // button) sends ?id=<agentId> (+ optional view=md). Land directly on that
+  // agent's viewer, opened to the agent.md tab when view=md — so "click agent in
+  // finance → see the agent here" and "click agent.md → read it" both resolve in
+  // one hop, no scrolling/searching the paginated list.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const qs = new URLSearchParams(window.location.search)
+    const id = qs.get('id')
+    if (!id) return
+    fetcher(`/api/agents/${id}`)
+      .then((a: Agent) => { if (a?.id) { setViewing(a); setViewMd(qs.get('view') === 'md') } })
+      .catch(() => {})
+  }, [])
 
   const load = useCallback(async () => {
     setErr(null)
@@ -610,7 +626,7 @@ function RosterTab({ canAct }: { canAct: boolean }) {
       <Pagination page={page} pageCount={totalPages} total={total} onPage={setPage} />
 
       {formOpen && <AgentForm agent={editing} units={units} presetUnitId={editing ? undefined : presetUnitId} onClose={() => { setFormOpen(false); setPresetUnitId('') }} onDone={() => { setFormOpen(false); setPresetUnitId(''); load() }} />}
-      {viewing && <AgentViewer agent={viewing} onClose={() => setViewing(null)} />}
+      {viewing && <AgentViewer agent={viewing} initialTab={viewMd ? 'md' : 'overview'} onClose={() => { setViewing(null); setViewMd(false) }} />}
     </section>
   )
 }
@@ -706,12 +722,43 @@ function AgentForm({ agent, units, presetUnitId, onClose, onDone }: { agent: Age
   )
 }
 
-function AgentViewer({ agent, onClose }: { agent: Agent; onClose: () => void }) {
+function AgentViewer({ agent, onClose, initialTab = 'overview' }: { agent: Agent; onClose: () => void; initialTab?: 'overview' | 'md' }) {
   const [insights, setInsights] = useState<AgentInsights | null>(null)
+  const [tab, setTab] = useState<'overview' | 'md'>(initialTab)
+  const [md, setMd] = useState<string | null>(null)
+  const [mdErr, setMdErr] = useState<string | null>(null)
   useEffect(() => { fetcher(`/api/agents/${agent.id}/insights`).then(setInsights).catch(() => {}) }, [agent.id])
+  // Fetch the agent.md spec only when its tab is first opened, then cache it.
+  useEffect(() => {
+    if (tab !== 'md' || md !== null) return
+    fetchText(`/api/agents/${agent.id}/agent.md`).then(setMd).catch((e: any) => setMdErr(e?.message || 'Failed to load agent.md'))
+  }, [tab, agent.id, md])
+  const slug = (agent.codename || agent.name || 'agent').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'agent'
   const granted = Array.isArray(agent.permissions) ? agent.permissions : []
   return (
     <Modal open onClose={onClose} title={agent.name} icon={<EmpireIcon name={agent.kind === 'bot' ? 'sparkle' : 'user'} size={18} />}>
+      <div className="mb-3 flex items-center gap-1 rounded-lg border border-empire-border p-0.5">
+        {(['overview', 'md'] as const).map(k => (
+          <button key={k} type="button" onClick={() => setTab(k)}
+            className={`flex-1 rounded-md px-2.5 py-1 text-[11px] uppercase tracking-widest transition-colors ${tab === k ? 'bg-empire-gold/15 text-empire-gold' : 'text-empire-text-dim hover:text-empire-text'}`}>
+            {k === 'overview' ? 'Overview' : 'agent.md'}
+          </button>
+        ))}
+      </div>
+      {tab === 'md' ? (
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] uppercase tracking-widest text-empire-text-muted">The portable spec this operator wears</p>
+            <button type="button" onClick={() => download(`/api/agents/${agent.id}/agent.md`, `${slug}.agent.md`)}
+              className="inline-flex items-center gap-1 rounded border border-empire-border px-2 py-1 text-[10px] uppercase tracking-widest text-empire-text-dim transition-colors hover:border-empire-gold/30 hover:text-empire-gold">
+              <EmpireIcon name="arrow-down" size={11} /> Download
+            </button>
+          </div>
+          {mdErr ? <p className="text-xs text-rag-red">{mdErr}</p>
+            : md === null ? <p className="text-xs text-empire-text-dim">Loading agent.md…</p>
+            : <pre className="max-h-[60vh] overflow-auto rounded-lg border border-empire-border bg-empire-surface/40 p-3 font-data text-[11px] leading-relaxed text-empire-text whitespace-pre-wrap break-words">{md}</pre>}
+        </div>
+      ) : (
       <div className="space-y-3 text-sm">
         <div className="flex flex-wrap items-center gap-2"><KindTag kind={agent.kind} /><AgentStatusTag status={agent.status} />{agent.codename && <span className="text-xs text-empire-text-dim">· {agent.codename}</span>}</div>
         <Detail label="Role" value={agent.role} />
@@ -755,6 +802,7 @@ function AgentViewer({ agent, onClose }: { agent: Agent; onClose: () => void }) 
           )}
         </div>
       </div>
+      )}
     </Modal>
   )
 }

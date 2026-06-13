@@ -10,6 +10,7 @@ import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon, type IconName } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
 import { AffixInput } from '@/components/molecules/AffixInput'
+import { donutPalette } from '@/lib/theme'
 
 // Executive — the crown dept. The C-suite cockpit. Runway, MRR & MRR growth, net
 // burn, OKR attainment and KR hit-rate all derive from /api/executive/*.
@@ -123,7 +124,7 @@ function Okrs() {
   return (
     <div className="space-y-4">
       <Panel icon="chart-bar" title="Attainment by category">
-        <DonutChart segments={data.byCategory.map(c => ({ label: c.category, value: c.objectives, color: CAT_COLOR[c.category] || '#7A7468' }))} size={150} />
+        <DonutChart segments={(() => { const pal = donutPalette(data.byCategory.length); return data.byCategory.map((c, i) => ({ label: c.category, value: c.objectives, color: pal[i] })) })()} size={150} />
       </Panel>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {data.list.map(o => (

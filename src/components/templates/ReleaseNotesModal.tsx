@@ -62,7 +62,9 @@ export function ReleaseNotesModal() {
               <p className="text-[10px] uppercase tracking-[0.22em] text-empire-text-muted">New release</p>
               <h2 id="release-title" className="mt-1 font-empire text-xl tracking-wide text-empire-gold">{release.title}</h2>
               <p className="mt-1 font-data text-[11px] text-empire-text-dim">
-                App {release.appVersion} · {release.sha ? release.sha.slice(0, 7) : release.version}
+                {/* A2: end-user friendly — version + readable date, never a commit SHA. */}
+                Version {release.appVersion}
+                {release.publishedAt ? ` · ${new Date(release.publishedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}
               </p>
             </div>
             <button type="button" onClick={close} aria-label="Close release notes" className="grid h-8 w-8 place-items-center rounded-lg text-empire-text-muted transition-colors hover:bg-empire-elevated hover:text-empire-text">

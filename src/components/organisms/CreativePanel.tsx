@@ -11,6 +11,7 @@ import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
 import { DatePicker } from '@/components/molecules/DatePicker'
+import { donutPalette } from '@/lib/theme'
 
 // Creative — the studio operating system. Throughput, turnaround, on-time rate,
 // approval rate, pipeline by stage, briefs by type and backlog all derive from
@@ -194,7 +195,7 @@ function Pipeline() {
         </Panel>
         <Panel icon="pen-nib" title="Briefs by type">
           {data.byType.length ? (
-            <DonutChart size={170} segments={data.byType.map(t => ({ label: t.type, value: t.count, color: TYPE_COLOR[t.type] || '#7A7468' }))} />
+            <DonutChart size={170} segments={(() => { const pal = donutPalette(data.byType.length); return data.byType.map((t, i) => ({ label: t.type, value: t.count, color: pal[i] })) })()} />
           ) : <EmptyState icon="document" title="No briefs" />}
         </Panel>
       </div>

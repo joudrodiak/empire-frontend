@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { fetcher, post, patch, del } from '@/lib/api'
 import { KpiCard, Panel, DonutChart, DataTable, TabBar, Grid, EmptyState, type Column } from '@/lib/ui'
@@ -63,6 +63,8 @@ function inlineMd(s: string) {
   // Unfilled [token] gaps are highlighted so a half-finished draft is obvious.
   return escapeHtml(s)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/&lt;u&gt;([\s\S]+?)&lt;\/u&gt;/g, '<u>$1</u>')
     .replace(/\[([A-Za-z0-9_.]+)\]/g, '<span class="lg-gap">[$1]</span>')
 }
 function mdToHtml(md: string): string {
@@ -455,10 +457,37 @@ function Templates() {
   )
 }
 
+/* Contract-type options for the dropdown (C14). Free-text custom still allowed. */
+const CONTRACT_TYPES = [
+  'nda', 'msa', 'sow', 'mou', 'commercial', 'software', 'whitelabel',
+  'employment', 'consultancy', 'partnership', 'licensing', 'reseller',
+  'dpa', 'service', 'lease', 'other',
+]
+// Field insert buttons: {{clientName}}, {{address}} + 4 more (C14).
+const FIELD_TOKENS = ['clientName', 'address', 'companyName', 'effectiveDate', 'email', 'jurisdiction']
+// Signature insert buttons + custom (C14).
+const SIGNATURE_PRESETS = ['Cregen AI Ltd', 'Counterparty', 'Authorised Signatory', 'Witness']
+// Math-equation presets: 4 insertable + 3 worked examples shown to the author (C14/C7).
+const MATH_PRESETS: { label: string; expr: string }[] = [
+  { label: 'Subtotal × VAT 21%', expr: 'numDevs * ratePerDev * 1.21' },
+  { label: 'Annual value', expr: 'clientPrice * 12' },
+  { label: 'Markup amount', expr: 'baseCost * markupPct / 100' },
+  { label: 'Per-unit share', expr: 'clientPrice / numDevs' },
+]
+const MATH_EXAMPLES: { show: string; means: string }[] = [
+  { show: '{{calc.(numDevs * ratePerDev)}}', means: 'multiplies two fields → base monthly cost' },
+  { show: '{{calc.(clientPrice * 1.21)}}', means: 'adds 21% VAT to a field' },
+  { show: '{{calc.((subtotal + fee) / 12)}}', means: 'parentheses + division → monthly figure' },
+]
+
 /* Create/edit a contract template (key / name / type / jurisdiction / body). */
 function TemplateEditModal({ tpl, mode, open, onClose, onSaved }: { tpl: Template | null; mode: 'create' | 'edit'; open: boolean; onClose: () => void; onSaved: () => void }) {
   const [f, setF] = useState({ key: '', name: '', category: 'commercial', jurisdiction: 'EU', description: '', bodyMarkdown: '' })
   const [saving, setSaving] = useState(false)
+  const [customField, setCustomField] = useState('')
+  const [customSig, setCustomSig] = useState('')
+  const [customCalc, setCustomCalc] = useState('')
+  const bodyRef = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
     if (!open) return
     if (tpl) setF({
@@ -474,6 +503,28 @@ function TemplateEditModal({ tpl, mode, open, onClose, onSaved }: { tpl: Templat
       bodyMarkdown: '# {{clientName}} Agreement\n\nThis agreement is between Cregen AI Ltd and {{clientName}}.\n\n## Signatures\n\n{{signature.(Cregen AI Ltd)}}\n\n{{signature.(Counterparty)}}',
     })
   }, [tpl, open])
+
+  // Insert text at the caret (or wrap the current selection for bold/italic/underline).
+  const insertAtCursor = (text: string, wrap?: [string, string]) => {
+    const ta = bodyRef.current
+    const body = f.bodyMarkdown
+    if (!ta) { setF(s => ({ ...s, bodyMarkdown: s.bodyMarkdown + text })); return }
+    const start = ta.selectionStart ?? body.length
+    const end = ta.selectionEnd ?? body.length
+    let next: string, caret: number
+    if (wrap) {
+      const sel = body.slice(start, end) || 'text'
+      const piece = `${wrap[0]}${sel}${wrap[1]}`
+      next = body.slice(0, start) + piece + body.slice(end)
+      caret = start + piece.length
+    } else {
+      next = body.slice(0, start) + text + body.slice(end)
+      caret = start + text.length
+    }
+    setF(s => ({ ...s, bodyMarkdown: next }))
+    requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(caret, caret) })
+  }
+
   const save = async () => {
     if (!f.name || !f.category || !f.bodyMarkdown || (mode === 'create' && !f.key)) return
     setSaving(true)
@@ -484,6 +535,9 @@ function TemplateEditModal({ tpl, mode, open, onClose, onSaved }: { tpl: Templat
     }
     catch (e) { console.error(e) } finally { setSaving(false) }
   }
+
+  const chip = 'px-2 py-1 rounded-md border border-empire-border bg-empire-surface text-[11px] font-data text-empire-text hover:border-empire-gold/40 hover:text-empire-gold transition-colors'
+
   return (
     <Modal open={open} onClose={onClose} title={mode === 'create' ? 'Create template' : tpl ? `Edit · ${tpl.name}` : 'Edit template'} icon={<EmpireIcon name={mode === 'create' ? 'plus' : 'pen'} size={18} />} width="max-w-2xl">
       <div className="space-y-3">
@@ -494,17 +548,67 @@ function TemplateEditModal({ tpl, mode, open, onClose, onSaved }: { tpl: Templat
         <div className="grid grid-cols-2 gap-3">
           <label className="block"><span className="empire-label">Name</span>
             <input className="empire-input w-full mt-1" value={f.name} placeholder="Template name" onChange={e => setF({ ...f, name: e.target.value })} /></label>
-          <label className="block"><span className="empire-label">Type</span>
-            <input className="empire-input w-full mt-1" value={f.category} placeholder="nda" onChange={e => setF({ ...f, category: e.target.value })} /></label>
+          <label className="block"><span className="empire-label">Contract type</span>
+            <select className="empire-input w-full mt-1 capitalize" value={CONTRACT_TYPES.includes(f.category) ? f.category : 'other'} onChange={e => setF({ ...f, category: e.target.value })}>
+              {CONTRACT_TYPES.map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
+            </select></label>
         </div>
         <label className="block"><span className="empire-label">Jurisdiction</span>
           <input className="empire-input w-full mt-1" value={f.jurisdiction} placeholder="Netherlands" onChange={e => setF({ ...f, jurisdiction: e.target.value })} /></label>
         <label className="block"><span className="empire-label">Description</span>
           <input className="empire-input w-full mt-1" value={f.description} placeholder="What this template is for" onChange={e => setF({ ...f, description: e.target.value })} /></label>
+
+        {/* Insert toolbar (C14): formatting, fields, signatures, calculations. */}
+        <div className="rounded-lg border border-empire-border bg-empire-bg/40 p-2.5 space-y-2.5">
+          <div className="flex items-center gap-2">
+            <span className="empire-label">Format</span>
+            <button type="button" onClick={() => insertAtCursor('', ['**', '**'])} className={chip + ' font-bold'}>B</button>
+            <button type="button" onClick={() => insertAtCursor('', ['*', '*'])} className={chip + ' italic'}>I</button>
+            <button type="button" onClick={() => insertAtCursor('', ['<u>', '</u>'])} className={chip + ' underline'}>U</button>
+          </div>
+          <div>
+            <span className="empire-label">Insert field</span>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {FIELD_TOKENS.map(t => <button key={t} type="button" onClick={() => insertAtCursor(`{{${t}}}`)} className={chip}>{`{{${t}}}`}</button>)}
+              <span className="inline-flex items-center gap-1">
+                <input value={customField} onChange={e => setCustomField(e.target.value.replace(/[^A-Za-z0-9_]/g, ''))} placeholder="custom" className="empire-input !py-1 !text-[11px] w-24 font-data" />
+                <button type="button" disabled={!customField} onClick={() => { insertAtCursor(`{{${customField}}}`); setCustomField('') }} className={chip + ' disabled:opacity-40'}>+ add</button>
+              </span>
+            </div>
+          </div>
+          <div>
+            <span className="empire-label">Insert signature</span>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {SIGNATURE_PRESETS.map(s => <button key={s} type="button" onClick={() => insertAtCursor(`{{signature.(${s})}}`)} className={chip}>{s}</button>)}
+              <span className="inline-flex items-center gap-1">
+                <input value={customSig} onChange={e => setCustomSig(e.target.value)} placeholder="custom party" className="empire-input !py-1 !text-[11px] w-28" />
+                <button type="button" disabled={!customSig.trim()} onClick={() => { insertAtCursor(`{{signature.(${customSig.trim()})}}`); setCustomSig('') }} className={chip + ' disabled:opacity-40'}>+ add</button>
+              </span>
+            </div>
+          </div>
+          <div>
+            <span className="empire-label">Insert calculation</span>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {MATH_PRESETS.map(m => <button key={m.label} type="button" title={m.expr} onClick={() => insertAtCursor(`{{calc.(${m.expr})}}`)} className={chip}>{m.label}</button>)}
+              <span className="inline-flex items-center gap-1">
+                <input value={customCalc} onChange={e => setCustomCalc(e.target.value)} placeholder="e.g. fee * 1.21" className="empire-input !py-1 !text-[11px] w-40 font-data" />
+                <button type="button" disabled={!customCalc.trim()} onClick={() => { insertAtCursor(`{{calc.(${customCalc.trim()})}}`); setCustomCalc('') }} className={chip + ' disabled:opacity-40'}>+ add</button>
+              </span>
+            </div>
+            <div className="mt-1.5 space-y-0.5">
+              {MATH_EXAMPLES.map(ex => (
+                <p key={ex.show} className="text-[10.5px] text-empire-text-muted">
+                  <span className="font-data text-empire-gold">{ex.show}</span> — {ex.means}
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <label className="block"><span className="empire-label">Body (markdown)</span>
-          <textarea className="empire-input w-full mt-1 font-mono text-xs" rows={10} value={f.bodyMarkdown} onChange={e => setF({ ...f, bodyMarkdown: e.target.value })} /></label>
+          <textarea ref={bodyRef} className="empire-input w-full mt-1 font-mono text-xs" rows={10} value={f.bodyMarkdown} onChange={e => setF({ ...f, bodyMarkdown: e.target.value })} /></label>
         <p className="text-[11px] text-empire-text-muted">
-          Fields are generated from tokens like <span className="font-data text-empire-gold">{'{{good}}'}</span>. Add at least two signature slots with <span className="font-data text-empire-gold">{'{{signature.(Name)}}'}</span>.
+          Fields come from tokens like <span className="font-data text-empire-gold">{'{{clientName}}'}</span>. Calculations use <span className="font-data text-empire-gold">{'{{calc.(...)}}'}</span> and call other fields by name. Add at least two signature slots with <span className="font-data text-empire-gold">{'{{signature.(Name)}}'}</span>.
         </p>
         <div className="flex justify-end gap-2 pt-1">
           <button onClick={onClose} className="px-4 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>

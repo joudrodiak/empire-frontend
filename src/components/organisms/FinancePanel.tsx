@@ -434,16 +434,23 @@ function CapexOpex() {
       </Grid>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Panel title="Spend Mix" icon="chart-bar">
-          <div className="flex justify-center">
-            <DonutChart segments={[
-              { label: 'CapEx', value: c.totalCapex, color: '#C9A233' },
-              { label: 'OpEx', value: c.totalOpex, color: ACCENT },
-            ]} />
-          </div>
-          <div className="flex items-center justify-center gap-4 mt-3 text-xs">
-            <span className="flex items-center gap-1.5 text-empire-text-muted"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#C9A233' }} />CapEx {c.capexPct}%</span>
-            <span className="flex items-center gap-1.5 text-empire-text-muted"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: ACCENT }} />OpEx {c.opexPct}%</span>
-          </div>
+          {c.totalCapex + c.totalOpex > 0 ? (
+            <>
+              <div className="flex justify-center">
+                <DonutChart segments={[
+                  { label: 'CapEx', value: c.totalCapex, color: '#C9A233' },
+                  { label: 'OpEx', value: c.totalOpex, color: ACCENT },
+                ]} />
+              </div>
+              <div className="flex items-center justify-center gap-4 mt-3 text-xs">
+                <span className="flex items-center gap-1.5 text-empire-text-muted"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#C9A233' }} />CapEx {c.capexPct}%</span>
+                <span className="flex items-center gap-1.5 text-empire-text-muted"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: ACCENT }} />OpEx {c.opexPct}%</span>
+              </div>
+            </>
+          ) : (
+            // A11: never render a bare/empty donut — use the styled EmptyState inside the same glass panel.
+            <EmptyState icon="chart-bar" title="No spend to classify" hint="Post expense or fixed-asset entries to split CapEx vs OpEx." />
+          )}
         </Panel>
         <div className="lg:col-span-2">
           <Panel title={`Spend Breakdown (${c.total})`} icon="document">
@@ -1020,9 +1027,11 @@ function DutchFilingCenter() {
         const meta = FILING_NAMES[form!.type]
         const bottom = meta ? form!.totals[meta.bottomKey] : undefined
         return <div key={form!.type} className="rounded-lg border border-empire-border p-3">
-          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-empire-text">{meta?.name ?? form!.type} · {form!.period}</h3>
-            <button className="text-xs text-empire-gold transition-all duration-200 hover:-translate-y-0.5" onClick={() => save(form!)}>Save draft</button>
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            {/* B3: min-w-0 + break-words so a long filing name (e.g. "VPB — Corporate
+                tax return · 2026") wraps instead of overlapping the Save button. */}
+            <h3 className="min-w-0 break-words text-sm font-semibold text-empire-text">{meta?.name ?? form!.type} · {form!.period}</h3>
+            <button className="shrink-0 text-xs text-empire-gold transition-all duration-200 hover:-translate-y-0.5" onClick={() => save(form!)}>Save draft</button>
           </div>
           {meta && <p className="mb-2 text-[11px] leading-4 text-empire-text-dim">{meta.explainer}</p>}
           <div className="space-y-1">{form!.form.map(row => (

@@ -195,7 +195,7 @@ body::after {
   @apply text-xs text-empire-text-muted uppercase tracking-widest;
 }
 .empire-btn-primary {
-  @apply px-4 py-2 bg-empire-gold text-empire-void text-xs uppercase tracking-widest rounded-lg font-semibold transition-all duration-200 hover:bg-empire-gold/90 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-empire-gold/30 active:translate-y-0;
+  @apply px-4 py-2 bg-empire-gold text-empire-void text-xs uppercase tracking-widest rounded-lg font-semibold transition-all duration-200 hover:bg-empire-gold/90 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-empire-gold/30 active:translate-y-0 active:scale-[0.97];
   box-shadow: 0 10px 28px rgba(201,162,51,0.18), inset 0 1px 0 rgba(255,255,255,0.38);
 }
 .empire-btn-primary:disabled,
@@ -203,20 +203,35 @@ button:disabled {
   cursor: not-allowed;
   pointer-events: none;
 }
+/* A14: restrained global button-press cue — every enabled button gives a quick
+   tactile dip on click. Reduced-motion users opt out. */
+@media (prefers-reduced-motion: no-preference) {
+  button:not(:disabled):active { transform: scale(0.97); }
+  button { transition: transform 0.12s ease; }
+}
 
-/* ---- Dropdowns (backlog A11) ------------------------------------------------
+/* ---- Dropdowns (backlog A10/A11/A12/A13) ------------------------------------
  * Every <select> on the platform: flat glass trigger, gold chevron indicator,
- * dark native menu (color-scheme) with elevated option rows. No gradients. */
-select {
+ * dark native menu (color-scheme) with elevated option rows. No gradients.
+ *
+ * The `:not([size])` selector is deliberate: it lifts specificity to 0,1,1 so
+ * the reserved arrow space (padding-right) and comfortable height BEAT a stray
+ * Tailwind padding utility (e.g. `pr-3`, 0,1,0) on a call site. Without this the
+ * chevron overlapped the text on the incident/deploy dropdowns (A10) and the
+ * status dropdowns rendered cramped (A13). Generalised — applies everywhere. */
+select:not([size]) {
   appearance: none;
   -webkit-appearance: none;
   color-scheme: dark;
   cursor: pointer;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23c9a233' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
   background-repeat: no-repeat;
-  background-position: right 0.6rem center;
+  background-position: right 0.7rem center;
   background-size: 12px 12px;
-  padding-right: 2rem;
+  /* Reserve room for the chevron so option text never slides under it. */
+  padding-right: 2.1rem;
+  /* A13: a comfortable, consistent hit area — no more cramped status pickers. */
+  min-height: 2.25rem;
 }
 select:focus {
   border-color: rgba(201, 162, 51, 0.6);
@@ -623,4 +638,53 @@ input[type='radio'] {
   flex-shrink: 0;
   vertical-align: -0.125em;
   cursor: pointer;
+}
+
+/* ── Custom cursor (backlog A4) ──────────────────────────────────────────────
+   Only active when EmpireCursor mounts (.empire-cursor-on, fine pointer + no
+   reduced-motion). Hides the native cursor and paints an obsidian-gold ring +
+   dot; the ring tightens/fills over clickable targets. */
+html.empire-cursor-on,
+html.empire-cursor-on * {
+  cursor: none !important;
+}
+@media (pointer: coarse), (prefers-reduced-motion: reduce) {
+  /* Never hijack the cursor on touch / reduced-motion — belt-and-braces. */
+  html.empire-cursor-on,
+  html.empire-cursor-on * { cursor: auto !important; }
+  .empire-cursor-ring, .empire-cursor-dot { display: none !important; }
+}
+.empire-cursor-ring {
+  position: fixed;
+  top: 0; left: 0;
+  width: 30px; height: 30px;
+  margin: -15px 0 0 -15px;
+  border: 1.5px solid rgba(201, 162, 51, 0.7);
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 2147483646;
+  opacity: 1;
+  transition: width 0.18s ease, height 0.18s ease, margin 0.18s ease,
+    background-color 0.18s ease, border-color 0.18s ease, opacity 0.2s ease;
+  box-shadow: 0 0 12px rgba(201, 162, 51, 0.25);
+  will-change: left, top;
+}
+.empire-cursor-ring.is-active {
+  width: 44px; height: 44px;
+  margin: -22px 0 0 -22px;
+  background: rgba(201, 162, 51, 0.12);
+  border-color: rgba(201, 162, 51, 0.95);
+}
+.empire-cursor-ring.is-press { transform: scale(0.82); }
+.empire-cursor-dot {
+  position: fixed;
+  top: 0; left: 0;
+  width: 5px; height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  background: #c9a233;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 2147483647;
+  opacity: 1;
+  transition: opacity 0.2s ease;
 }

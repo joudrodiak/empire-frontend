@@ -232,9 +232,16 @@ function CompanyNetworkTab({ departments, employees }: { departments: Department
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
   const units = departments.slice(0, 12)
   const center = { x: 50, y: 50 }
+  // Keep every node inside the 0–100 canvas. The SAME clamp is applied to a node
+  // AND to the edge endpoint that targets it, so an edge can never fall short of
+  // or overshoot its node — they move together. This is the fix for "some nodes
+  // have no edge / edges aren't long enough": previously ring-edge units pushed
+  // their satellites past the canvas, so the satellite clipped away while its
+  // edge stayed inside, reading as a floating, disconnected node.
+  const clamp = (v: number) => Math.max(7, Math.min(93, v))
   // Two alternating orbit radii so neighbouring unit clusters breathe instead
   // of packing onto one ring and overlapping each other's member/doc satellites.
-  const ringRadius = (index: number) => (index % 2 === 0 ? 33 : 41)
+  const ringRadius = (index: number) => (index % 2 === 0 ? 22 : 28)
   const zoomBy = (delta: number) => setScale(value => Math.min(1.8, Math.max(0.68, Number((value + delta).toFixed(2)))))
   const centerMap = () => {
     setScale(1)
@@ -244,8 +251,8 @@ function CompanyNetworkTab({ departments, employees }: { departments: Department
   const unitNodes = units.map((dept, index) => {
     const angle = (Math.PI * 2 * index) / Math.max(units.length, 1) - Math.PI / 2
     const radius = ringRadius(index)
-    const x = center.x + Math.cos(angle) * radius
-    const y = center.y + Math.sin(angle) * radius
+    const x = clamp(center.x + Math.cos(angle) * radius)
+    const y = clamp(center.y + Math.sin(angle) * radius)
     const members = employees.filter(e => e.department.slug === dept.slug && e.contractType !== 'ai_agent').slice(0, 3)
     return { dept, x, y, angle, members }
   })
@@ -256,18 +263,22 @@ function CompanyNetworkTab({ departments, employees }: { departments: Department
   unitNodes.forEach((node, index) => {
     const accent = empireColor(node.dept.color)
     edges.push({ x1: center.x, y1: center.y, x2: node.x, y2: node.y, color: accent, delay: index * 70 })
-    const memberHubX = node.x + Math.cos(node.angle - 0.3) * 15
-    const memberHubY = node.y + Math.sin(node.angle - 0.3) * 15
-    const docHubX = node.x + Math.cos(node.angle + 0.55) * 17
-    const docHubY = node.y + Math.sin(node.angle + 0.55) * 17
+    // Member & document satellites extend radially OUTWARD from the unit along
+    // its own spoke, fanned symmetrically (±0.34 rad), so they always sit beyond
+    // the unit — away from the centre cluster — and read as clean outward spokes
+    // of equal length rather than the old short, lopsided tangents.
+    const memberHubX = clamp(node.x + Math.cos(node.angle - 0.34) * 12)
+    const memberHubY = clamp(node.y + Math.sin(node.angle - 0.34) * 12)
+    const docHubX = clamp(node.x + Math.cos(node.angle + 0.34) * 12)
+    const docHubY = clamp(node.y + Math.sin(node.angle + 0.34) * 12)
     edges.push({ x1: node.x, y1: node.y, x2: memberHubX, y2: memberHubY, color: '#F4EFE3', delay: 180 + index * 45 })
     edges.push({ x1: node.x, y1: node.y, x2: docHubX, y2: docHubY, color: '#C9A233', delay: 240 + index * 45 })
     childNodes.push({ id: `${node.dept.id}-members`, kind: 'members', label: `${node.dept.name} members`, x: memberHubX, y: memberHubY, color: '#F4EFE3', href: `/departments/${node.dept.slug}`, delay: index * 60 })
     childNodes.push({ id: `${node.dept.id}-docs`, kind: 'documents', label: `${node.dept.name} documents`, x: docHubX, y: docHubY, color: '#C9A233', href: `/departments/${node.dept.slug}`, delay: index * 60 + 90 })
     node.members.forEach((member, memberIndex) => {
-      const spread = (memberIndex - (node.members.length - 1) / 2) * 0.42
-      const px = memberHubX + Math.cos(node.angle + spread) * 10
-      const py = memberHubY + Math.sin(node.angle + spread) * 10
+      const spread = (memberIndex - (node.members.length - 1) / 2) * 0.5
+      const px = clamp(memberHubX + Math.cos(node.angle + spread) * 9)
+      const py = clamp(memberHubY + Math.sin(node.angle + spread) * 9)
       edges.push({ x1: memberHubX, y1: memberHubY, x2: px, y2: py, color: '#F4EFE3', delay: 320 + index * 35 + memberIndex * 45 })
       childNodes.push({ id: member.id, kind: 'person', label: `${member.name} · ${member.role}`, x: px, y: py, color: accent, delay: index * 80 + memberIndex * 60 })
     })

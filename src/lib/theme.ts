@@ -33,6 +33,22 @@ export function empireTint(value?: string | null, alpha = '22', fallback = EMPIR
   return `${empireColor(value, fallback)}${alpha}`
 }
 
+// Pie/donut palette (backlog A3): same gold-ivory vibe, distinguishable by
+// stepping lightness from full gold → ivory, with muted as the terminal "other".
+// Slices stay on-brand (no foreign hues) yet are visually separable.
+const GOLD_FAMILY = ['#C9A233', '#D4B254', '#DFC177', '#EAD29C', '#F4EFE3', '#7A7468']
+export function donutPalette(n: number): string[] {
+  if (n <= 1) return [EMPIRE_COLORS.gold]
+  // Reserve the muted tail for the last slice when there are several segments.
+  const head = GOLD_FAMILY.slice(0, 5)
+  const out: string[] = []
+  for (let i = 0; i < n; i++) {
+    if (i === n - 1 && n > 2) { out.push(GOLD_FAMILY[5]); break }
+    out.push(head[Math.min(i, head.length - 1)])
+  }
+  return out
+}
+
 export function toneForState(state?: string) {
   const value = (state || '').toLowerCase()
   if (/(risk|critical|blocked|breach|churn|void|failed|urgent|high|overdue)/.test(value)) return RISK_ACCENT

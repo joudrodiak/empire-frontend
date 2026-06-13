@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { fetcher, post, patch, del, ragColor, ragLabel, formatCurrency } from '@/lib/api'
+import { fetcher, post, patch, del, download, ragColor, ragLabel, formatCurrency } from '@/lib/api'
+import { useAuth, userCan } from '@/lib/auth'
 import { rankFor } from '@/lib/game-logic'
 import { EmpireIcon, asIconName, type IconName } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
@@ -31,6 +32,7 @@ import { ExecutivePanel } from '@/components/organisms/ExecutivePanel'
 import { AdvisoryPanel } from '@/components/organisms/AdvisoryPanel'
 import { StructurePanel } from '@/components/organisms/StructurePanel'
 import { NotificationsPanel } from '@/components/organisms/NotificationsPanel'
+import { GuidedTour, type TourStep } from '@/components/organisms/GuidedTour'
 import { formatDistanceToNow, format } from 'date-fns'
 import { empireColor, empireTint } from '@/lib/theme'
 import { AffixInput } from '@/components/molecules/AffixInput'
@@ -42,7 +44,9 @@ type Dept = {
   managedByAI: boolean; aiManagerName: string | null
   employees: Employee[]; kpiDefinitions: KPIDef[]
   compositeScores: CompositeScore[]; activities: Activity[]
+  agents?: UnitAgent[]
 }
+type UnitAgent = { id: string; name: string; codename: string | null; role: string; status: string; kind: string; avatarSeed: string | null; permissions: string[] | null; createdAt: string }
 type Employee = { id: string; name: string; role: string; salaryAmount: number | null; contractType: string; commissionRate: number | null; xp: number; level: number; fte?: number | null; avatarUrl?: string | null; contractEndsAt?: string | null; reportsToId?: string | null }
 type KPIDef = { id: string; name: string; slug: string; description: string | null; unit: string | null; weight: number; records: KPIRecord[] }
 type KPIRecord = { id: string; value: number | null; period: string; notes: string | null }
@@ -81,14 +85,17 @@ const DEPT_TAB: Record<string, { label: string; category: string; icon: IconName
 export default function DepartmentClient() {
   const { id: slug } = useParams()
   const searchParams = useSearchParams()
+  const { user } = useAuth()
+  const isAdmin = userCan(user, 'iam:manage')   // C6 — Automate Unit is Admin-only
   const [dept, setDept] = useState<Dept | null>(null)
   const [followUps, setFollowUps] = useState<FollowUp[]>([])
   const [entries, setEntries] = useState<DeptEntry[]>([])
   const [allDepts, setAllDepts] = useState<AllDept[]>([])
   const [loading, setLoading] = useState(true)
-  type TabId = 'overview' | 'structure' | 'metrics' | 'interactions' | 'finance' | 'engineering' | 'legal' | 'marketing' | 'client-success' | 'partnerships' | 'hr' | 'operations' | 'creative' | 'executive' | 'advisory' | 'kpis' | 'followups' | 'dept' | 'tickets' | 'contracts'
+  type TabId = 'overview' | 'structure' | 'metrics' | 'interactions' | 'finance' | 'engineering' | 'legal' | 'marketing' | 'client-success' | 'partnerships' | 'hr' | 'operations' | 'creative' | 'executive' | 'advisory' | 'kpis' | 'followups' | 'requests' | 'leave' | 'dept' | 'tickets' | 'contracts' | 'automate'
   const initialTab = (searchParams.get('tab') as TabId) || 'overview'
   const [activeTab, setActiveTab] = useState<TabId>(initialTab)
+  const [tourOpen, setTourOpen] = useState(false)   // C3 — guided walkthrough overlay
   // Persist the active tab in the URL so a reload restores the same section
   // instead of snapping back to Overview.
   const selectTab = useCallback((id: TabId) => {
@@ -162,10 +169,28 @@ export default function DepartmentClient() {
     ...(dept.slug === 'executive' ? [{ id: 'executive' as const, label: 'Cockpit', icon: 'crown' as const }] : []),
     ...(dept.slug === 'advisory' ? [{ id: 'advisory' as const, label: 'Council', icon: 'compass' as const }] : []),
     { id: 'kpis', label: 'KPIs', icon: 'chart-bar' },
+    { id: 'requests', label: 'Requests', icon: 'scales' },
     { id: 'followups', label: `Follow-ups${openFollowUps > 0 ? ` (${openFollowUps})` : ''}`, icon: 'flag' },
+    { id: 'leave', label: 'Leave', icon: 'calendar' },
     ...(deptTab ? [{ id: 'dept' as const, label: deptTab.label, icon: deptTab.icon }] : []),
     { id: 'tickets', label: 'Tickets', icon: 'rocket' },
     { id: 'contracts', label: 'Contracts', icon: 'document' },
+    ...(isAdmin ? [{ id: 'automate' as const, label: 'Automate', icon: 'sparkle' as const }] : []),
+  ]
+
+  // C3 — guided walkthrough. Each step names the tab it lives on (switched via
+  // onBeforeStep before the anchor is highlighted) and a data-tour selector. The
+  // engine polls for the anchor after the tab switch, so cross-tab steps work.
+  const tour: { tab: TabId; step: TourStep }[] = [
+    { tab: 'overview', step: { selector: '[data-tour="unit-tutorial"]', title: `Welcome to ${dept.name}`, body: 'This is the unit cockpit. Every aspect of running this unit lives behind the tabs below — let’s walk through the essentials. Use Next, or Skip any time.' } },
+    { tab: 'overview', step: { selector: '[data-tour="tab-overview"]', title: 'Overview', body: 'The home of the unit: its health score, recent activity, and the people who run it. Start here every day.' } },
+    { tab: 'overview', step: { selector: '[data-tour="roster-add"]', title: 'Create a role / add a person', body: 'The basics: click Add to create a role and place a person in this unit. Give them a name and title — they’ll appear on the roster and can hold contracts and KPIs.' } },
+    { tab: 'kpis', step: { selector: '[data-tour="tab-kpis"]', title: 'KPIs', body: 'Define what “good” means for this unit and track it over time. KPI records roll up into the unit’s health score.' } },
+    { tab: 'requests', step: { selector: '[data-tour="tab-requests"]', title: 'Cross-unit requests', body: 'Ask another unit for a decision — Legal clearance for an ad, a permit, or a budget from Finance. Incoming requests land here for you to approve or reject.' } },
+    { tab: 'followups', step: { selector: '[data-tour="tab-followups"]', title: 'Follow-ups', body: 'Open loops that need action — anything left unresolved surfaces here with a count so nothing falls through.' } },
+    { tab: 'leave', step: { selector: '[data-tour="tab-leave"]', title: 'Leave & calendar', body: 'A live calendar of the unit: national public holidays, who is off, sick days (reported and HR-confirmed), and birthdays. Request vacation, sick or other leave straight from each person’s balance.' } },
+    { tab: 'contracts', step: { selector: '[data-tour="tab-contracts"]', title: 'Contracts', body: 'The paperwork for the people in this unit: draft, view, export, and sign. Outputs are viewable, exportable, and actionable — no dead ends.' } },
+    ...(isAdmin ? [{ tab: 'automate' as TabId, step: { selector: '[data-tour="tab-automate"]', title: 'Automate the unit', body: 'Appoint an operator agent to run this unit autonomously. Once at least one operator is in place you can flip the unit to AI-managed.' } as TourStep }] : []),
   ]
 
   return (
@@ -194,6 +219,14 @@ export default function DepartmentClient() {
                 {latestScore.score != null ? `Score: ${latestScore.score}` : ragLabel(latestScore.ragStatus)}
               </span>
             )}
+            <button
+              data-tour="unit-tutorial"
+              onClick={() => setTourOpen(true)}
+              title="Guided walkthrough of this unit"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-empire-gold/30 px-2.5 py-1 text-[10px] uppercase tracking-widest text-empire-gold transition-colors hover:bg-empire-gold/10"
+            >
+              <EmpireIcon name="sparkle" size={12} /> Tutorial
+            </button>
             <RuleBook accent={accent} />
           </div>
         </div>
@@ -201,6 +234,7 @@ export default function DepartmentClient() {
           {tabs.map(tab => (
             <button
               key={tab.id}
+              data-tour={`tab-${tab.id}`}
               onClick={() => selectTab(tab.id)}
               className={`px-4 py-2.5 text-xs uppercase tracking-widest font-medium border-b-2 transition-colors inline-flex items-center gap-1.5 ${
                 activeTab === tab.id
@@ -295,7 +329,24 @@ export default function DepartmentClient() {
             onConsumePrefill={() => setContractPrefill(null)}
           />
         )}
+        {activeTab === 'requests' && (
+          <RequestsTab dept={dept} accent={accent} />
+        )}
+        {activeTab === 'leave' && (
+          <LeaveTab dept={dept} />
+        )}
+        {activeTab === 'automate' && isAdmin && (
+          <AutomateTab dept={dept} accent={accent} onUpdate={load} />
+        )}
       </main>
+      {tourOpen && (
+        <GuidedTour
+          title={`${dept.name} tour`}
+          steps={tour.map(t => t.step)}
+          onBeforeStep={(idx) => selectTab(tour[idx].tab)}
+          onClose={() => setTourOpen(false)}
+        />
+      )}
     </div>
   )
 }
@@ -422,6 +473,7 @@ function Roster({ dept, allDepts, onUpdate, onCreateContract, accent }: { dept: 
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Employee | null>(null)
   const [viewing, setViewing] = useState<Employee | null>(null)
+  const [dashboardOf, setDashboardOf] = useState<Employee | null>(null)
 
   const employees = dept.employees || []
   const pageCount = Math.max(1, Math.ceil(employees.length / ROSTER_PAGE_SIZE))
@@ -438,6 +490,7 @@ function Roster({ dept, allDepts, onUpdate, onCreateContract, accent }: { dept: 
       <div className="flex items-center justify-between gap-2">
         <SectionHeader title="Roster" />
         <button
+          data-tour="roster-add"
           onClick={() => setAdding(true)}
           className="px-3 py-1.5 bg-empire-gold-dim border border-empire-gold/30 text-empire-gold text-[10px] uppercase tracking-widest rounded hover:bg-empire-gold/20 transition-colors inline-flex items-center gap-1"
         >
@@ -478,6 +531,13 @@ function Roster({ dept, allDepts, onUpdate, onCreateContract, accent }: { dept: 
                 </span>
               </div>
               <div className="flex-shrink-0 flex items-center gap-1">
+                <button
+                  onClick={() => setDashboardOf(emp)}
+                  title={`Unit member dashboard for ${emp.name}`}
+                  className="p-1.5 rounded text-empire-text-dim hover:text-empire-gold hover:bg-empire-gold/10 transition-colors"
+                >
+                  <EmpireIcon name="gauge" size={14} />
+                </button>
                 {onCreateContract && (
                   <button
                     onClick={() => onCreateContract(emp.id)}
@@ -502,6 +562,63 @@ function Roster({ dept, allDepts, onUpdate, onCreateContract, accent }: { dept: 
       {employees.length > ROSTER_PAGE_SIZE && (
         <Pagination page={safePage} pageCount={pageCount} total={employees.length} onPage={setPage} accent={accent} />
       )}
+
+      {/* C1 — operators (agents) created in this unit appear here automatically. */}
+      <div className="mt-6">
+        <div className="flex items-center justify-between gap-2">
+          <SectionHeader title="Operators" />
+          <a
+            href={`/agent?unit=${dept.slug}`}
+            className="px-3 py-1.5 bg-empire-elevated/40 border border-empire-border text-empire-text-dim text-[10px] uppercase tracking-widest rounded hover:text-empire-gold hover:border-empire-gold/30 transition-colors inline-flex items-center gap-1"
+          >
+            <EmpireIcon name="sparkle" size={11} /> Manage operators
+          </a>
+        </div>
+        <div className="space-y-2 mt-3">
+          {(dept.agents || []).length === 0 && (
+            <div className="text-empire-text-dim text-xs italic p-3">No operators in this unit yet — create one from the agent console and it lands here automatically.</div>
+          )}
+          {(dept.agents || []).map(a => {
+            const slug = (a.codename || a.name || 'agent').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'agent'
+            return (
+            <div
+              key={a.id}
+              className="flex items-center gap-3 p-3 bg-empire-surface border border-empire-border rounded-lg hover:border-empire-gold/20 transition-colors"
+            >
+              <div
+                className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0"
+                style={{ background: empireTint(accent, '30'), color: accent }}
+              >
+                <EmpireIcon name="sparkle" size={15} />
+              </div>
+              <a href={`/agent?id=${a.id}`} className="min-w-0 flex-1 group">
+                <div className="text-empire-text text-xs font-medium truncate inline-flex items-center gap-1.5 group-hover:text-empire-gold transition-colors">
+                  {a.name}
+                  {a.codename && <span className="text-empire-text-muted">· {a.codename}</span>}
+                  <span className="text-[9px] px-1 py-0.5 rounded border border-empire-gold/40 text-empire-gold uppercase tracking-wide">Operator</span>
+                </div>
+                <div className="text-empire-text-dim text-xs truncate">{a.role}</div>
+                <span className="text-[10px] text-empire-text-muted inline-flex items-center gap-1 mt-0.5">
+                  <EmpireIcon name={a.status === 'active' ? 'check' : 'clock'} size={11} className={a.status === 'active' ? 'text-empire-green-bright' : 'text-empire-text-muted'} />
+                  {a.status}
+                  {Array.isArray(a.permissions) && a.permissions.length > 0 && (
+                    <span className="text-empire-gold-muted ml-1">· {a.permissions.length} {a.permissions.length === 1 ? 'capability' : 'capabilities'}</span>
+                  )}
+                </span>
+              </a>
+              <button
+                type="button"
+                onClick={() => download(`/api/agents/${a.id}/agent.md`, `${slug}.agent.md`)}
+                title="Download agent.md — the portable hat the MCP wears"
+                className="px-2 py-1 bg-empire-elevated/40 border border-empire-border text-empire-text-dim text-[10px] uppercase tracking-widest rounded hover:text-empire-gold hover:border-empire-gold/30 transition-colors inline-flex items-center gap-1 flex-shrink-0"
+              >
+                <EmpireIcon name="document" size={11} /> agent.md
+              </button>
+              <a href={`/agent?id=${a.id}`}><EmpireIcon name="chevron-right" size={14} className="text-empire-text-dim flex-shrink-0" /></a>
+            </div>
+          )})}
+        </div>
+      </div>
 
       {(adding || editing) && (
         <RosterEmployeeModal
@@ -531,13 +648,159 @@ function Roster({ dept, allDepts, onUpdate, onCreateContract, accent }: { dept: 
               <Detail label="Contract">{viewing.contractType || '—'}</Detail>
               <Detail label="FTE">{viewing.fte != null ? viewing.fte : '1'}</Detail>
               <Detail label="Salary">{viewing.salaryAmount ? formatCurrency(viewing.salaryAmount) : '—'}</Detail>
-              {viewing.commissionRate != null && <Detail label="Commission">{(viewing.commissionRate * 100).toFixed(1)}%</Detail>}
+              {viewing.commissionRate != null && <Detail label="Commission">{viewing.commissionRate.toFixed(1)}%</Detail>}
               {viewing.contractType === 'contractor' && <Detail label="Contract ends">{viewing.contractEndsAt ? format(new Date(viewing.contractEndsAt), 'MMM d, yyyy') : '—'}</Detail>}
             </div>
           </div>
         )}
       </Modal>
+
+      <UnitMemberDashboard employee={dashboardOf} accent={accent} onClose={() => setDashboardOf(null)} />
     </div>
+  )
+}
+
+/* ---------------- C9 — Unit Member Dashboard ----------------
+ * Per-member, company-scoped snapshot: level/XP, deals, tickets, activity,
+ * leave, payroll, and (only when commissionRate > 0) commissions with the
+ * deals that earned them. Data: GET /api/employees/:id/dashboard. */
+type MemberDashboard = {
+  employee: { id: string; name: string; role: string; avatarUrl: string | null; level: number; xp: number; joinedAt: string | null; contractType: string; commissionRate: number; department: { name: string; slug: string; color: string; icon: string } | null }
+  metrics: {
+    level: number; xp: number
+    deals: { won: number; open: number; wonValue: number; pipelineValue: number }
+    tickets: { assigned: number; done: number; inProgress: number; storyPointsDone: number }
+    activity90d: number
+    leave: { allowance: number; vacationUsed: number; vacationRemaining: number; sickDays: number }
+  }
+  payroll: { salaryAmount: number | null; salaryCurrency: string; monthly: number | null; contractType: string; runs: { id: string; period: string; status: string; agreedDate: string | null; executedAt: string | null; currency: string }[] }
+  commissions: { rate: number; earned: number; currency: string; deals: { id: string; title: string; client: string | null; amount: number | null; currency: string; commissionAmount: number | null; closedAt: string | null }[] } | null
+}
+
+function StatCard({ icon, label, value, sub, accent }: { icon: IconName; label: string; value: React.ReactNode; sub?: React.ReactNode; accent: string }) {
+  return (
+    <div className="p-3 bg-empire-surface border border-empire-border rounded-lg">
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-empire-text-dim">
+        <EmpireIcon name={icon} size={12} style={{ color: accent }} /> {label}
+      </div>
+      <div className="text-empire-text text-lg font-empire mt-1">{value}</div>
+      {sub != null && <div className="text-empire-text-dim text-[11px] mt-0.5">{sub}</div>}
+    </div>
+  )
+}
+
+function UnitMemberDashboard({ employee, accent, onClose }: { employee: Employee | null; accent: string; onClose: () => void }) {
+  const [data, setData] = useState<MemberDashboard | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    if (!employee) { setData(null); setErr(''); return }
+    let alive = true
+    setLoading(true); setErr('')
+    fetcher(`/api/employees/${employee.id}/dashboard`)
+      .then((d: MemberDashboard) => { if (alive) setData(d) })
+      .catch((e: unknown) => { if (alive) setErr(e instanceof Error ? e.message : 'Failed to load dashboard') })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [employee])
+
+  const rank = employee ? rankFor(employee.level ?? 1) : null
+
+  return (
+    <Modal open={!!employee} onClose={onClose} title="Unit Member Dashboard" icon={<EmpireIcon name="gauge" size={18} />}>
+      {loading && <div className="text-empire-text-dim text-xs italic p-3">Loading dashboard…</div>}
+      {err && !loading && <div className="text-empire-rose text-xs p-3">{err}</div>}
+      {data && !loading && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            {data.employee.avatarUrl
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={data.employee.avatarUrl} alt={data.employee.name} className="w-12 h-12 rounded-full object-cover border border-empire-border" />
+              : <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: empireTint(accent, '30'), color: accent }}>{data.employee.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}</div>}
+            <div className="min-w-0">
+              <div className="font-empire text-empire-text text-lg truncate">{data.employee.name}</div>
+              <div className="text-empire-text-dim text-xs truncate">
+                {data.employee.role}{data.employee.department ? ` · ${data.employee.department.name}` : ''}
+              </div>
+            </div>
+          </div>
+
+          {/* Standing */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <StatCard icon="trophy" label="Level" value={`L${data.metrics.level}`} sub={rank?.name} accent={accent} />
+            <StatCard icon="chart-line" label="XP" value={data.metrics.xp.toLocaleString()} accent={accent} />
+            <StatCard icon="gauge" label="Activity 90d" value={data.metrics.activity90d} sub="events" accent={accent} />
+            <StatCard icon="sun" label="Vacation left" value={`${data.metrics.leave.vacationRemaining}d`} sub={`${data.metrics.leave.vacationUsed}/${data.metrics.leave.allowance} used · ${data.metrics.leave.sickDays}d sick`} accent={accent} />
+          </div>
+
+          {/* Deals + tickets */}
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-empire-text-dim mb-2">Deals & delivery</div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <StatCard icon="handshake" label="Won deals" value={data.metrics.deals.won} sub={formatCurrency(data.metrics.deals.wonValue)} accent={accent} />
+              <StatCard icon="chart-bar" label="Pipeline" value={data.metrics.deals.open} sub={formatCurrency(data.metrics.deals.pipelineValue)} accent={accent} />
+              <StatCard icon="check" label="Tickets done" value={`${data.metrics.tickets.done}/${data.metrics.tickets.assigned}`} sub={`${data.metrics.tickets.inProgress} in progress`} accent={accent} />
+              <StatCard icon="rocket" label="Story points" value={data.metrics.tickets.storyPointsDone} sub="delivered" accent={accent} />
+            </div>
+          </div>
+
+          {/* Payroll */}
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-empire-text-dim mb-2">Payroll</div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <StatCard icon="coins" label="Salary" value={data.payroll.salaryAmount != null ? formatCurrency(data.payroll.salaryAmount) : '—'} sub={data.payroll.contractType} accent={accent} />
+              <StatCard icon="card" label="Monthly" value={data.payroll.monthly != null ? formatCurrency(data.payroll.monthly) : '—'} accent={accent} />
+              <StatCard icon="calendar" label="Recent runs" value={data.payroll.runs.length} sub={data.payroll.runs[0] ? data.payroll.runs[0].period : 'none yet'} accent={accent} />
+            </div>
+            {data.payroll.runs.length > 0 && (
+              <div className="space-y-1.5 mt-2">
+                {data.payroll.runs.map(r => (
+                  <div key={r.id} className="flex items-center justify-between gap-2 p-2 bg-empire-surface border border-empire-border rounded text-xs">
+                    <span className="text-empire-text">{r.period}</span>
+                    <span className="text-empire-text-dim inline-flex items-center gap-1">
+                      <EmpireIcon name={r.status === 'executed' ? 'check' : 'clock'} size={11} className={r.status === 'executed' ? 'text-empire-green-bright' : 'text-empire-text-muted'} />
+                      {r.status}{r.executedAt ? ` · ${format(new Date(r.executedAt), 'MMM d, yyyy')}` : r.agreedDate ? ` · agreed ${format(new Date(r.agreedDate), 'MMM d')}` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Commissions — only when commissionRate > 0 */}
+          {data.commissions && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-empire-text-dim mb-2 inline-flex items-center gap-1.5">
+                <EmpireIcon name="coins" size={12} style={{ color: accent }} /> Commissions · {data.commissions.rate.toFixed(1)}%
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <StatCard icon="coins" label="Earned" value={formatCurrency(data.commissions.earned)} sub={`${data.commissions.deals.length} closed deals`} accent={accent} />
+                <StatCard icon="chart-line" label="Rate" value={`${data.commissions.rate.toFixed(1)}%`} accent={accent} />
+              </div>
+              {data.commissions.deals.length > 0 ? (
+                <div className="space-y-1.5">
+                  {data.commissions.deals.map(d => (
+                    <div key={d.id} className="flex items-center justify-between gap-2 p-2 bg-empire-surface border border-empire-border rounded text-xs">
+                      <div className="min-w-0">
+                        <div className="text-empire-text truncate">{d.title}</div>
+                        {d.client && <div className="text-empire-text-dim truncate">{d.client}</div>}
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-empire-gold">{d.commissionAmount != null ? formatCurrency(d.commissionAmount) : '—'}</div>
+                        <div className="text-empire-text-dim">{d.amount != null ? formatCurrency(d.amount) : ''}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-empire-text-dim text-xs italic p-2">No commission-earning deals closed yet.</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </Modal>
   )
 }
 
@@ -555,6 +818,9 @@ function RosterEmployeeModal({ dept, allDepts, employee, onClose, onSaved }: {
 }) {
   const isEdit = !!employee
   const nameParts = (employee?.name || '').trim().split(/\s+/)
+  // C10 — adding to a unit, you choose person vs operator (a bot/agent the MCP
+  // can wear as a hat). Operators are ops-only: no login, no password.
+  const [mode, setMode] = useState<'person' | 'operator'>('person')
   const [f, setF] = useState({
     name: employee?.name ?? '',
     firstName: isEdit ? nameParts[0] || '' : '',
@@ -562,6 +828,7 @@ function RosterEmployeeModal({ dept, allDepts, employee, onClose, onSaved }: {
     email: '',
     password: '',
     role: employee?.role ?? '',
+    description: '',                              // beside role (→ bio)
     departmentId: dept.id,                       // default this unit; editable → cross-ref reassignment
     contractType: employee?.contractType ?? 'fixed',
     level: String(employee?.level ?? 1),
@@ -572,8 +839,21 @@ function RosterEmployeeModal({ dept, allDepts, employee, onClose, onSaved }: {
     contractEndsAt: employee?.contractEndsAt ? employee.contractEndsAt.slice(0, 10) : '',
   })
   const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const isOperator = !isEdit && mode === 'operator'
 
   async function save() {
+    setErr('')
+    if (isOperator) {
+      if (!f.name.trim() || !f.role.trim()) return
+      setBusy(true)
+      try {
+        // Operator = an agent bound to this unit, no login/credentials.
+        await post('/api/agents', { name: f.name.trim(), role: f.role.trim(), kind: 'bot', bio: f.description.trim() || null, departmentId: dept.id, permissions: [] })
+        onSaved()
+      } catch (e: any) { console.error(e); setErr(e?.message || 'Failed to create operator'); setBusy(false) }
+      return
+    }
     if ((!isEdit && (!f.firstName || !f.lastName || !f.email || f.password.length < 10)) || (isEdit && !f.name) || !f.role) return
     setBusy(true)
     const fteNum = Math.min(1, Math.max(0.1, Number(f.fte) || 1))
@@ -581,6 +861,7 @@ function RosterEmployeeModal({ dept, allDepts, employee, onClose, onSaved }: {
       name: f.name,
       ...(!isEdit ? { firstName: f.firstName, lastName: f.lastName, email: f.email, password: f.password } : {}),
       role: f.role,
+      ...(f.description.trim() ? { bio: f.description.trim() } : {}),
       departmentId: f.departmentId,              // moving to a different unit reassigns the person
       contractType: f.contractType,
       level: Number(f.level) || 1,
@@ -595,87 +876,835 @@ function RosterEmployeeModal({ dept, allDepts, employee, onClose, onSaved }: {
       if (isEdit && employee) await patch(`/api/employees/${employee.id}`, body)
       else await post('/api/employees', body)
       onSaved()
-    } catch (e) { console.error(e); setBusy(false) }
+    } catch (e: any) { console.error(e); setErr(e?.message || 'Save failed'); setBusy(false) }
   }
 
   const reassigning = isEdit && f.departmentId !== dept.id
 
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Edit person' : 'Add person to unit'} icon={<EmpireIcon name={isEdit ? 'pen' : 'user'} size={18} />}>
-      <div className="space-y-3">
-        {isEdit ? (
-          <div>
-            <label className="empire-label">Name *</label>
-            <input className="empire-input w-full mt-1" placeholder="Full name" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} />
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="empire-label">First name *</label><input className="empire-input w-full mt-1" value={f.firstName} placeholder="First name" onChange={e => setF({ ...f, firstName: e.target.value })} /></div>
-            <div><label className="empire-label">Last name *</label><input className="empire-input w-full mt-1" value={f.lastName} placeholder="Last name" onChange={e => setF({ ...f, lastName: e.target.value })} /></div>
-            <div><label className="empire-label">Email *</label><input type="email" className="empire-input w-full mt-1" value={f.email} placeholder="name@company.com" onChange={e => setF({ ...f, email: e.target.value })} /></div>
-            <div>
-              <label className="empire-label">Temporary password *</label>
-              <PasswordInput minLength={10} inputClassName="empire-input w-full mt-1" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} />
-              <p className="mt-1 text-[10px] text-empire-text-dim">Minimum 10 characters.</p>
-            </div>
+    <Modal open onClose={onClose} title={isEdit ? 'Edit person' : 'Add to unit'} icon={<EmpireIcon name={isEdit ? 'pen' : isOperator ? 'sparkle' : 'user'} size={18} />}>
+      <div className="flex flex-col max-h-[calc(100vh-8rem)]">
+        {/* C10 — choose person vs operator before filling the form (create only). */}
+        {!isEdit && (
+          <div className="grid grid-cols-2 gap-2 mb-3 shrink-0">
+            {(['person', 'operator'] as const).map(m => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => { setMode(m); setErr('') }}
+                className={`rounded-lg border px-3 py-2 text-left transition-colors ${mode === m ? 'border-empire-gold/50 bg-empire-gold/10' : 'border-empire-border hover:border-empire-gold/20'}`}
+              >
+                <div className="inline-flex items-center gap-1.5 text-xs font-medium text-empire-text">
+                  <EmpireIcon name={m === 'person' ? 'user' : 'sparkle'} size={13} className={mode === m ? 'text-empire-gold' : 'text-empire-text-muted'} />
+                  {m === 'person' ? 'Person' : 'Operator'}
+                </div>
+                <div className="text-[10px] text-empire-text-dim mt-0.5">{m === 'person' ? 'A teammate with a login' : 'An agent — no login, MCP wears it as a hat'}</div>
+              </button>
+            ))}
           </div>
         )}
+
+        {/* Scrollable form body — long unit forms no longer clip (C10). */}
+        <div className="space-y-3 overflow-y-auto pr-1 -mr-1">
+          {isOperator ? (
+            <div>
+              <label className="empire-label">Operator name *</label>
+              <input className="empire-input w-full mt-1" placeholder="e.g. Ops Concierge" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} />
+            </div>
+          ) : isEdit ? (
+            <div>
+              <label className="empire-label">Name *</label>
+              <input className="empire-input w-full mt-1" placeholder="Full name" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="empire-label">First name *</label><input className="empire-input w-full mt-1" value={f.firstName} placeholder="First name" onChange={e => setF({ ...f, firstName: e.target.value })} /></div>
+              <div><label className="empire-label">Last name *</label><input className="empire-input w-full mt-1" value={f.lastName} placeholder="Last name" onChange={e => setF({ ...f, lastName: e.target.value })} /></div>
+              <div><label className="empire-label">Email *</label><input type="email" className="empire-input w-full mt-1" value={f.email} placeholder="name@company.com" onChange={e => setF({ ...f, email: e.target.value })} /></div>
+              <div>
+                <label className="empire-label">Temporary password *</label>
+                <PasswordInput minLength={10} inputClassName="empire-input w-full mt-1" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} />
+                <p className="mt-1 text-[10px] text-empire-text-dim">Minimum 10 characters.</p>
+              </div>
+            </div>
+          )}
+          <div>
+            <label className="empire-label">Role *</label>
+            <input className="empire-input w-full mt-1" placeholder="Title / role" value={f.role} onChange={e => setF({ ...f, role: e.target.value })} />
+          </div>
+          <div>
+            <label className="empire-label">Description</label>
+            <textarea className="empire-input w-full mt-1 resize-none" rows={isOperator ? 3 : 2} placeholder={isOperator ? 'What this operator does — the brief the MCP follows when wearing this hat.' : 'Short bio / what this person owns.'} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} />
+          </div>
+
+          {isOperator ? (
+            <p className="text-[11px] text-empire-text-dim inline-flex items-start gap-1.5">
+              <EmpireIcon name="shield" size={12} className="text-empire-text-muted mt-0.5 shrink-0" />
+              Ops-only — no login, no password. It lands in this unit and the MCP can wear it as a hat or dispatch a sub-agent. Grant capabilities later in the agent console.
+            </p>
+          ) : (
+            <>
+              <div>
+                <label className="empire-label">Unit {isEdit && '(reassign to move across units)'}</label>
+                <select className="empire-input w-full mt-1" value={f.departmentId} onChange={e => setF({ ...f, departmentId: e.target.value })}>
+                  {allDepts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+                {reassigning && (
+                  <p className="text-[11px] text-empire-amber-bright mt-1 inline-flex items-center gap-1">
+                    <EmpireIcon name="link" size={11} className="text-empire-amber-bright" />
+                    Will move {f.name || 'this person'} to {allDepts.find(d => d.id === f.departmentId)?.name}
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="empire-label">Contract</label>
+                  <select className="empire-input w-full mt-1" value={f.contractType} onChange={e => setF({ ...f, contractType: e.target.value })}>
+                    {['fixed', 'commission', 'contractor', 'advisor'].map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="empire-label">Level</label>
+                  <input className="empire-input w-full mt-1" type="number" min={1} value={f.level} placeholder="1" onChange={e => setF({ ...f, level: e.target.value })} />
+                </div>
+                <div>
+                  <label className="empire-label">Salary (€)</label>
+                  <AffixInput money className="empire-input w-full mt-1" type="number" placeholder="0" value={f.salaryAmount} onChange={e => setF({ ...f, salaryAmount: e.target.value })} />
+                </div>
+                <div>
+                  <label className="empire-label">Commission (0–1)</label>
+                  <AffixInput pct className="empire-input w-full mt-1" type="number" step="0.01" placeholder="0.10" value={f.commissionRate} onChange={e => setF({ ...f, commissionRate: e.target.value })} />
+                </div>
+                <div>
+                  <label className="empire-label">FTE (0.1–1)</label>
+                  <input className="empire-input w-full mt-1" type="number" step="0.1" min={0.1} max={1} placeholder="1" value={f.fte} onChange={e => setF({ ...f, fte: e.target.value })} />
+                </div>
+                {f.contractType === 'contractor' && (
+                  <div>
+                    <label className="empire-label">Contract ends</label>
+                    <DatePicker className="empire-input w-full mt-1" value={f.contractEndsAt} onChange={e => setF({ ...f, contractEndsAt: e.target.value })} />
+                  </div>
+                )}
+              </div>
+              <PhotoDrop
+                label="Profile picture"
+                value={f.avatarUrl}
+                onChange={v => setF({ ...f, avatarUrl: v })}
+              />
+            </>
+          )}
+        </div>
+
+        {err && <p className="text-[11px] text-empire-red-bright mt-2 shrink-0">{err}</p>}
+        <div className="flex justify-end gap-2 pt-3 shrink-0">
+          <button onClick={onClose} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
+          <button onClick={save} disabled={busy || !f.role || (isOperator ? !f.name.trim() : isEdit ? !f.name : (!f.firstName || !f.lastName || !f.email || f.password.length < 10))} className="empire-btn-primary disabled:opacity-50">
+            {busy ? 'Saving…' : isEdit ? 'Save changes' : isOperator ? 'Create operator' : 'Add to unit'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+// C6 — Automate Unit (Admin-only). Toggle AI-management for the unit + a wizard
+// to appoint existing operators or create one from the per-unit templates. The
+// appointed operators are orchestrated by the agent that drives Empire via MCP.
+type AutomationOperator = { id: string; name: string; codename: string | null; role: string; status: string }
+type AutomationTemplate = { slug: string; role: string; desc: string; suggestedName: string }
+type AutomationState = { unit: { id: string; name: string; slug: string }; enabled: boolean; appointed: AutomationOperator[]; operators: AutomationOperator[]; templates: AutomationTemplate[] }
+
+/* ── C12 · Cross-unit Requests ────────────────────────────────────────────────
+ * Every unit can raise a request to another unit and see what was raised TO it.
+ * It rides the existing ApprovalRequest backbone (source/target department +
+ * metadata.requestType), so a request shows up here AND in the Approval Hub, and
+ * the Throne's decision flows back. Friendly, guided templates remove the dead end
+ * of "what do I even ask Legal/Finance for" — e.g. Marketing → Legal for ad/film/
+ * event clearance, any unit → Finance for a budget. The generic template lets a
+ * unit raise to any other unit.
+ */
+type RequestApproval = {
+  id: string; requestedBy: string; title: string; description: string | null
+  category: string; priority: string; status: string; createdAt: string
+  metadata?: Record<string, unknown> | null
+}
+type RequestTemplate = {
+  id: string; label: string; icon: IconName; blurb: string
+  targetSlug: string | null  // null = raiser chooses the unit
+  requestType: string; titleTpl: string; descScaffold: string; priority: string
+}
+const REQUEST_TEMPLATES: RequestTemplate[] = [
+  { id: 'legal-ad', label: 'Ad / creative sign-off', icon: 'scales', blurb: 'Ask Legal whether a campaign or creative has the approvals it needs to run.',
+    targetSlug: 'legal', requestType: 'legal_ad_clearance', priority: 'high',
+    titleTpl: 'Legal sign-off — ad / creative', descScaffold: 'Campaign / creative:\nChannels & markets:\nClaims or talent involved:\nGo-live date:' },
+  { id: 'legal-film', label: 'Filming / location permit', icon: 'scales', blurb: 'Confirm with Legal that filming at a location is cleared (permits, releases, IP).',
+    targetSlug: 'legal', requestType: 'legal_film_permit', priority: 'high',
+    titleTpl: 'Legal sign-off — filming at a location', descScaffold: 'Location & dates:\nWhat is being filmed:\nPeople / property in frame:\nPermits already held:' },
+  { id: 'legal-event', label: 'Event clearance', icon: 'scales', blurb: 'Get Legal clearance for a public event (venue, liability, sponsorships).',
+    targetSlug: 'legal', requestType: 'legal_event_clearance', priority: 'normal',
+    titleTpl: 'Legal sign-off — public event', descScaffold: 'Event & date:\nVenue & attendance:\nSponsors / partners:\nRisks to review:' },
+  { id: 'finance-budget', label: 'Budget request', icon: 'coins', blurb: 'Ask Finance to approve a budget or spend for this unit.',
+    targetSlug: 'finance', requestType: 'finance_budget', priority: 'normal',
+    titleTpl: 'Budget request', descScaffold: 'Amount & currency:\nWhat it funds:\nPeriod:\nExpected return / why now:' },
+  { id: 'generic', label: 'Request to another unit', icon: 'handshake', blurb: 'Raise any request and pick which unit should decide it.',
+    targetSlug: null, requestType: 'cross_dept_request', priority: 'normal',
+    titleTpl: '', descScaffold: '' },
+]
+
+function RequestsTab({ dept, accent }: { dept: Dept; accent: string }) {
+  const { user } = useAuth()
+  const canDecide = userCan(user, 'approvals:decide') || userCan(user, '*')
+  const [rows, setRows] = useState<RequestApproval[] | null>(null)
+  const [depts, setDepts] = useState<AllDept[]>([])
+  const [view, setView] = useState<'incoming' | 'raise' | 'sent'>('incoming')
+  const [raising, setRaising] = useState<RequestTemplate | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  const reload = useCallback(async () => {
+    const list = await fetcher('/api/approvals').catch(() => [])
+    setRows(Array.isArray(list) ? list : [])
+  }, [])
+  useEffect(() => { reload() }, [reload])
+  useEffect(() => { fetcher('/api/departments').then((d: AllDept[]) => setDepts(Array.isArray(d) ? d : [])).catch(() => {}) }, [])
+
+  const slugOf = (a: RequestApproval, key: 'source' | 'target') =>
+    (a.metadata as any)?.[`${key}DepartmentSlug`] as string | undefined
+  const incoming = (rows || []).filter(a => slugOf(a, 'target') === dept.slug)
+  const sent = (rows || []).filter(a => slugOf(a, 'source') === dept.slug)
+  const incomingPending = incoming.filter(a => a.status === 'pending').length
+
+  async function decide(id: string, status: 'approved' | 'rejected') {
+    setBusyId(id)
+    try { await patch(`/api/approvals/${id}/decide`, { status }); await reload() }
+    catch (e) { console.error(e) } finally { setBusyId(null) }
+  }
+
+  if (!rows) return <div className="text-empire-text-dim text-sm p-6">Loading requests…</div>
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      <SectionHeader title="Requests" subtitle={`Raise a request to another unit, and act on what's been sent to ${dept.name}. Everything also lands in the Approval Hub for the Throne.`} />
+
+      <div className="flex gap-1 border-b border-empire-border">
+        {([
+          { id: 'incoming' as const, label: `Incoming${incomingPending ? ` (${incomingPending})` : ''}` },
+          { id: 'raise' as const, label: 'Raise a request' },
+          { id: 'sent' as const, label: `Sent${sent.length ? ` (${sent.length})` : ''}` },
+        ]).map(t => (
+          <button key={t.id} onClick={() => setView(t.id)}
+            className={`px-3 py-2 text-xs uppercase tracking-widest transition-colors -mb-px border-b-2 ${view === t.id ? 'border-empire-gold text-empire-gold' : 'border-transparent text-empire-text-dim hover:text-empire-text'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'incoming' && (
+        incoming.length === 0 ? (
+          <EmptyRequests icon="check" text={`No requests waiting on ${dept.name}.`} />
+        ) : (
+          <div className="space-y-2">
+            {incoming.map(a => (
+              <RequestRow key={a.id} a={a} side="from" canDecide={canDecide} busy={busyId === a.id} onDecide={(s) => decide(a.id, s)} />
+            ))}
+          </div>
+        )
+      )}
+
+      {view === 'sent' && (
+        sent.length === 0 ? (
+          <EmptyRequests icon="document" text={`${dept.name} hasn't raised any requests yet.`} />
+        ) : (
+          <div className="space-y-2">
+            {sent.map(a => <RequestRow key={a.id} a={a} side="to" canDecide={false} busy={false} onDecide={() => {}} />)}
+          </div>
+        )
+      )}
+
+      {view === 'raise' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {REQUEST_TEMPLATES.map(t => (
+            <button key={t.id} onClick={() => setRaising(t)} className="text-left bg-empire-surface border border-empire-border rounded-lg p-4 hover:border-empire-gold/30 transition-colors">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0" style={{ background: empireTint(accent, '30'), color: accent }}>
+                  <EmpireIcon name={t.icon} size={15} />
+                </div>
+                <div className="text-empire-text text-sm font-medium">{t.label}</div>
+              </div>
+              <div className="text-empire-text-dim text-xs">{t.blurb}</div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {raising && (
+        <RaiseRequestModal source={dept} template={raising} depts={depts}
+          onClose={() => setRaising(null)}
+          onCreated={() => { setRaising(null); setView('sent'); reload() }} />
+      )}
+    </div>
+  )
+}
+
+function EmptyRequests({ icon, text }: { icon: IconName; text: string }) {
+  return (
+    <div className="p-8 text-center bg-empire-surface border border-empire-border rounded-lg">
+      <div className="mb-2 flex justify-center text-empire-green-bright"><EmpireIcon name={icon} size={22} /></div>
+      <p className="text-sm text-empire-text-muted">{text}</p>
+    </div>
+  )
+}
+
+function RequestRow({ a, side, canDecide, busy, onDecide }: {
+  a: RequestApproval; side: 'from' | 'to'; canDecide: boolean; busy: boolean; onDecide: (s: 'approved' | 'rejected') => void
+}) {
+  const meta = (a.metadata as any) || {}
+  const counterparty = side === 'from' ? meta.sourceDepartmentName : meta.targetDepartmentName
+  const pending = a.status === 'pending'
+  const tone = a.status === 'approved' ? 'text-empire-green-bright' : a.status === 'rejected' ? 'text-empire-red-bright' : 'text-empire-amber-bright'
+  return (
+    <div className="bg-empire-surface border border-empire-border rounded-lg p-4">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h4 className="truncate text-sm font-medium text-empire-text">{a.title}</h4>
+            <span className={`text-[10px] uppercase tracking-widest ${tone}`}>{a.status}</span>
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-empire-text-dim">
+            <span className="text-empire-text-muted">{a.category}</span>
+            {counterparty && <span>{side === 'from' ? 'from' : 'to'} {counterparty}</span>}
+            <span>by {a.requestedBy}</span>
+            <span>{formatDistanceToNow(new Date(a.createdAt), { addSuffix: true })}</span>
+            <span className="uppercase tracking-widest text-empire-text-muted">{a.priority}</span>
+          </div>
+          {a.description && <p className="mt-2 whitespace-pre-line text-xs leading-relaxed text-empire-text-muted">{a.description}</p>}
+        </div>
+        <a href="/approvals" title="Open in the Approval Hub" className="shrink-0 rounded-lg border border-empire-border px-2 py-1 text-empire-text-muted transition-colors hover:border-empire-gold/40 hover:text-empire-gold">
+          <EmpireIcon name="scales" size={13} />
+        </a>
+      </div>
+      {side === 'from' && pending && canDecide && (
+        <div className="mt-3 flex gap-2">
+          <button onClick={() => onDecide('approved')} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border border-empire-green/40 bg-empire-green-bg px-3 py-1.5 text-[10px] uppercase tracking-widest text-empire-green-bright transition-colors hover:bg-empire-green/20 disabled:opacity-40">
+            <EmpireIcon name="check" size={12} /> Approve
+          </button>
+          <button onClick={() => onDecide('rejected')} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border border-empire-red/40 bg-empire-red-bg px-3 py-1.5 text-[10px] uppercase tracking-widest text-empire-red-bright transition-colors hover:bg-empire-red/20 disabled:opacity-40">
+            <EmpireIcon name="close" size={12} /> Reject
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── C4 · Leave & calendar ─────────────────────────────────────────────────
+ * Per-unit absence cockpit: national public holidays (by company HQ), members'
+ * off-days, sick days (reported + HR-confirmed) and birthdays on a month grid,
+ * plus per-person vacation balances and a request form. Output is viewable, the
+ * calendar is navigable, and HR can act on every row — no dead-end.
+ */
+type LeaveKind = 'vacation' | 'sick' | 'other'
+type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
+type LeaveRow = {
+  id: string; employeeId: string; type: LeaveKind; startDate: string; endDate: string
+  days: number; reason: string | null; status: LeaveStatus; reported: boolean; hrConfirmed: boolean
+  employee: { id: string; name: string; role: string; avatarUrl: string | null }
+}
+type LeaveBalance = {
+  employeeId: string; name: string; role: string; avatarUrl: string | null
+  allowance: number; taken: number; pending: number; remaining: number; sickDays: number; birthday: string | null
+}
+type LeavePayload = {
+  year: number; country: string
+  holidays: { date: string; name: string; country: string }[]
+  requests: LeaveRow[]
+  balances: LeaveBalance[]
+  birthdays: { employeeId: string; name: string; date: string }[]
+}
+
+const pad2 = (n: number) => String(n).padStart(2, '0')
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const KIND_TONE: Record<LeaveKind, { dot: string; text: string; label: string }> = {
+  vacation: { dot: 'bg-empire-gold', text: 'text-empire-gold', label: 'Vacation' },
+  sick: { dot: 'bg-empire-red-bright', text: 'text-empire-red-bright', label: 'Sick' },
+  other: { dot: 'bg-empire-text-dim', text: 'text-empire-text-muted', label: 'Other' },
+}
+
+function LeaveTab({ dept }: { dept: Dept }) {
+  const { user } = useAuth()
+  const canManage = userCan(user, 'people:write') || userCan(user, '*')
+  const today = new Date()
+  const [year, setYear] = useState(today.getFullYear())
+  const [month, setMonth] = useState(today.getMonth()) // 0-11
+  const [data, setData] = useState<LeavePayload | null>(null)
+  const [requesting, setRequesting] = useState(false)
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  const reload = useCallback(async () => {
+    const d = await fetcher(`/api/leave?departmentSlug=${dept.slug}&year=${year}`).catch(() => null)
+    setData(d && typeof d === 'object' ? (d as LeavePayload) : null)
+  }, [dept.slug, year])
+  useEffect(() => { reload() }, [reload])
+
+  async function act(fn: () => Promise<any>, id: string) {
+    setBusyId(id)
+    try { await fn(); await reload() } catch (e) { console.error(e) } finally { setBusyId(null) }
+  }
+  const decide = (id: string, status: LeaveStatus) => act(() => patch(`/api/leave/${id}/decide`, { status }), id)
+  const confirmSick = (id: string) => act(() => patch(`/api/leave/${id}/confirm`, { hrConfirmed: true }), id)
+  const remove = (id: string) => act(() => del(`/api/leave/${id}`), id)
+
+  if (!data) return <div className="text-empire-text-dim text-sm p-6">Loading calendar…</div>
+
+  const live = data.requests.filter(r => r.status === 'approved' || r.status === 'pending')
+  const pending = data.requests.filter(r => r.status === 'pending')
+  const sick = data.requests.filter(r => r.type === 'sick')
+
+  // Day → events for the visible month (Monday-based grid).
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7
+  const dateKey = (d: number) => `${year}-${pad2(month + 1)}-${pad2(d)}`
+  const holidayOn = (k: string) => data.holidays.find(h => h.date === k)
+  const birthdaysOn = (k: string) => data.birthdays.filter(b => b.date === k)
+  const leaveOn = (k: string) => live.filter(r => k >= r.startDate.slice(0, 10) && k <= r.endDate.slice(0, 10))
+  const cells: (number | null)[] = [...Array(firstWeekday).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
+  const todayKey = `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`
+
+  const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1) } else setMonth(m => m - 1) }
+  const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1) } else setMonth(m => m + 1) }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <SectionHeader title="Leave & calendar"
+          subtitle={`Public holidays (${data.country}), who's off, sick days and birthdays for ${dept.name}. Request vacation, sick or other leave from each person's balance.`} />
+        <button onClick={() => setRequesting(true)} data-tour="leave-request" className="empire-btn-primary inline-flex items-center gap-1.5">
+          <EmpireIcon name="plus" size={13} /> Request leave
+        </button>
+      </div>
+
+      <div className="bg-empire-surface border border-empire-border rounded-lg p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <button onClick={prevMonth} aria-label="Previous month" className="rounded-lg border border-empire-border p-1.5 text-empire-text-muted hover:text-empire-gold hover:border-empire-gold/40">
+            <EmpireIcon name="chevron-left" size={14} />
+          </button>
+          <div className="text-sm font-medium text-empire-text">{MONTH_NAMES[month]} {year}</div>
+          <button onClick={nextMonth} aria-label="Next month" className="rounded-lg border border-empire-border p-1.5 text-empire-text-muted hover:text-empire-gold hover:border-empire-gold/40">
+            <EmpireIcon name="chevron-right" size={14} />
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-center">
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+            <div key={d} className="text-[10px] uppercase tracking-widest text-empire-text-dim pb-1">{d}</div>
+          ))}
+          {cells.map((d, i) => {
+            if (d === null) return <div key={`b${i}`} className="aspect-square" />
+            const k = dateKey(d)
+            const hol = holidayOn(k)
+            const bds = birthdaysOn(k)
+            const lv = leaveOn(k)
+            const weekend = ((firstWeekday + d - 1) % 7) >= 5
+            const tip = [hol && `Holiday: ${hol.name}`, ...bds.map(b => `🎂 ${b.name}`),
+              ...lv.map(r => `${r.employee.name} — ${KIND_TONE[r.type].label}${r.status === 'pending' ? ' (pending)' : ''}`)].filter(Boolean).join('\n')
+            return (
+              <div key={k} title={tip || undefined}
+                className={`aspect-square rounded p-1 border ${hol ? 'border-empire-gold/40 bg-empire-gold/5' : weekend ? 'border-transparent bg-empire-bg/40' : 'border-empire-border/40'} ${k === todayKey ? 'ring-1 ring-empire-gold' : ''}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[11px] ${hol ? 'text-empire-gold' : 'text-empire-text-muted'}`}>{d}</span>
+                  {bds.length > 0 && <EmpireIcon name="star" size={9} className="text-empire-amber-bright" />}
+                </div>
+                <div className="mt-0.5 flex flex-wrap gap-0.5">
+                  {lv.slice(0, 4).map(r => (
+                    <span key={r.id} className={`h-1.5 w-1.5 rounded-full ${KIND_TONE[r.type].dot} ${r.status === 'pending' ? 'opacity-40' : ''}`} />
+                  ))}
+                  {lv.length > 4 && <span className="text-[8px] text-empire-text-dim">+{lv.length - 4}</span>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-empire-text-dim">
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-empire-gold" /> Vacation</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-empire-red-bright" /> Sick</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-empire-text-dim" /> Other</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm border border-empire-gold/40 bg-empire-gold/10" /> Holiday</span>
+          <span className="inline-flex items-center gap-1"><EmpireIcon name="star" size={9} className="text-empire-amber-bright" /> Birthday</span>
+          <span className="opacity-60">faded = pending approval</span>
+        </div>
+      </div>
+
+      {canManage && pending.length > 0 && (
         <div>
-          <label className="empire-label">Role *</label>
-          <input className="empire-input w-full mt-1" placeholder="Title / role" value={f.role} onChange={e => setF({ ...f, role: e.target.value })} />
+          <h4 className="mb-2 text-[11px] uppercase tracking-widest text-empire-text-muted">Awaiting decision ({pending.length})</h4>
+          <div className="space-y-2">
+            {pending.map(r => (
+              <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-empire-border bg-empire-surface p-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-sm text-empire-text">
+                    <span className={`h-2 w-2 rounded-full ${KIND_TONE[r.type].dot}`} />
+                    <span className="truncate">{r.employee.name}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-empire-text-dim">{KIND_TONE[r.type].label}</span>
+                  </div>
+                  <div className="text-xs text-empire-text-dim">{r.startDate.slice(0, 10)} → {r.endDate.slice(0, 10)} · {r.days} day(s){r.reason ? ` · ${r.reason}` : ''}</div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => decide(r.id, 'approved')} disabled={busyId === r.id} className="inline-flex items-center gap-1.5 rounded-lg border border-empire-green/40 bg-empire-green-bg px-3 py-1.5 text-[10px] uppercase tracking-widest text-empire-green-bright hover:bg-empire-green/20 disabled:opacity-40"><EmpireIcon name="check" size={12} /> Approve</button>
+                  <button onClick={() => decide(r.id, 'rejected')} disabled={busyId === r.id} className="inline-flex items-center gap-1.5 rounded-lg border border-empire-red/40 bg-empire-red-bg px-3 py-1.5 text-[10px] uppercase tracking-widest text-empire-red-bright hover:bg-empire-red/20 disabled:opacity-40"><EmpireIcon name="close" size={12} /> Reject</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {sick.length > 0 && (
+        <div>
+          <h4 className="mb-2 text-[11px] uppercase tracking-widest text-empire-text-muted">Sick days</h4>
+          <div className="space-y-2">
+            {sick.map(r => (
+              <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-empire-border bg-empire-surface p-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm text-empire-text">{r.employee.name}</div>
+                  <div className="text-xs text-empire-text-dim">{r.startDate.slice(0, 10)} → {r.endDate.slice(0, 10)} · {r.days} day(s)</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] uppercase tracking-widest ${r.reported ? 'text-empire-text-muted' : 'text-empire-amber-bright'}`}>{r.reported ? 'reported' : 'unreported'}</span>
+                  <span className={`text-[10px] uppercase tracking-widest ${r.hrConfirmed ? 'text-empire-green-bright' : 'text-empire-text-dim'}`}>{r.hrConfirmed ? 'HR confirmed' : 'unconfirmed'}</span>
+                  {canManage && !r.hrConfirmed && (
+                    <button onClick={() => confirmSick(r.id)} disabled={busyId === r.id} className="rounded-lg border border-empire-green/40 px-2 py-1 text-[10px] uppercase tracking-widest text-empire-green-bright hover:bg-empire-green/15 disabled:opacity-40">Confirm</button>
+                  )}
+                  {canManage && (
+                    <button onClick={() => remove(r.id)} disabled={busyId === r.id} aria-label="Remove" className="text-empire-text-dim hover:text-empire-red-bright disabled:opacity-40"><EmpireIcon name="close" size={12} /></button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <h4 className="mb-2 text-[11px] uppercase tracking-widest text-empire-text-muted">Vacation balances · {year}</h4>
+        <div className="overflow-x-auto rounded-lg border border-empire-border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-empire-border text-left text-[10px] uppercase tracking-widest text-empire-text-dim">
+                <th className="px-3 py-2 font-medium">Member</th>
+                <th className="px-3 py-2 font-medium text-right">Allowance</th>
+                <th className="px-3 py-2 font-medium text-right">Taken</th>
+                <th className="px-3 py-2 font-medium text-right">Pending</th>
+                <th className="px-3 py-2 font-medium text-right">Remaining</th>
+                <th className="px-3 py-2 font-medium text-right">Sick</th>
+                <th className="px-3 py-2 font-medium">Birthday</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.balances.length === 0 && (
+                <tr><td colSpan={7} className="px-3 py-6 text-center text-empire-text-dim">No people in this unit yet.</td></tr>
+              )}
+              {data.balances.map(b => (
+                <tr key={b.employeeId} className="border-b border-empire-border/40 last:border-0">
+                  <td className="px-3 py-2">
+                    <div className="text-empire-text">{b.name}</div>
+                    <div className="text-[11px] text-empire-text-dim">{b.role}</div>
+                  </td>
+                  <td className="px-3 py-2 text-right text-empire-text-muted">{b.allowance}</td>
+                  <td className="px-3 py-2 text-right text-empire-text-muted">{b.taken}</td>
+                  <td className="px-3 py-2 text-right text-empire-amber-bright">{b.pending || '—'}</td>
+                  <td className={`px-3 py-2 text-right font-medium ${b.remaining <= 3 ? 'text-empire-red-bright' : 'text-empire-green-bright'}`}>{b.remaining}</td>
+                  <td className="px-3 py-2 text-right text-empire-text-muted">{b.sickDays || '—'}</td>
+                  <td className="px-3 py-2 text-empire-text-dim">{b.birthday ? `${b.birthday.slice(3)}/${b.birthday.slice(0, 2)}` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {requesting && (
+        <LeaveRequestModal dept={dept} balances={data.balances}
+          onClose={() => setRequesting(false)}
+          onCreated={() => { setRequesting(false); reload() }} />
+      )}
+    </div>
+  )
+}
+
+function LeaveRequestModal({ dept, balances, onClose, onCreated }: {
+  dept: Dept; balances: LeaveBalance[]; onClose: () => void; onCreated: () => void
+}) {
+  const [employeeId, setEmployeeId] = useState(balances[0]?.employeeId || '')
+  const [type, setType] = useState<LeaveKind>('vacation')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [reason, setReason] = useState('')
+  const [reported, setReported] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  const chosen = balances.find(b => b.employeeId === employeeId)
+
+  async function submit() {
+    if (!employeeId) { setErr('Choose a person'); return }
+    if (!startDate || !endDate) { setErr('Pick a start and end date'); return }
+    if (endDate < startDate) { setErr('The end date is before the start date'); return }
+    setBusy(true); setErr('')
+    try {
+      await post('/api/leave', { employeeId, type, startDate, endDate, reason: reason.trim() || null, reported })
+      onCreated()
+    } catch (e: any) { setErr(e?.message || 'Could not file the request'); setBusy(false) }
+  }
+
+  return (
+    <Modal open onClose={onClose} title={`Request leave — ${dept.name}`} icon={<EmpireIcon name="calendar" size={18} />}>
+      <div className="space-y-3">
+        <div>
+          <label className="mb-1 block text-[10px] uppercase tracking-widest text-empire-text-muted">Person</label>
+          <select value={employeeId} onChange={e => setEmployeeId(e.target.value)} className="w-full rounded-lg border border-empire-border bg-empire-surface/60 px-3 py-2 text-sm text-empire-text outline-none focus:border-empire-gold/50">
+            {balances.length === 0 && <option value="">No people in this unit</option>}
+            {balances.map(b => <option key={b.employeeId} value={b.employeeId}>{b.name} — {b.remaining} days left</option>)}
+          </select>
         </div>
         <div>
-          <label className="empire-label">Unit {isEdit && '(reassign to move across units)'}</label>
-          <select className="empire-input w-full mt-1" value={f.departmentId} onChange={e => setF({ ...f, departmentId: e.target.value })}>
-            {allDepts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
-          {reassigning && (
-            <p className="text-[11px] text-empire-amber-bright mt-1 inline-flex items-center gap-1">
-              <EmpireIcon name="link" size={11} className="text-empire-amber-bright" />
-              Will move {f.name || 'this person'} to {allDepts.find(d => d.id === f.departmentId)?.name}
-            </p>
-          )}
+          <label className="mb-1 block text-[10px] uppercase tracking-widest text-empire-text-muted">Type</label>
+          <div className="flex gap-2">
+            {(['vacation', 'sick', 'other'] as LeaveKind[]).map(t => (
+              <button key={t} type="button" onClick={() => setType(t)} className={`flex-1 rounded-lg border px-3 py-2 text-xs uppercase tracking-widest transition-colors ${type === t ? 'border-empire-gold text-empire-gold' : 'border-empire-border text-empire-text-dim hover:text-empire-text'}`}>{KIND_TONE[t].label}</button>
+            ))}
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="empire-label">Contract</label>
-            <select className="empire-input w-full mt-1" value={f.contractType} onChange={e => setF({ ...f, contractType: e.target.value })}>
-              {['fixed', 'commission', 'contractor', 'advisor'].map(c => <option key={c} value={c}>{c}</option>)}
+            <label className="mb-1 block text-[10px] uppercase tracking-widest text-empire-text-muted">From</label>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full rounded-lg border border-empire-border bg-empire-surface/60 px-3 py-2 text-sm text-empire-text outline-none focus:border-empire-gold/50" />
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] uppercase tracking-widest text-empire-text-muted">To</label>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full rounded-lg border border-empire-border bg-empire-surface/60 px-3 py-2 text-sm text-empire-text outline-none focus:border-empire-gold/50" />
+          </div>
+        </div>
+        {type === 'vacation' && chosen && (
+          <p className="text-[11px] text-empire-text-dim">{chosen.remaining} of {chosen.allowance} vacation days remaining. Only working days (Mon–Fri) are counted.</p>
+        )}
+        {type === 'sick' && (
+          <label className="flex items-center gap-2 text-[11px] text-empire-text-muted">
+            <input type="checkbox" checked={reported} onChange={e => setReported(e.target.checked)} className="accent-empire-gold" />
+            Reported in advance (uncheck for an unreported sick day)
+          </label>
+        )}
+        <div>
+          <label className="mb-1 block text-[10px] uppercase tracking-widest text-empire-text-muted">Reason <span className="text-empire-text-dim">(optional)</span></label>
+          <input value={reason} onChange={e => setReason(e.target.value)} className="w-full rounded-lg border border-empire-border bg-empire-surface/60 px-3 py-2 text-sm text-empire-text placeholder:text-empire-text-dim outline-none focus:border-empire-gold/50" placeholder="Context for HR…" />
+        </div>
+        {err && <p className="text-[11px] text-empire-red-bright">{err}</p>}
+        <div className="flex justify-end gap-2 pt-1">
+          <button onClick={onClose} className="rounded-lg border border-empire-border px-4 py-2 text-xs uppercase tracking-widest text-empire-text-muted transition-colors hover:text-empire-text">Cancel</button>
+          <button onClick={submit} disabled={busy} className="empire-btn-primary disabled:opacity-50">{busy ? 'Filing…' : 'File request'}</button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function RaiseRequestModal({ source, template, depts, onClose, onCreated }: {
+  source: Dept; template: RequestTemplate; depts: AllDept[]; onClose: () => void; onCreated: () => void
+}) {
+  const fixedTarget = template.targetSlug ? depts.find(d => d.slug === template.targetSlug) : undefined
+  const [targetId, setTargetId] = useState(fixedTarget?.id || '')
+  const [title, setTitle] = useState(template.titleTpl)
+  const [description, setDescription] = useState(template.descScaffold)
+  const [priority, setPriority] = useState(template.priority)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  async function submit() {
+    const target = fixedTarget || depts.find(d => d.id === targetId)
+    if (!title.trim()) { setErr('A title is required'); return }
+    if (!target) { setErr('Choose the unit that should decide this'); return }
+    setBusy(true); setErr('')
+    try {
+      await post('/api/approvals', {
+        title: title.trim(), description: description.trim() || null,
+        category: target.name, priority,
+        sourceDepartmentId: source.id, targetDepartmentId: target.id,
+        metadata: { requestType: template.requestType, kind: 'cross_dept_request' },
+      })
+      onCreated()
+    } catch (e: any) { setErr(e?.message || 'Could not raise the request'); setBusy(false) }
+  }
+
+  return (
+    <Modal open onClose={onClose} title={template.label} icon={template.icon}>
+      <div className="space-y-3">
+        <p className="text-[11px] text-empire-text-dim">From <span className="text-empire-text-muted">{source.name}</span>{fixedTarget && <> → <span className="text-empire-text-muted">{fixedTarget.name}</span></>}</p>
+        {!fixedTarget && (
+          <div>
+            <label className="mb-1 block text-[10px] uppercase tracking-widest text-empire-text-muted">Send to</label>
+            <select value={targetId} onChange={(e) => setTargetId(e.target.value)} className="w-full rounded-lg border border-empire-border bg-empire-surface/60 px-3 py-2 text-sm text-empire-text outline-none focus:border-empire-gold/50">
+              <option value="">Choose a unit…</option>
+              {depts.filter(d => d.id !== source.id).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
-          <div>
-            <label className="empire-label">Level</label>
-            <input className="empire-input w-full mt-1" type="number" min={1} value={f.level} placeholder="1" onChange={e => setF({ ...f, level: e.target.value })} />
-          </div>
-          <div>
-            <label className="empire-label">Salary (€)</label>
-            <AffixInput money className="empire-input w-full mt-1" type="number" placeholder="0" value={f.salaryAmount} onChange={e => setF({ ...f, salaryAmount: e.target.value })} />
-          </div>
-          <div>
-            <label className="empire-label">Commission (0–1)</label>
-            <AffixInput pct className="empire-input w-full mt-1" type="number" step="0.01" placeholder="0.10" value={f.commissionRate} onChange={e => setF({ ...f, commissionRate: e.target.value })} />
-          </div>
-          <div>
-            <label className="empire-label">FTE (0.1–1)</label>
-            <input className="empire-input w-full mt-1" type="number" step="0.1" min={0.1} max={1} placeholder="1" value={f.fte} onChange={e => setF({ ...f, fte: e.target.value })} />
-          </div>
-          {f.contractType === 'contractor' && (
-            <div>
-              <label className="empire-label">Contract ends</label>
-              <DatePicker className="empire-input w-full mt-1" value={f.contractEndsAt} onChange={e => setF({ ...f, contractEndsAt: e.target.value })} />
-            </div>
-          )}
+        )}
+        <div>
+          <label className="mb-1 block text-[10px] uppercase tracking-widest text-empire-text-muted">Title</label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-lg border border-empire-border bg-empire-surface/60 px-3 py-2 text-sm text-empire-text placeholder:text-empire-text-dim outline-none focus:border-empire-gold/50" placeholder="What are you asking for?" />
         </div>
-        <PhotoDrop
-          label="Profile picture"
-          value={f.avatarUrl}
-          onChange={v => setF({ ...f, avatarUrl: v })}
-        />
+        <div>
+          <label className="mb-1 block text-[10px] uppercase tracking-widest text-empire-text-muted">Detail</label>
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} className="w-full rounded-lg border border-empire-border bg-empire-surface/60 px-3 py-2 text-sm text-empire-text placeholder:text-empire-text-dim outline-none focus:border-empire-gold/50" placeholder="Context the deciding unit needs…" />
+        </div>
+        <div>
+          <label className="mb-1 block text-[10px] uppercase tracking-widest text-empire-text-muted">Priority</label>
+          <select value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full rounded-lg border border-empire-border bg-empire-surface/60 px-3 py-2 text-sm text-empire-text outline-none focus:border-empire-gold/50">
+            {['low', 'normal', 'high', 'critical'].map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+        {err && <p className="text-[11px] text-empire-red-bright">{err}</p>}
+        <div className="flex justify-end gap-2 pt-1">
+          <button onClick={onClose} className="rounded-lg border border-empire-border px-4 py-2 text-xs uppercase tracking-widest text-empire-text-muted transition-colors hover:text-empire-text">Cancel</button>
+          <button onClick={submit} disabled={busy} className="empire-btn-primary disabled:opacity-50">{busy ? 'Sending…' : 'Send request'}</button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function AutomateTab({ dept, accent, onUpdate }: { dept: Dept; accent: string; onUpdate: () => void }) {
+  const [state, setState] = useState<AutomationState | null>(null)
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [busy, setBusy] = useState(false)
+  const [creating, setCreating] = useState<AutomationTemplate | null>(null)
+  const [err, setErr] = useState('')
+
+  const reload = useCallback(async () => {
+    try {
+      const s: AutomationState = await fetcher(`/api/departments/${dept.slug}/automation`)
+      setState(s)
+      setPicked(new Set(s.appointed.map(a => a.id)))
+    } catch (e) { console.error(e) }
+  }, [dept.slug])
+  useEffect(() => { reload() }, [reload])
+
+  function toggle(id: string) {
+    setPicked(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+
+  async function setEnabled(enabled: boolean) {
+    setErr(''); setBusy(true)
+    try {
+      await patch(`/api/departments/${dept.slug}/automation`, { enabled, appointAgentIds: enabled ? Array.from(picked) : [] })
+      await reload(); onUpdate()
+    } catch (e: any) { setErr(e?.message || 'Failed to update automation') }
+    finally { setBusy(false) }
+  }
+
+  async function createFromTemplate(t: AutomationTemplate, name: string) {
+    setErr(''); setBusy(true)
+    try {
+      await post('/api/agents', { name: name.trim() || t.suggestedName, role: t.role, kind: 'bot', bio: t.desc, departmentId: state?.unit.id, permissions: [] })
+      setCreating(null)
+      await reload(); onUpdate()
+    } catch (e: any) { setErr(e?.message || 'Failed to create operator') }
+    finally { setBusy(false) }
+  }
+
+  if (!state) return <div className="text-empire-text-dim text-sm p-6">Loading automation…</div>
+  const hasOperators = state.operators.length > 0
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      <SectionHeader title="Automate Unit" subtitle="Admin-only. Hand this unit's day-to-day to one or more operators, orchestrated by the agent that drives Empire through the MCP." />
+
+      {/* status + master toggle */}
+      <div className="bg-empire-surface border border-empire-border rounded-lg p-5 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0" style={{ background: empireTint(accent, '30'), color: accent }}>
+            <EmpireIcon name={state.enabled ? 'sparkle' : 'cog'} size={20} />
+          </div>
+          <div className="min-w-0">
+            <div className="text-empire-text text-sm font-medium">{state.enabled ? 'This unit is automated' : 'This unit is run manually'}</div>
+            <div className="text-empire-text-dim text-xs mt-0.5">
+              {state.enabled
+                ? `${state.appointed.length} operator(s) appointed${state.appointed.length ? ' · ' + state.appointed.map(a => a.name).join(', ') : ''}`
+                : hasOperators ? 'Appoint operators below, then turn it on.' : 'Create an operator first — automation needs at least one.'}
+            </div>
+          </div>
+        </div>
+        {state.enabled ? (
+          <button onClick={() => setEnabled(false)} disabled={busy} className="px-3 py-2 rounded border border-empire-border text-empire-text-muted text-[10px] uppercase tracking-widest hover:text-empire-red-bright hover:border-empire-red/40 transition-colors disabled:opacity-50 flex-shrink-0">
+            Turn off
+          </button>
+        ) : (
+          <button onClick={() => setEnabled(true)} disabled={busy || !hasOperators || picked.size === 0} className="empire-btn-primary disabled:opacity-50 flex-shrink-0">
+            {busy ? 'Saving…' : 'Automate unit'}
+          </button>
+        )}
+      </div>
+
+      {err && <p className="text-[11px] text-empire-red-bright">{err}</p>}
+
+      {/* appoint existing operators */}
+      <div>
+        <div className="text-empire-text text-xs uppercase tracking-widest mb-2 inline-flex items-center gap-1.5"><EmpireIcon name="sparkle" size={12} className="text-empire-gold" /> Appoint operators</div>
+        {!hasOperators ? (
+          <div className="text-empire-text-dim text-xs italic p-3 bg-empire-surface border border-empire-border rounded-lg">No operators in this unit yet — create one from a template below; it appears here to appoint.</div>
+        ) : (
+          <div className="space-y-2">
+            {state.operators.map(a => {
+              const on = picked.has(a.id)
+              return (
+                <button key={a.id} type="button" onClick={() => toggle(a.id)} className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${on ? 'border-empire-gold/50 bg-empire-gold/10' : 'border-empire-border bg-empire-surface hover:border-empire-gold/20'}`}>
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 ${on ? 'border-empire-gold bg-empire-gold/20' : 'border-empire-border'}`}>
+                    {on && <EmpireIcon name="check" size={12} className="text-empire-gold" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-empire-text text-xs font-medium truncate">{a.name}{a.codename && <span className="text-empire-text-muted"> · {a.codename}</span>}</div>
+                    <div className="text-empire-text-dim text-xs truncate">{a.role}</div>
+                  </div>
+                  <span className="text-[10px] text-empire-text-muted flex-shrink-0">{a.status}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* per-unit templates → create an operator step by step */}
+      <div>
+        <div className="text-empire-text text-xs uppercase tracking-widest mb-2 inline-flex items-center gap-1.5"><EmpireIcon name="plus" size={12} className="text-empire-gold" /> Create from template</div>
+        <div className="grid grid-cols-2 gap-3">
+          {state.templates.map(t => (
+            <div key={t.slug} className="bg-empire-surface border border-empire-border rounded-lg p-4">
+              <div className="text-empire-text text-sm font-medium">{t.role}</div>
+              <div className="text-empire-text-dim text-xs mt-1 mb-3">{t.desc}</div>
+              <button onClick={() => { setCreating(t); setErr('') }} className="px-3 py-1.5 bg-empire-elevated/40 border border-empire-border text-empire-text-dim text-[10px] uppercase tracking-widest rounded hover:text-empire-gold hover:border-empire-gold/30 transition-colors inline-flex items-center gap-1">
+                <EmpireIcon name="plus" size={11} /> Create operator
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {creating && (
+        <CreateOperatorModal template={creating} busy={busy} onClose={() => setCreating(null)} onCreate={(name) => createFromTemplate(creating, name)} />
+      )}
+    </div>
+  )
+}
+
+function CreateOperatorModal({ template, busy, onClose, onCreate }: { template: AutomationTemplate; busy: boolean; onClose: () => void; onCreate: (name: string) => void }) {
+  const [name, setName] = useState(template.suggestedName)
+  return (
+    <Modal open onClose={onClose} title={`New ${template.role}`} icon={<EmpireIcon name="sparkle" size={18} />}>
+      <div className="space-y-3">
+        <p className="text-empire-text-dim text-xs">{template.desc} Ops-only — no login. The MCP agent wears it as a hat.</p>
+        <div>
+          <label className="empire-label">Operator name *</label>
+          <input className="empire-input w-full mt-1" value={name} onChange={e => setName(e.target.value)} placeholder={template.suggestedName} />
+        </div>
         <div className="flex justify-end gap-2 pt-1">
           <button onClick={onClose} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
-          <button onClick={save} disabled={busy || !f.role || (isEdit ? !f.name : !f.firstName || !f.lastName || !f.email || f.password.length < 10)} className="empire-btn-primary disabled:opacity-50">
-            {busy ? 'Saving…' : isEdit ? 'Save changes' : 'Add to unit'}
-          </button>
+          <button onClick={() => onCreate(name)} disabled={busy || !name.trim()} className="empire-btn-primary disabled:opacity-50">{busy ? 'Creating…' : 'Create operator'}</button>
         </div>
       </div>
     </Modal>

@@ -10,6 +10,7 @@ import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
 import { AffixInput } from '@/components/molecules/AffixInput'
+import { donutPalette } from '@/lib/theme'
 
 // Advisory — board of advisors & strategic network. Active advisors, advisory
 // equity granted & vested, committed hours, session cadence + value rating, and
@@ -85,8 +86,10 @@ function Overview() {
   const { data: net } = useAdv<NetworkData>('network')
   if (loading) return <Loading />
   if (!s) return <EmptyState icon="compass" title="No advisory data" hint="Seed the advisory dataset to populate the board." />
-  const expertiseSegments = (net?.byExpertise || []).map(x => ({
-    label: x.expertise, value: x.advisors, color: EXPERTISE_COLOR[x.expertise] || '#7A7468',
+  const expertiseList = net?.byExpertise || []
+  const expertisePalette = donutPalette(expertiseList.length)
+  const expertiseSegments = expertiseList.map((x, i) => ({
+    label: x.expertise, value: x.advisors, color: expertisePalette[i],
   }))
   return (
     <div className="space-y-6">

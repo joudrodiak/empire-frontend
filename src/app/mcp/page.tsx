@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { fetcher, post, patch, del } from '@/lib/api'
 import { GlassPanel } from '@/components/atoms/GlassPanel'
-import { EmpireIcon } from '@/components/atoms/EmpireIcon'
+import { EmpireIcon, asIconName } from '@/components/atoms/EmpireIcon'
 import { LiquidMetalButton } from '@/components/atoms/LiquidMetalButton'
 import { TabBar } from '@/components/templates/TabBar'
 
@@ -23,10 +23,12 @@ export default function McpPage() {
       </header>
       <TabBar tabs={[
         { id: 'connect', label: 'Connection', icon: 'link' },
+        { id: 'tools', label: 'Tools', icon: 'cog' },
         { id: 'questions', label: 'Weekly questions', icon: 'calendar' },
         { id: 'audit', label: 'Audit', icon: 'shield' },
       ]} active={tab} onChange={setTab} />
       {tab === 'connect' && <Connection />}
+      {tab === 'tools' && <Tools />}
       {tab === 'questions' && <Questions />}
       {tab === 'audit' && <Audit />}
     </main>
@@ -165,6 +167,67 @@ function Connection() {
         {!r.revokedAt && <button className="text-xs text-empire-red-bright" onClick={() => revoke(r.id)}>Revoke</button>}
       </div>)}</div>
     </GlassPanel>
+  </div>
+}
+
+// C11 — the tool catalogue, grouped so an operator instantly sees which tools
+// only READ vs which WRITE or DELETE (the risk lens), and which Unit each tool
+// belongs to (the org lens). Fed by /api/mcp/tools — the same MCP_TOOLS list the
+// worker exposes over JSON-RPC, so it can never drift from reality.
+type McpTool = { name: string; description: string; access: 'read' | 'write' | 'delete'; domain: string }
+const ACCESS_META: Record<McpTool['access'], { label: string; chip: string; icon: string; blurb: string }> = {
+  read: { label: 'Read-only', chip: 'rag-green', icon: 'eye', blurb: 'Safe — only fetch data, never change it.' },
+  write: { label: 'Write', chip: 'rag-amber', icon: 'pen', blurb: 'Create or update records. Needs the matching write permission.' },
+  delete: { label: 'Delete', chip: 'rag-red', icon: 'trash', blurb: 'Destructive — removes or offboards records. Highest-trust permission.' },
+}
+function Tools() {
+  const [rows, setRows] = useState<McpTool[]>([])
+  const [view, setView] = useState<'access' | 'unit'>('access')
+  useEffect(() => { fetcher('/api/mcp/tools').then((r: { tools: McpTool[] }) => setRows(r.tools || [])).catch(() => {}) }, [])
+  const order: McpTool['access'][] = ['read', 'write', 'delete']
+  const byAccess = order.map(a => [a, rows.filter(t => t.access === a)] as const).filter(([, t]) => t.length)
+  const units = Array.from(new Set(rows.map(t => t.domain))).sort()
+  const byUnit = units.map(u => [u, rows.filter(t => t.domain === u)] as const)
+  const card = (t: McpTool) => (
+    <div key={t.name} className="rounded-lg border border-empire-border bg-empire-surface/40 px-3 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <code className="font-data text-xs text-empire-text">{t.name}</code>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] uppercase tracking-widest ${ACCESS_META[t.access].chip}`}>{ACCESS_META[t.access].label}</span>
+      </div>
+      <p className="mt-1 text-[11px] text-empire-text-muted">{t.description}</p>
+      <p className="mt-0.5 text-[10px] uppercase tracking-widest text-empire-text-dim">{t.domain}</p>
+    </div>
+  )
+  return <div className="space-y-4">
+    <GlassPanel variant="gold" className="p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-empire text-lg text-empire-text">Tool catalogue</h2>
+          <p className="mt-1 text-xs text-empire-text-muted">{rows.length} tools your worker exposes — exactly what an MCP client can call, grouped by risk and by Unit.</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setView('access')} className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-widest transition-all duration-200 ${view === 'access' ? 'border-empire-gold/50 bg-empire-gold/10 text-empire-gold' : 'border-empire-border text-empire-text-muted hover:border-empire-gold/30'}`}>By access</button>
+          <button onClick={() => setView('unit')} className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-widest transition-all duration-200 ${view === 'unit' ? 'border-empire-gold/50 bg-empire-gold/10 text-empire-gold' : 'border-empire-border text-empire-text-muted hover:border-empire-gold/30'}`}>By unit</button>
+        </div>
+      </div>
+    </GlassPanel>
+    {view === 'access' && byAccess.map(([access, tools]) => (
+      <GlassPanel key={access} className="p-5">
+        <div className="mb-1 flex items-center gap-2">
+          <span className={`grid h-7 w-7 place-items-center rounded-lg ${ACCESS_META[access].chip}`}><EmpireIcon name={asIconName(ACCESS_META[access].icon)} size={13} /></span>
+          <h3 className="font-empire text-base text-empire-text">{ACCESS_META[access].label}</h3>
+          <span className="text-[11px] text-empire-text-dim">· {tools.length}</span>
+        </div>
+        <p className="mb-3 text-[11px] text-empire-text-muted">{ACCESS_META[access].blurb}</p>
+        <div className="grid gap-2 sm:grid-cols-2">{tools.map(card)}</div>
+      </GlassPanel>
+    ))}
+    {view === 'unit' && byUnit.map(([unit, tools]) => (
+      <GlassPanel key={unit} className="p-5">
+        <div className="mb-3 flex items-center gap-2"><h3 className="font-empire text-base text-empire-text">{unit}</h3><span className="text-[11px] text-empire-text-dim">· {tools.length}</span></div>
+        <div className="grid gap-2 sm:grid-cols-2">{tools.map(card)}</div>
+      </GlassPanel>
+    ))}
   </div>
 }
 

@@ -1,7 +1,7 @@
 'use client'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useAuth, userCan } from '@/lib/auth'
-import { fetcher, patch, del } from '@/lib/api'
+import { fetcher, patch, del, post } from '@/lib/api'
 import { EmpireIcon, type IconName } from '@/components/atoms/EmpireIcon'
 import { GlassPanel } from '@/components/atoms/GlassPanel'
 import { Panel } from '@/components/molecules/Panel'
@@ -68,43 +68,155 @@ export default function SettingsPage() {
 }
 
 /* ── Integrations ─────────────────────────────────────────────── */
-function IntegrationsTab() {
-  const [status, setStatus] = useState<AgentStatus | null>(null)
-  useEffect(() => { fetcher('/api/agent/status').then(setStatus).catch(() => setStatus(null)) }, [])
+// Social providers handled by the Empire-managed OAuth app. Each lights up for
+// real the moment its CLIENT_ID/SECRET are set in env; until then "Connect" runs
+// a demo (simulate) handshake so the flow is exercisable on dummy data.
+type SocialProvider = { id: string; name: string; icon: IconName; hint: string; keys: string }
+const SOCIAL_PROVIDERS: SocialProvider[] = [
+  { id: 'instagram', name: 'Instagram', icon: 'people', hint: 'Social metrics & content context', keys: 'INSTAGRAM_OAUTH_CLIENT_ID · _CLIENT_SECRET' },
+  { id: 'facebook', name: 'Facebook', icon: 'people', hint: 'Meta pages & paid-social context', keys: 'FACEBOOK_OAUTH_CLIENT_ID · _CLIENT_SECRET' },
+  { id: 'tiktok', name: 'TikTok', icon: 'megaphone', hint: 'Short-form account metrics', keys: 'TIKTOK_OAUTH_CLIENT_ID · _CLIENT_SECRET' },
+  { id: 'x', name: 'X', icon: 'megaphone', hint: 'Public reach & posting context', keys: 'X_OAUTH_CLIENT_ID · _CLIENT_SECRET' },
+  { id: 'linkedin', name: 'LinkedIn', icon: 'briefcase', hint: 'Company-page & network metrics', keys: 'LINKEDIN_OAUTH_CLIENT_ID · _CLIENT_SECRET' },
+  { id: 'youtube', name: 'YouTube', icon: 'document', hint: 'Channel metrics & content context', keys: 'YOUTUBE_OAUTH_CLIENT_ID · _CLIENT_SECRET' },
+]
+type SocialAcct = { id: string; platform: string; handle: string; status: string; connection: string }
 
-  const rows: { name: string; icon: IconName; on: boolean; hint: string; keys: string }[] = [
-    { name: 'Slack', icon: 'megaphone', on: !!status?.channels?.slack, hint: 'Approval dispatch + agent broadcasts', keys: 'SLACK_WEBHOOK_URL' },
-    { name: 'Telegram', icon: 'megaphone', on: !!status?.channels?.telegram, hint: 'Approval dispatch + agent broadcasts', keys: 'TELEGRAM_BOT_TOKEN · TELEGRAM_CHAT_ID' },
-    { name: 'Instagram', icon: 'people', on: false, hint: 'Marketing intelligence and social metrics', keys: 'INSTAGRAM_OAUTH_CLIENT_ID · INSTAGRAM_OAUTH_CLIENT_SECRET' },
-    { name: 'Facebook', icon: 'people', on: false, hint: 'Meta pages and paid-social context', keys: 'FACEBOOK_OAUTH_CLIENT_ID · FACEBOOK_OAUTH_CLIENT_SECRET' },
-    { name: 'TikTok', icon: 'megaphone', on: false, hint: 'Short-form social account metrics', keys: 'TIKTOK_OAUTH_CLIENT_ID · TIKTOK_OAUTH_CLIENT_SECRET' },
-    { name: 'X', icon: 'megaphone', on: false, hint: 'Public social reach and posting context', keys: 'X_OAUTH_CLIENT_ID · X_OAUTH_CLIENT_SECRET' },
-    { name: 'LinkedIn', icon: 'briefcase', on: false, hint: 'Company-page and professional network metrics', keys: 'LINKEDIN_OAUTH_CLIENT_ID · LINKEDIN_OAUTH_CLIENT_SECRET' },
-    { name: 'YouTube', icon: 'document', on: false, hint: 'Video channel metrics and content context', keys: 'YOUTUBE_OAUTH_CLIENT_ID · YOUTUBE_OAUTH_CLIENT_SECRET' },
-    { name: 'Banking (NL / UAE)', icon: 'coins', on: false, hint: 'Open-banking aggregator (awaiting credentials)', keys: 'TINK_* · GOCARDLESS_ACCESS_TOKEN · PLAID_* · LEAN_APP_TOKEN · TARABUT_*' },
+function IntegrationsTab() {
+  const { user } = useAuth()
+  const canConnect = userCan(user, 'company:manage') || userCan(user, '*')
+  const [status, setStatus] = useState<AgentStatus | null>(null)
+  const [providers, setProviders] = useState<Record<string, boolean>>({})
+  const [accounts, setAccounts] = useState<SocialAcct[]>([])
+  const [busy, setBusy] = useState<string | null>(null)
+  const [msg, setMsg] = useState<string>('')
+
+  const loadAccounts = useCallback(() => {
+    fetcher('/api/marketing/social/accounts?pageSize=100').then(r => setAccounts(r?.data || [])).catch(() => setAccounts([]))
+  }, [])
+  useEffect(() => {
+    fetcher('/api/agent/status').then(setStatus).catch(() => setStatus(null))
+    fetcher('/api/marketing/social/oauth/providers').then(setProviders).catch(() => setProviders({}))
+    loadAccounts()
+  }, [loadAccounts])
+
+  const acctFor = (pid: string) => accounts.find(a => a.platform === pid)
+
+  // Empire-managed OAuth: ensure a SocialAccount exists for the platform, then
+  // either send the operator to the provider (live keys) or run the demo
+  // handshake. The connected account also appears in Marketing → Accounts.
+  async function connect(p: SocialProvider) {
+    if (!canConnect) return
+    setBusy(p.id); setMsg('')
+    try {
+      let acct = acctFor(p.id)
+      if (!acct) {
+        acct = await post('/api/marketing/social/accounts', { platform: p.id, handle: `@${p.id}`, displayName: p.name, connection: 'oauth' }) as SocialAcct
+      }
+      const au = await fetcher(`/api/marketing/social/oauth/${p.id}/authorize-url?accountId=${acct.id}`).catch(() => null)
+      if (au?.configured && au?.url) { window.location.href = au.url; return }
+      await post(`/api/marketing/social/accounts/${acct.id}/oauth/simulate`, {})
+      await post(`/api/marketing/social/accounts/${acct.id}/sync`, {})
+      setMsg(`${p.name} connected in demo mode — add live keys in env for real metrics. It now appears in Marketing → Accounts.`)
+      loadAccounts()
+    } catch { setMsg(`Could not connect ${p.name}.`) }
+    finally { setBusy(null) }
+  }
+
+  async function syncNow(p: SocialProvider) {
+    const acct = acctFor(p.id); if (!acct || !canConnect) return
+    setBusy(p.id)
+    try { const r = await post(`/api/marketing/social/accounts/${acct.id}/sync`, {}) as any; setMsg(`${p.name} synced (${r?.mode || 'ok'}).`); loadAccounts() }
+    catch { setMsg(`Sync failed for ${p.name}.`) }
+    finally { setBusy(null) }
+  }
+
+  const comms = [
+    { name: 'Slack', icon: 'megaphone' as IconName, on: !!status?.channels?.slack, hint: 'Approval dispatch + agent broadcasts', keys: 'SLACK_WEBHOOK_URL' },
+    { name: 'Telegram', icon: 'megaphone' as IconName, on: !!status?.channels?.telegram, hint: 'Approval dispatch + agent broadcasts', keys: 'TELEGRAM_BOT_TOKEN · TELEGRAM_CHAT_ID' },
+  ]
+  const finance = [
+    { name: 'Banking (NL)', icon: 'coins' as IconName, hint: 'Tink / GoCardless / Plaid aggregator', keys: 'TINK_* · GOCARDLESS_ACCESS_TOKEN · PLAID_*' },
+    { name: 'Banking (UAE)', icon: 'coins' as IconName, hint: 'Lean / Tarabut aggregator', keys: 'LEAN_APP_TOKEN · TARABUT_*' },
   ]
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {rows.map(r => (
-        <GlassPanel key={r.name} variant="glass" className="animate-slide-up p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span className="grid h-9 w-9 place-items-center rounded-lg border border-empire-border bg-empire-elevated/50 text-empire-gold">
-                <EmpireIcon name={r.icon} size={16} />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-empire-text">{r.name}</p>
-                <p className="text-[11px] text-empire-text-muted">{r.hint}</p>
+    <div className="space-y-6">
+      {msg && <p className="rounded-lg border border-empire-border bg-empire-elevated/40 px-3 py-2 text-[12px] text-empire-text-muted animate-fade-in">{msg}</p>}
+
+      {/* Communication */}
+      <section>
+        <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-empire-text-muted"><EmpireIcon name="megaphone" size={13} /> Communication</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {comms.map(r => (
+            <GlassPanel key={r.name} variant="glass" className="animate-slide-up p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="grid h-9 w-9 place-items-center rounded-lg border border-empire-border bg-empire-elevated/50 text-empire-gold"><EmpireIcon name={r.icon} size={16} /></span>
+                  <div><p className="text-sm font-semibold text-empire-text">{r.name}</p><p className="text-[11px] text-empire-text-muted">{r.hint}</p></div>
+                </div>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-widest ${r.on ? 'rag-green' : 'rag-pending'}`}>{r.on ? 'Connected' : 'Not set'}</span>
               </div>
-            </div>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-widest ${r.on ? 'rag-green' : 'rag-pending'}`}>
-              {r.on ? 'Connected' : 'Not set'}
-            </span>
-          </div>
-          <p className="mt-3 border-t border-empire-border/60 pt-2 font-data text-[10px] text-empire-text-dim">{r.keys}</p>
-        </GlassPanel>
-      ))}
+              <p className="mt-3 border-t border-empire-border/60 pt-2 font-data text-[10px] text-empire-text-dim">{r.keys}</p>
+            </GlassPanel>
+          ))}
+        </div>
+      </section>
+
+      {/* Social — Empire-managed OAuth */}
+      <section>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-empire-text-muted"><EmpireIcon name="people" size={13} /> Social — Empire-managed OAuth</h3>
+          <span className="text-[10px] text-empire-text-dim">Connected accounts also appear in Marketing → Accounts</span>
+        </div>
+        {!canConnect && <p className="mb-2 text-[11px] text-empire-text-dim">You need company-manage permission to connect accounts.</p>}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {SOCIAL_PROVIDERS.map(p => {
+            const acct = acctFor(p.id)
+            const connected = acct?.status === 'connected'
+            const live = providers[p.id]
+            return (
+              <GlassPanel key={p.id} variant="glass" className="animate-slide-up p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid h-9 w-9 place-items-center rounded-lg border border-empire-border bg-empire-elevated/50 text-empire-gold"><EmpireIcon name={p.icon} size={16} /></span>
+                    <div><p className="text-sm font-semibold text-empire-text">{p.name}</p><p className="text-[11px] text-empire-text-muted">{p.hint}</p></div>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-widest ${connected ? 'rag-green' : 'rag-pending'}`}>{connected ? 'Connected' : 'Not set'}</span>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-2 border-t border-empire-border/60 pt-2">
+                  <span className={`rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wider ${live ? 'rag-green' : 'rag-pending'}`}>{live ? 'Live keys' : 'Demo (simulate)'}</span>
+                  {canConnect && (
+                    connected
+                      ? <button onClick={() => syncNow(p)} disabled={busy === p.id} className="rounded-lg border border-empire-border bg-empire-surface px-3 py-1 text-[11px] text-empire-text transition-colors hover:border-empire-gold/30 disabled:opacity-50">{busy === p.id ? '…' : 'Sync now'}</button>
+                      : <button onClick={() => connect(p)} disabled={busy === p.id} className="empire-btn-primary text-[11px] disabled:opacity-50">{busy === p.id ? 'Connecting…' : (live ? `Authorize ${p.name}` : 'Connect (demo)')}</button>
+                  )}
+                </div>
+                <p className="mt-2 font-data text-[10px] text-empire-text-dim">{p.keys}</p>
+              </GlassPanel>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* Finance */}
+      <section>
+        <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-empire-text-muted"><EmpireIcon name="coins" size={13} /> Finance — open banking</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {finance.map(r => (
+            <GlassPanel key={r.name} variant="glass" className="animate-slide-up p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="grid h-9 w-9 place-items-center rounded-lg border border-empire-border bg-empire-elevated/50 text-empire-gold"><EmpireIcon name={r.icon} size={16} /></span>
+                  <div><p className="text-sm font-semibold text-empire-text">{r.name}</p><p className="text-[11px] text-empire-text-muted">{r.hint}</p></div>
+                </div>
+                <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-widest rag-pending">Awaiting keys</span>
+              </div>
+              <p className="mt-3 border-t border-empire-border/60 pt-2 font-data text-[10px] text-empire-text-dim">{r.keys}</p>
+            </GlassPanel>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }
@@ -150,9 +262,11 @@ function AgentTab() {
 }
 
 /* ── Company ──────────────────────────────────────────────────── */
+type BoardMember = { name: string; role: string; since?: string | null; email?: string | null }
 type Company = {
   id: string; slug: string; name: string; short: string; tagline: string; type: string; hq: string; founded: string
   stampImageUrl?: string | null; stampEnabled?: boolean; confidentialWatermark?: boolean
+  boardMembers?: BoardMember[] | null
 }
 const field = 'w-full rounded-lg border border-empire-border bg-empire-surface/60 px-3 py-2 text-sm text-empire-text placeholder:text-empire-text-dim outline-none transition-colors focus:border-empire-gold/50'
 const label = 'mb-1 block text-[10px] uppercase tracking-widest text-empire-text-muted'
@@ -185,6 +299,7 @@ function CompanyTab({ canManage }: { canManage: boolean }) {
         stampImageUrl: form.stampImageUrl || null,
         stampEnabled: Boolean(form.stampEnabled),
         confidentialWatermark: Boolean(form.confidentialWatermark),
+        boardMembers: (form.boardMembers || []).filter(m => (m.name || '').trim()),
       })
       setMsg('Company updated.'); await load()
     } catch (e: any) { setErr(e?.message || 'Failed to update company') } finally { setBusy(false) }
@@ -243,6 +358,46 @@ function CompanyTab({ canManage }: { canManage: boolean }) {
               onChange={e => setForm(f => ({ ...f, stampEnabled: e.target.checked }))} className="accent-empire-gold" />
             Add stamp to legal PDFs
           </label>
+        </div>
+        <div className="rounded-xl border border-empire-border bg-empire-surface/40 p-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div>
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-empire-text"><EmpireIcon name="people" size={13} /> Board of Directors</p>
+              <p className="text-[11px] text-empire-text-muted">Recorded on the company profile and available to legal documents.</p>
+            </div>
+            {canManage && (
+              <button
+                onClick={() => setForm(f => ({ ...f, boardMembers: [...(f.boardMembers || []), { name: '', role: 'Director', since: '', email: '' }] }))}
+                className="flex items-center gap-1.5 rounded-lg border border-empire-border px-2.5 py-1.5 text-[11px] text-empire-text-muted transition-colors hover:border-empire-gold/50 hover:text-empire-gold">
+                <EmpireIcon name="plus" size={12} /> Add member
+              </button>
+            )}
+          </div>
+          {(form.boardMembers || []).length === 0 ? (
+            <p className="px-1 py-2 text-[11px] text-empire-text-dim">No board members recorded yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {(form.boardMembers || []).map((m, i) => {
+                const upd = (patchM: Partial<BoardMember>) => setForm(f => ({ ...f, boardMembers: (f.boardMembers || []).map((x, j) => j === i ? { ...x, ...patchM } : x) }))
+                return (
+                  <div key={i} className="flex items-start gap-2 rounded-lg border border-empire-border/60 bg-empire-elevated/30 p-2">
+                    <div className="grid flex-1 gap-2 sm:grid-cols-2">
+                      <input disabled={!canManage} className={field} value={m.name ?? ''} placeholder="Full name" onChange={e => upd({ name: e.target.value })} />
+                      <input disabled={!canManage} className={field} value={m.role ?? ''} placeholder="Role (e.g. Chairman)" onChange={e => upd({ role: e.target.value })} />
+                      <input disabled={!canManage} className={field} value={m.since ?? ''} placeholder="Since (e.g. 2024)" onChange={e => upd({ since: e.target.value })} />
+                      <input disabled={!canManage} className={field} value={m.email ?? ''} placeholder="Email (optional)" onChange={e => upd({ email: e.target.value })} />
+                    </div>
+                    {canManage && (
+                      <button onClick={() => setForm(f => ({ ...f, boardMembers: (f.boardMembers || []).filter((_, j) => j !== i) }))}
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-empire-border text-empire-text-muted transition-colors hover:border-empire-red/50 hover:text-empire-red-bright" title="Remove member">
+                        <EmpireIcon name="trash" size={13} />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
         <div className="font-data text-[10px] text-empire-text-dim">slug: {company.slug} · id: {company.id}</div>
         {err && <div className="flex items-center gap-2 rounded-lg border border-empire-red/40 bg-empire-red/10 px-3 py-2 text-xs text-empire-red-bright"><EmpireIcon name="alert" size={14} /> {err}</div>}

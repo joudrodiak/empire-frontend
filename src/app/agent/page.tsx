@@ -519,6 +519,9 @@ function RosterTab({ canAct }: { canAct: boolean }) {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Agent | null>(null)
   const [viewing, setViewing] = useState<Agent | null>(null)
+  // C1 — deep-link from a unit's "Manage operators": ?unit=<slug> opens the
+  // create form already bound to that unit, so the operator lands in it.
+  const [presetUnitId, setPresetUnitId] = useState<string>('')
 
   const load = useCallback(async () => {
     setErr(null)
@@ -530,7 +533,15 @@ function RosterTab({ canAct }: { canAct: boolean }) {
     } catch (e: any) { setErr(e?.message || 'Failed to load agents') }
   }, [page, kind])
   useEffect(() => { load() }, [load])
-  useEffect(() => { fetcher('/api/departments').then((d) => setUnits(d || [])).catch(() => {}) }, [])
+  useEffect(() => {
+    fetcher('/api/departments').then((d: Unit[]) => {
+      setUnits(d || [])
+      if (typeof window === 'undefined' || !canAct) return
+      const slug = new URLSearchParams(window.location.search).get('unit')
+      const u = slug ? (d || []).find(x => x.slug === slug) : null
+      if (u) { setPresetUnitId(u.id); setEditing(null); setFormOpen(true) }
+    }).catch(() => {})
+  }, [canAct])
 
   async function remove(id: string) {
     try { await del(`/api/agents/${id}`); await load() }
@@ -598,20 +609,20 @@ function RosterTab({ canAct }: { canAct: boolean }) {
       </div>
       <Pagination page={page} pageCount={totalPages} total={total} onPage={setPage} />
 
-      {formOpen && <AgentForm agent={editing} units={units} onClose={() => setFormOpen(false)} onDone={() => { setFormOpen(false); load() }} />}
+      {formOpen && <AgentForm agent={editing} units={units} presetUnitId={editing ? undefined : presetUnitId} onClose={() => { setFormOpen(false); setPresetUnitId('') }} onDone={() => { setFormOpen(false); setPresetUnitId(''); load() }} />}
       {viewing && <AgentViewer agent={viewing} onClose={() => setViewing(null)} />}
     </section>
   )
 }
 
-function AgentForm({ agent, units, onClose, onDone }: { agent: Agent | null; units: Unit[]; onClose: () => void; onDone: () => void }) {
+function AgentForm({ agent, units, presetUnitId, onClose, onDone }: { agent: Agent | null; units: Unit[]; presetUnitId?: string; onClose: () => void; onDone: () => void }) {
   const { user } = useAuth()
   const [name, setName] = useState(agent?.name || '')
   const [codename, setCodename] = useState(agent?.codename || '')
   const [kind, setKind] = useState(agent?.kind || 'bot')
   const [role, setRole] = useState(agent?.role || 'Operator')
   const [statusV, setStatusV] = useState(agent?.status || 'active')
-  const [departmentId, setDepartmentId] = useState(agent?.departmentId || '')
+  const [departmentId, setDepartmentId] = useState(agent?.departmentId || presetUnitId || '')
   const [bio, setBio] = useState(agent?.bio || '')
   const [perms, setPerms] = useState<string[]>(Array.isArray(agent?.permissions) ? agent!.permissions! : [])
   const [busy, setBusy] = useState(false)

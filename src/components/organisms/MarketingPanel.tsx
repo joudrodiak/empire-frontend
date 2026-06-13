@@ -678,8 +678,7 @@ function InfluencerEdit({ influencer, open, onClose, onSaved }: { influencer: In
  * keys go in env/Secrets later; the surface works DB-driven today. */
 const SOCIAL_PLATFORMS = ['instagram', 'facebook', 'tiktok', 'x', 'linkedin', 'youtube']
 const SOCIAL_CONNECTIONS = [
-  { id: 'login_session', label: 'IG / Meta login session' },
-  { id: 'oauth', label: 'OAuth app' },
+  { id: 'oauth', label: 'Click-to-connect (OAuth)' },
   { id: 'api_key', label: 'API key' },
   { id: 'manual', label: 'Manual entry' },
 ]
@@ -797,7 +796,7 @@ function SocialAccounts() {
       </div>
 
       {accounts.length === 0 ? (
-        <EmptyState icon="megaphone" title="No accounts connected" hint="Connect an Instagram / Meta account (login session or API key) to pull reach, engagement and follower growth. Real keys go in env later — connect now to start recording." />
+        <EmptyState icon="megaphone" title="No accounts connected" hint="Click Connect account, pick a platform and authorize on the provider's own consent screen — Empire pulls reach, engagement and follower growth straight from your account." />
       ) : selected === 'all' ? (
         /* ---- Portfolio (all accounts together) ---- */
         <div className="space-y-6">
@@ -942,31 +941,50 @@ function Intelligence() {
 }
 
 function SocialAccountEdit({ account, open, onClose, onSaved }: { account: SocialAcc | null; open: boolean; onClose: () => void; onSaved: () => void }) {
-  const empty = { platform: 'instagram', handle: '', displayName: '', connection: 'login_session', status: 'pending' }
+  // OAuth ("click-to-connect") is the default and only real path. Manual/api-key
+  // remain for accounts that have no public OAuth (or for back-office entry).
+  const empty = { platform: 'instagram', handle: '', displayName: '', connection: 'oauth', status: 'pending' }
   const [f, setF] = useState<Record<string, string>>(empty)
   const [busy, setBusy] = useState(false)
   const [oauthBusy, setOauthBusy] = useState(false)
   const [oauthNote, setOauthNote] = useState('')
+  // Which providers have live OAuth app credentials in env (booleans only — no
+  // secret values ever cross the wire). Drives the "Live"/"Needs keys" badge.
+  const [providers, setProviders] = useState<Record<string, boolean>>({})
   useEffect(() => {
     if (!open) return
     setOauthNote('')
-    setF(account ? { platform: account.platform, handle: account.handle, displayName: account.displayName ?? '', connection: account.connection, status: account.status } : empty)
+    setF(account ? { platform: account.platform, handle: account.handle, displayName: account.displayName ?? '', connection: account.connection === 'login_session' ? 'oauth' : account.connection, status: account.status } : empty)
+    fetcher('/api/marketing/social/oauth/providers').then(setProviders).catch(() => setProviders({}))
   }, [account, open]) // eslint-disable-line react-hooks/exhaustive-deps
   const set = (k: string, v: string) => setF(p => ({ ...p, [k]: v }))
-  // Real authorization-code handshake. If the provider has live keys in env we
-  // bounce to its consent screen; otherwise we run the dev "simulate" connect so
-  // the flow is demoable on dummy data (no secrets required).
+  const liveProvider = !!providers[f.platform]
+  const envHint = `${f.platform.toUpperCase()}_OAUTH_CLIENT_ID · _CLIENT_SECRET · _REDIRECT_URI`
+  // Real authorization-code handshake — the only way an account becomes truly
+  // connected. We bounce the browser to the provider's own consent screen; the
+  // callback exchanges the code server-side and seals the token. No simulation:
+  // if the provider has no app credentials we tell the operator exactly which
+  // env vars to set rather than faking a connection.
   async function connectOAuth(accountId = account?.id, platform = account?.platform) {
     if (!accountId || !platform) return
     setOauthBusy(true); setOauthNote('')
     try {
       const r: { configured: boolean; url?: string; hint?: string } =
         await fetcher(`/api/marketing/social/oauth/${platform}/authorize-url?accountId=${accountId}`)
-      if (r.configured && r.url) { window.location.href = r.url; return }
-      await post(`/api/marketing/social/accounts/${accountId}/oauth/simulate`, {})
-      setOauthNote('Simulated OAuth connection — add provider keys in env for a live token.')
-      onSaved()
+      if (r.configured && r.url) { window.location.href = r.url; return } // → real provider consent
+      setOauthNote(`${platform} has no OAuth app yet. Add ${platform.toUpperCase()}_OAUTH_CLIENT_ID / _CLIENT_SECRET / _REDIRECT_URI in env, then reconnect.`)
     } catch (e) { console.error(e); setOauthNote('Could not start OAuth.') } finally { setOauthBusy(false) }
+  }
+  // Explicit, opt-in demo connect — only for showing the dashboards on dummy
+  // data when no real keys exist. Clearly labelled; never the default path.
+  async function simulateConnect(accountId = account?.id) {
+    if (!accountId) return
+    setOauthBusy(true); setOauthNote('')
+    try {
+      await post(`/api/marketing/social/accounts/${accountId}/oauth/simulate`, {})
+      setOauthNote('Demo connection recorded (no live token). Add provider keys for the real handshake.')
+      onSaved()
+    } catch (e) { console.error(e); setOauthNote('Could not record demo connection.') } finally { setOauthBusy(false) }
   }
   async function save() {
     if (!f.handle) return
@@ -976,14 +994,12 @@ function SocialAccountEdit({ account, open, onClose, onSaved }: { account: Socia
       if (account) await patch(`/api/marketing/social/accounts/${account.id}`, body)
       else {
         const created = await post('/api/marketing/social/accounts', body)
-        if (f.connection === 'oauth' || f.connection === 'login_session') {
-          await connectOAuth(created.id, f.platform)
-          return
-        }
+        if (f.connection === 'oauth') { await connectOAuth(created.id, f.platform); return }
       }
       onSaved()
     } catch (e) { console.error(e) } finally { setBusy(false) }
   }
+  const showOAuth = f.connection === 'oauth'
   return (
     <Modal open={open} onClose={onClose} title={account ? 'Edit account' : 'Connect account'} icon={<EmpireIcon name={account ? 'pen' : 'plus'} size={18} />}>
       <div className="space-y-3">
@@ -1001,22 +1017,35 @@ function SocialAccountEdit({ account, open, onClose, onSaved }: { account: Socia
           <label className="block"><span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Status</span>
             <select className={modalInput} value={f.status} onChange={e => set('status', e.target.value)}>{Object.keys(ACC_STATUS_COLOR).map(s => <option key={s} value={s}>{s}</option>)}</select></label>
         )}
-        {account && f.connection === 'oauth' && (
+        {showOAuth && (
           <div className="rounded-lg border border-empire-border bg-empire-elevated/30 p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] uppercase tracking-wide text-empire-text-muted">OAuth authorization</span>
-              <button onClick={() => connectOAuth()} disabled={oauthBusy} className="rounded px-3 py-1.5 text-xs uppercase tracking-widest border border-empire-gold/40 text-empire-gold transition-all duration-200 hover:-translate-y-0.5 hover:bg-empire-gold/10 disabled:opacity-50 inline-flex items-center gap-1.5">
-                <EmpireIcon name="lock" size={12} /> {oauthBusy ? 'Connecting…' : 'Connect via OAuth'}
-              </button>
+              <span className="text-[11px] uppercase tracking-wide text-empire-text-muted">Click-to-connect</span>
+              <Pill text={liveProvider ? 'Live' : 'Needs keys'} color={liveProvider ? '#C9A233' : '#7A7468'} />
             </div>
-            <p className="text-[11px] text-empire-text-dim leading-relaxed">Starts the provider authorization-code flow. With live keys in env you are sent to the provider&apos;s consent screen; without keys it records a simulated connection so the flow is demoable.</p>
+            <p className="text-[11px] text-empire-text-dim leading-relaxed">
+              {liveProvider
+                ? `Sends you to ${f.platform}'s own consent screen. Approve there and you land back here connected — Empire seals the access token server-side.`
+                : `${f.platform} needs an OAuth app first. Set ${envHint} in env, then reconnect to get the real consent screen.`}
+            </p>
+            {account && (
+              <div className="flex flex-wrap items-center gap-2">
+                <button onClick={() => connectOAuth()} disabled={oauthBusy || !liveProvider} title={liveProvider ? '' : 'Provider OAuth app not configured in env yet'} className="rounded px-3 py-1.5 text-xs uppercase tracking-widest border border-empire-gold/40 text-empire-gold transition-all duration-200 hover:-translate-y-0.5 hover:bg-empire-gold/10 disabled:opacity-40 inline-flex items-center gap-1.5">
+                  <EmpireIcon name="lock" size={12} /> {oauthBusy ? 'Connecting…' : `Connect ${f.platform}`}
+                </button>
+                {!liveProvider && (
+                  <button onClick={() => simulateConnect()} disabled={oauthBusy} className="rounded px-3 py-1.5 text-[11px] uppercase tracking-widest text-empire-text-dim hover:text-empire-text disabled:opacity-50">
+                    Demo without keys
+                  </button>
+                )}
+              </div>
+            )}
             {oauthNote && <p className="text-[11px]" style={{ color: '#C9A233' }}>{oauthNote}</p>}
           </div>
         )}
-        <p className="text-[11px] text-empire-text-dim leading-relaxed">Auth keys/tokens are added in env later — connecting now records the account so metrics light up on first sync.</p>
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} disabled={busy || oauthBusy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted transition-all duration-200 hover:-translate-y-0.5 hover:text-empire-text">Cancel</button>
-          <button onClick={save} disabled={busy || oauthBusy || !f.handle} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50" style={{ background: ACCENT }}>{busy || oauthBusy ? 'Connecting…' : account ? 'Save' : 'Connect'}</button>
+          <button onClick={save} disabled={busy || oauthBusy || !f.handle} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50" style={{ background: ACCENT }}>{busy || oauthBusy ? 'Connecting…' : account ? 'Save' : (showOAuth ? 'Create & connect' : 'Create')}</button>
         </div>
       </div>
     </Modal>

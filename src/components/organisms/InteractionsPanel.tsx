@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { fetcher, post } from '@/lib/api'
 import { KpiCard, Panel, DonutChart, BarChart, EmptyState } from '@/lib/ui'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
+import { donutPalette } from '@/lib/theme'
 
 type IxMetrics = {
   department: { slug: string; name: string; managedByAI: boolean; aiManagerName: string | null }
@@ -137,7 +138,7 @@ export function InteractionsPanel({ departmentSlug, accent = '#C9A233' }: { depa
             </Panel>
             <Panel title="Channel Mix">
               {m.byChannel.length > 0 ? (
-                <DonutChart segments={m.byChannel.map(c => ({ label: c.channel, value: c.count, color: CHANNEL_COLOR[c.channel] || accent }))} />
+                <DonutChart segments={(() => { const pal = donutPalette(m.byChannel.length); return m.byChannel.map((c, i) => ({ label: c.channel, value: c.count, color: pal[i] })) })()} />
               ) : <div className="py-10 text-center text-empire-text-dim text-sm">—</div>}
             </Panel>
           </div>

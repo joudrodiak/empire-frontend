@@ -59,6 +59,19 @@ async function ensureOk(res: Response) {
     const body = await res.json()
     if (body && typeof body.error === 'string') msg = body.error
   } catch { /* non-JSON error body — keep the status message */ }
+  // B5: a stale active-company slug (e.g. after a data reset) makes every request
+  // 404 with "account not found", which otherwise crashes to the Next error
+  // overlay. Recover gracefully — drop the dead slug and reload back to the
+  // default (all-companies) scope instead of throwing an uncaught error.
+  if (
+    typeof window !== 'undefined' &&
+    (res.status === 404 || res.status === 403) &&
+    /account not found|company not found|no such company|unknown company/i.test(msg)
+  ) {
+    let hadSlug = false
+    try { hadSlug = !!localStorage.getItem(PROFILE_KEY); localStorage.removeItem(PROFILE_KEY) } catch { /* ignore */ }
+    if (hadSlug) { window.location.reload(); return }
+  }
   throw new Error(msg)
 }
 

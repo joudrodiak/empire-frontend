@@ -165,6 +165,10 @@ export function DockNav() {
               )}
             </div>
             <div className="my-1 h-px bg-empire-border/60" aria-hidden />
+            <Link href="/booklet" onClick={() => setUserOpen(false)}
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs text-empire-text-muted transition-colors hover:bg-empire-elevated/60 hover:text-empire-text">
+              <EmpireIcon name="book" size={15} /> {t('nav.booklet')}
+            </Link>
             {admin && (
               <Link href="/admin" onClick={() => setUserOpen(false)}
                 className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs text-empire-text-muted transition-colors hover:bg-empire-elevated/60 hover:text-empire-text">

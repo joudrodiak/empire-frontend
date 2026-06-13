@@ -164,6 +164,12 @@ function ApprovalRow({ approval, canDecide, canComment, channels, onChanged }: {
   const [err, setErr] = useState<string | null>(null)
   const pending = approval.status === 'pending'
   const escalations = Number((approval.metadata as Record<string, unknown> | null)?.escalations) || 0
+  // C13 — payroll runs surface here but are SIGNED in the Payroll panel by the
+  // HR + Finance units; they auto-resolve when both sides sign, so we show the
+  // signature progress and route the action there instead of a desyncing decide.
+  const meta = (approval.metadata as Record<string, unknown> | null) || {}
+  const isPayroll = meta.kind === 'payroll_run'
+  const signed = (meta.signed as Record<string, string> | undefined) || {}
 
   async function decide(status: 'approved' | 'rejected' | 'deferred') {
     setBusy(true); setErr(null)
@@ -209,6 +215,16 @@ function ApprovalRow({ approval, canDecide, canComment, channels, onChanged }: {
             <span>by {approval.requestedBy}</span>
             <span>{formatDistanceToNow(new Date(approval.createdAt), { addSuffix: true })}</span>
             {!pending && <span className={`uppercase tracking-widest ${statusTone}`}>{approval.status}</span>}
+            {isPayroll && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className={`inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[9px] uppercase tracking-widest ${signed.hr ? 'border-empire-green/30 bg-empire-green-bg text-empire-green-bright' : 'border-empire-border text-empire-text-muted'}`}>
+                  <EmpireIcon name={signed.hr ? 'check' : 'clock'} size={9} /> HR
+                </span>
+                <span className={`inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[9px] uppercase tracking-widest ${signed.finance ? 'border-empire-green/30 bg-empire-green-bg text-empire-green-bright' : 'border-empire-border text-empire-text-muted'}`}>
+                  <EmpireIcon name={signed.finance ? 'check' : 'clock'} size={9} /> Finance
+                </span>
+              </span>
+            )}
           </div>
           {approval.description && <p className="mt-2 text-xs leading-relaxed text-empire-text-muted">{approval.description}</p>}
           {approval.joudDecision && (
@@ -222,7 +238,16 @@ function ApprovalRow({ approval, canDecide, canComment, channels, onChanged }: {
         </button>
       </div>
 
-      {pending && canDecide && (
+      {pending && isPayroll && (
+        <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-empire-border/60 bg-empire-elevated/30 px-3 py-2 text-xs text-empire-text-muted">
+          <span className="flex items-center gap-1.5"><EmpireIcon name="coins" size={13} /> Signed by the HR &amp; Finance units in the Payroll panel — resolves here automatically.</span>
+          <a href="/departments/hr?tab=hr" className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-empire-border px-2.5 py-1 text-empire-text-muted transition-colors hover:border-empire-gold/50 hover:text-empire-gold">
+            Payroll <EmpireIcon name="arrow-up" size={11} className="rotate-90" />
+          </a>
+        </div>
+      )}
+
+      {pending && !isPayroll && canDecide && (
         <div className="mt-3 space-y-2">
           <input
             value={note}

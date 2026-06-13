@@ -6,6 +6,7 @@ import { AuthProvider } from '@/lib/auth'
 import { I18nProvider } from '@/lib/i18n'
 import { AuthGate } from '@/components/templates/AuthGate'
 import { ReleaseNotesModal } from '@/components/templates/ReleaseNotesModal'
+import { EmpireCursor } from '@/components/atoms/EmpireCursor'
 
 export const metadata: Metadata = {
   title: 'Empire',
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="pb-28">{children}</div>
               <DockNav />
               <ReleaseNotesModal />
+              <EmpireCursor />
             </AuthGate>
           </AuthProvider>
         </I18nProvider>

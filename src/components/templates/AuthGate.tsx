@@ -28,6 +28,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <div className="grid min-h-screen place-items-center bg-empire-void">
         <phantom-ui
+          // phantom-ui is a custom element that adds its own attributes
+          // (shimmer-direction, aria-busy, aria-label) on the client after it
+          // upgrades — those never exist in the SSR HTML, so React flags a
+          // hydration mismatch (backlog B4). suppressHydrationWarning tells React
+          // this node's attributes are owned by the web component, not the diff.
+          suppressHydrationWarning
           loading
           animation="shimmer"
           shimmer-color="rgba(244,212,119,0.55)"

@@ -257,7 +257,7 @@ function ServiceForm({ open, service, onClose, onSaved }: { open: boolean; servi
         {error && <p className="text-xs text-empire-text" role="alert">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} disabled={busy} className="rounded px-3 py-2 text-xs uppercase tracking-widest text-empire-text-muted hover:text-empire-text">Cancel</button>
-          <button onClick={save} disabled={busy || !String(f.name || '').trim()} className="rounded px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white disabled:opacity-50" style={{ background: ACCENT }}>{busy ? 'Saving…' : service ? 'Save' : 'Add service'}</button>
+          <button onClick={save} disabled={busy || !String(f.name || '').trim()} className="empire-btn-primary px-4 py-2 text-xs uppercase tracking-widest disabled:opacity-50">{busy ? 'Saving…' : service ? 'Save' : 'Add service'}</button>
         </div>
       </div>
     </Modal>
@@ -319,8 +319,7 @@ function Deploys() {
             disabled={busy || !form.serviceId || !form.version.trim()}
             onClick={submit}
             title={!form.serviceId ? 'Pick a service first' : !form.version.trim() ? 'Enter a version' : undefined}
-            className="px-3 py-1.5 rounded text-sm font-medium text-white disabled:opacity-40"
-            style={{ background: ACCENT }}
+            className="empire-btn-primary px-3 py-1.5 text-sm disabled:opacity-40"
           >{busy ? 'Logging…' : 'Deploy'}</button>
         </div>
         {(services || []).length === 0 && (
@@ -408,7 +407,7 @@ function Incidents() {
           <select className="bg-empire-bg-soft border border-empire-border rounded px-2 py-1.5 text-sm text-empire-text" value={form.cause} onChange={(e) => setForm({ ...form, cause: e.target.value })}>
             <option value="deploy">deploy</option><option value="infra">infra</option><option value="dependency">dependency</option><option value="human">human</option><option value="unknown">unknown</option>
           </select>
-          <button disabled={busy || !form.serviceId || !form.title.trim()} onClick={submit} title={!form.serviceId ? 'Pick a service first' : !form.title.trim() ? 'Describe what happened' : undefined} className="px-3 py-1.5 rounded text-sm font-medium text-white disabled:opacity-40" style={{ background: '#F4EFE3' }}>{busy ? 'Declaring…' : 'Declare'}</button>
+          <button disabled={busy || !form.serviceId || !form.title.trim()} onClick={submit} title={!form.serviceId ? 'Pick a service first' : !form.title.trim() ? 'Describe what happened' : undefined} className="empire-btn-primary px-3 py-1.5 text-sm disabled:opacity-40">{busy ? 'Declaring…' : 'Declare'}</button>
         </div>
         {(services || []).length === 0 && (
           <p className="mt-2 text-xs text-empire-text-muted">No services yet — add one in the Services tab before declaring an incident.</p>

@@ -23,11 +23,19 @@ function cleanNotes(input) {
   ]
   const text = String(input || '').trim()
   if (!text) return fallback
-  return text
+  // A2: keep release notes end-user friendly — drop developer-only lines and
+  // strip conventional-commit / merge noise so operators read plain language.
+  const dropLine = /^(merge|revert|bump|chore|ci|build|docs|refactor|test|style|wip)\b|co-authored-by|signed-off-by|^\* |[0-9a-f]{7,40}$/i
+  const cleaned = text
     .split(/\r?\n/)
     .map(line => line.replace(/^[-*#\s]+/, '').trim())
+    .map(line => line.replace(/^(feat|fix|perf|feature)(\([^)]*\))?:\s*/i, '')) // strip commit-type prefix
+    .map(line => line.replace(/\(#\d+\)\s*$/, '').trim()) // drop trailing PR refs
     .filter(Boolean)
+    .filter(line => !dropLine.test(line))
+    .map(line => line.charAt(0).toUpperCase() + line.slice(1)) // sentence-case
     .slice(0, 12)
+  return cleaned.length ? cleaned : fallback
 }
 
 const event = eventPayload()

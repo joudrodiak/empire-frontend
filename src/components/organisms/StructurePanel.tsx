@@ -154,20 +154,30 @@ function TreeNode({ person, childrenOf, onEdit, accent, depth, ancestors }: {
       <PersonCard person={person} accent={accent} onClick={() => onEdit(person)} />
       {kids.length > 0 && (
         <>
-          {/* vertical connector down from this node */}
+          {/* vertical connector down from this node into the children rail */}
           <div className="w-px h-5 bg-empire-border" />
-          <div className="relative flex items-start justify-center gap-6">
-            {/* horizontal rail across children */}
-            {kids.length > 1 && (
-              <div className="absolute top-0 left-0 right-0 h-px bg-empire-border"
-                   style={{ left: '10%', right: '10%' }} />
-            )}
-            {kids.map(k => (
-              <div key={k.id} className="flex flex-col items-center pt-0">
-                <div className="w-px h-5 bg-empire-border" />
-                <TreeNode person={k} childrenOf={childrenOf} onEdit={onEdit} accent={accent} depth={depth + 1} ancestors={nextAncestors} />
-              </div>
-            ))}
+          {/* B1 fix: the rail is built per-child (each draws its own top-border half)
+             so its ends ALWAYS terminate at the first/last child centres regardless
+             of differing subtree widths — no floating/disconnected lines. */}
+          <div className="flex items-start justify-center gap-6">
+            {kids.map((k, i) => {
+              const railClass = kids.length === 1
+                ? 'hidden'
+                : i === 0
+                  ? 'left-1/2 right-0'
+                  : i === kids.length - 1
+                    ? 'left-0 right-1/2'
+                    : 'left-0 right-0'
+              return (
+                <div key={k.id} className="relative flex flex-col items-center px-3 pt-5">
+                  {/* horizontal rail segment for this child */}
+                  <span aria-hidden className={`absolute top-0 h-px bg-empire-border ${railClass}`} />
+                  {/* vertical stem from the rail down to this child */}
+                  <span aria-hidden className="absolute top-0 left-1/2 h-5 w-px -translate-x-1/2 bg-empire-border" />
+                  <TreeNode person={k} childrenOf={childrenOf} onEdit={onEdit} accent={accent} depth={depth + 1} ancestors={nextAncestors} />
+                </div>
+              )
+            })}
           </div>
         </>
       )}

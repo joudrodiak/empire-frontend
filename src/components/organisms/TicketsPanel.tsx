@@ -956,7 +956,7 @@ function TicketForm({ departmentSlug, ticket, people, sprints, defaultSprintId, 
     reporterId: ticket?.reporterId ?? '',
     sprintId: ticket?.sprintId ?? defaultSprintId ?? '',
     dueDate: ticket?.dueDate ? ticket.dueDate.slice(0, 10) : '',
-    labels: ticket?.labels.join(', ') ?? '',
+    labels: ticket?.labels.join(' ') ?? '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -974,7 +974,8 @@ function TicketForm({ departmentSlug, ticket, people, sprints, defaultSprintId, 
       reporterId: f.reporterId || null,
       sprintId: f.sprintId || null,
       dueDate: f.dueDate || null,
-      labels: f.labels.split(',').map(s => s.trim()).filter(Boolean),
+      // A6: labels are tags — space-separated, never comma-joined.
+      labels: f.labels.split(/\s+/).map(s => s.trim()).filter(Boolean),
       departmentSlug,
     }
     try {
@@ -1038,7 +1039,7 @@ function TicketForm({ departmentSlug, ticket, people, sprints, defaultSprintId, 
             <DatePicker value={f.dueDate} onChange={e => setF({ ...f, dueDate: e.target.value })} className="empire-input w-full mt-1" />
           </div>
         </div>
-        <input placeholder="Labels (comma-separated)" value={f.labels} onChange={e => setF({ ...f, labels: e.target.value })} className="empire-input w-full" />
+        <input placeholder="Labels (space-separated tags)" value={f.labels} onChange={e => setF({ ...f, labels: e.target.value })} className="empire-input w-full" />
         <div className="flex gap-2 border-t border-empire-border pt-4">
           <button onClick={submit} disabled={saving || !f.title.trim()} className="empire-btn-primary disabled:opacity-50">
             {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create ticket'}

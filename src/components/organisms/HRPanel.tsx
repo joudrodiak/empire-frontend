@@ -10,6 +10,7 @@ import { useStickyTab } from '@/lib/use-sticky-tab'
 import { EmpireIcon } from '@/components/atoms/EmpireIcon'
 import { deptIcon } from '@/lib/dept-icons'
 import { AffixInput } from '@/components/molecules/AffixInput'
+import { donutPalette } from '@/lib/theme'
 import { DatePicker } from '@/components/molecules/DatePicker'
 
 type Page<T> = { data: T[]; page: number; pageSize: number; total: number; totalPages: number }
@@ -34,8 +35,6 @@ const LIFE_TYPE_COLOR: Record<string, string> = { onboarding: '#C9A233', offboar
 const LIFE_STATUS_COLOR: Record<string, string> = { planned: '#7A7468', in_progress: '#C9A233', completed: '#C9A233', cancelled: '#F4EFE3' }
 const LIFE_TYPES = ['onboarding', 'offboarding', 'promotion', 'transfer', 'performance'] as const
 const LIFE_STATUSES = ['planned', 'in_progress', 'completed', 'cancelled'] as const
-// Donut palette for the XP-by-source breakdown (gold-led, distinct hues).
-const SOURCE_COLORS = ['#C9A233', '#C9A233', '#C9A233', '#C9A233', '#C9A233', '#7A7468']
 const STATUS_COLOR: Record<string, string> = { open: '#C9A233', interviewing: '#C9A233', offer: '#C9A233', filled: '#C9A233', on_hold: '#7A7468' }
 const STAGE_COLOR: Record<string, string> = { applied: '#7A7468', screen: '#C9A233', onsite: '#C9A233', offer: '#C9A233', hired: '#C9A233', rejected: '#F4EFE3' }
 const TYPE_COLOR: Record<string, string> = { voluntary: '#C9A233', involuntary: '#F4EFE3', retirement: '#7A7468' }
@@ -639,7 +638,9 @@ function Points() {
   if (!s) return <EmptyState icon="medal" title="No points data" />
 
   const top = s.leaderboard.slice(0, 12)
-  const segments = s.xpBySource.filter(x => x.value > 0).map((x, i) => ({ label: x.label, value: x.value, color: SOURCE_COLORS[i % SOURCE_COLORS.length] }))
+  const xpSources = s.xpBySource.filter(x => x.value > 0)
+  const xpPalette = donutPalette(xpSources.length)
+  const segments = xpSources.map((x, i) => ({ label: x.label, value: x.value, color: xpPalette[i] }))
   const cols: Column<LeaderRow>[] = [
     { key: 'rank', label: '#', render: r => <span className="font-data text-empire-text-dim">{r.rank}</span> },
     { key: 'name', label: 'Person', render: r => <div><div className="font-medium text-empire-text">{r.name}</div><div className="text-empire-text-dim text-[11px]">{r.department?.name || r.role}</div></div> },
